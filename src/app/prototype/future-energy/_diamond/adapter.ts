@@ -15,6 +15,7 @@ import { personForRole } from "./org"
 import { agentFor, type MissionTheme } from "./agents"
 import { TODAY, PROJECT, type TenderPackage } from "../data/future-energy/_tenders"
 import { componentById } from "../data/future-energy/_documents"
+import { displayPackageQuantity } from "../data/future-energy/_demand-validation"
 import type { Locale } from "../_i18n/types"
 import { localizedClosedPackages, localizedTenderPackages } from "../_i18n/domain"
 import { createT, localeTag } from "../_i18n"
@@ -531,8 +532,15 @@ export interface DiamondData {
  * `stageOverrides` carries session progress (e.g. an ITT drafted in
  * Tender Studio advances its package to the approval gate).
  */
-export function buildDiamondMissions(stageOverrides?: Record<string, MissionStage>, locale: Locale = "en"): DiamondData {
-  const missions = localizedTenderPackages(locale).map(pkg => missionFromPackage(pkg, locale, stageOverrides?.[pkg.id]))
+export function buildDiamondMissions(
+  stageOverrides?: Record<string, MissionStage>,
+  locale: Locale = "en",
+  appliedQty?: Record<string, number>,
+): DiamondData {
+  const missions = localizedTenderPackages(locale).map(pkg => {
+    const quantity = displayPackageQuantity(pkg.id, pkg.quantity, appliedQty, locale)
+    return missionFromPackage({ ...pkg, quantity }, locale, stageOverrides?.[pkg.id])
+  })
 
   // Stable display order: furthest-progressed active work first, awarded last.
   missions.sort((a, b) => stageIndex(b.stage) - stageIndex(a.stage))

@@ -9,6 +9,7 @@ import { useT } from "../_i18n/use-t"
 import { localeTag, type Locale } from "../_i18n"
 import { formatEur, formatFixed } from "../_i18n/currency"
 import { localizedTenderPackages } from "../_i18n/domain"
+import { localizeQuantity } from "../_i18n/tender"
 import { enterMotion, listItemMotion, pcmCard } from "../_components/motion"
 import { formatCurrency, type MissionStage } from "../_diamond/stages"
 import { EVAL_PACKAGE_ID, bidsForPackage } from "../data/future-energy/_bids"
@@ -32,6 +33,14 @@ import { BidderNotifyModal } from "../_components/hub/bidder-notify-modal"
 import { personForRole } from "../_diamond/org"
 import { emailForPerson } from "../_components/hub/hub-types"
 import { ACTIVE_USER } from "../_components/hub/active-user"
+import {
+  awardValidationLines,
+  awardSubmissionBlocked,
+  controlReason,
+  displayPackageQuantity,
+  formatQty,
+  summarizePackage,
+} from "../data/future-energy/_demand-validation"
 import {
   awardGovernanceStatusFor,
   awardGovCopy,
@@ -312,7 +321,7 @@ function EmptyPackageState({ status, pkg }: { status: EvalStatus; pkg: TenderPac
 
 export function BidEvaluationPage() {
   const t = useT()
-  const { focusEvalPackageId, tenderStages, openBidEvaluation, locale, awardApprovals, submitAwardRecommendation } = useStore()
+  const { focusEvalPackageId, tenderStages, openBidEvaluation, locale, awardApprovals, submitAwardRecommendation, inventoryOverlays, appliedTenderQtyByPackage } = useStore()
   const rows = React.useMemo(() => buildPackageRows(tenderStages, locale), [tenderStages, locale])
 
   const defaultId =
@@ -355,10 +364,13 @@ export function BidEvaluationPage() {
   const govCopy = awardGovCopy(locale)
   const govStatus = pkg ? awardGovernanceStatusFor(pkg.stage, awardRecord) : null
   const awardUnlocked = govStatus === "approved_for_award" || govStatus === "awarded" || pkg?.stage === "outcome_roi"
+  const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
+  const awardBlocked = pkg ? awardSubmissionBlocked(pkg.id, inventoryOverlays) : false
 
   const recommendSelected = () => {
     if (!pkg || !selectedResult || selectedResult.gatingStatus === "Fail") return
     if (awardRecord && awardRecord.status !== "procurement_review") return
+    if (awardBlocked) return
     const approver = personForRole(pkg.sponsorRole, locale)
     const labels = gateLabels(locale)
     const snapshot = buildAwardSnapshot({
@@ -368,7 +380,10 @@ export function BidEvaluationPage() {
       projectName: PROJECT.name,
       ittRef,
       budgetUsd: pkg.budget,
-      evidence: pkg.evidence,
+      evidence: [
+        ...pkg.evidence,
+        ...(validationSummary ? awardValidationLines(validationSummary, locale) : []),
+      ],
       selected: selectedResult,
       allResults: results,
       gateLabel: (id) => labels[id as GateId] ?? id,
@@ -525,9 +540,24 @@ export function BidEvaluationPage() {
                   </div>
                 )}
                 <p className="mt-1 max-w-2xl text-[12px] text-[var(--color-text-secondary)]">
-                  {pkg.quantity} · {t("bidEval.budget")} {formatCurrency(pkg.budget, locale)} · {t("bidEval.closes")}{" "}
+                  {localizeQuantity(displayPackageQuantity(pkg.id, pkg.quantity, appliedTenderQtyByPackage, locale), locale)} · {t("bidEval.budget")} {formatCurrency(pkg.budget, locale)} · {t("bidEval.closes")}{" "}
                   {formatDateDMY(pkg.submissionDeadline)}
                 </p>
+                {validationSummary && (
+                  <div className={cn(
+                    "mt-2 rounded-[10px] border px-3 py-2 text-[12px] leading-relaxed",
+                    awardBlocked
+                      ? "border-amber-400/50 bg-amber-500/5 text-[var(--color-text-secondary)]"
+                      : "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]",
+                  )}>
+                    {t("tenderStudio.residualLine", {
+                      residual: formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
+                      requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
+                    })}{" "}
+                    {controlReason(validationSummary, locale)}
+                    {awardBlocked ? ` ${t("bidEval.awardBlocked")}` : ""}
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {weightChips.map((w) => (
@@ -562,7 +592,7 @@ export function BidEvaluationPage() {
                       <button
                         type="button"
                         onClick={recommendSelected}
-                        disabled={!selectedResult || selectedResult.gatingStatus === "Fail" || (awardRecord != null && awardRecord.status !== "procurement_review")}
+                        disabled={!selectedResult || selectedResult.gatingStatus === "Fail" || awardBlocked || (awardRecord != null && awardRecord.status !== "procurement_review")}
                         className="inline-flex shrink-0 items-center gap-1.5 rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90 disabled:opacity-50"
                       >
                         <SafeIcon name="BadgeCheck" className="size-3.5" />

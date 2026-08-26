@@ -32,6 +32,15 @@ import {
   type DocumentCategory,
 } from "../data/future-energy/_documents"
 import { TENDER_PACKAGES, PROJECT, TODAY, tenderById, type TenderPackage } from "../data/future-energy/_tenders"
+import {
+  canApplyResidualToTender,
+  controlReason,
+  displayPackageQuantity,
+  formatQty,
+  formatTenderQty,
+  ittIssueBlocked,
+  summarizePackage,
+} from "../data/future-energy/_demand-validation"
 import type {
   ScopeOutput,
   TechnicalOutput,
@@ -544,7 +553,7 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
 
 export function TenderStudioPage() {
   const t = useT()
-  const { locale, focusTenderId, openTenderStudio, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender } = useStore()
+  const { locale, focusTenderId, openTenderStudio, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender, inventoryOverlays, appliedTenderQtyByPackage, applyResidualToTender } = useStore()
 
   const [prompt, setPrompt] = React.useState("")
   const [phase, setPhase] = React.useState<Phase>("idle")
@@ -609,7 +618,10 @@ export function TenderStudioPage() {
         const s = COMPONENT_SPECS.find(c => c.id === t.componentId)
         if (s) {
           const localSpec = localizeComponentSpec(s, locale)
-          const localQuantity = localizeQuantity(t.quantity, locale)
+          const localQuantity = localizeQuantity(
+            displayPackageQuantity(t.id, t.quantity, appliedTenderQtyByPackage, locale),
+            locale,
+          )
           setPrompt(locale === "fr"
             ? `Rédiger l’AO pour ${localQuantity} de ${localSpec.name} (lot ${t.packageRef})`
             : `Draft the ITT for ${localQuantity} of ${localSpec.name} (package ${t.packageRef})`)
@@ -747,17 +759,21 @@ export function TenderStudioPage() {
   }, [locale, saveDraftedTender])
 
   const submitForApproval = React.useCallback(() => {
-    if (pkg) advanceTenderStage(pkg.id, "decide")
+    if (!pkg) return
+    if (ittIssueBlocked(pkg.id, inventoryOverlays)) return
+    advanceTenderStage(pkg.id, "decide")
     setSubmitted(true)
     if (itt) {
       const existing = draftedTenders.find(d => d.id === itt.ittRef)
       if (existing) saveDraftedTender({ ...existing, submitted: true })
     }
     setTimeout(() => setPage("operating-loop"), 900)
-  }, [pkg, advanceTenderStage, setPage, itt, draftedTenders, saveDraftedTender])
+  }, [pkg, advanceTenderStage, setPage, itt, draftedTenders, saveDraftedTender, inventoryOverlays])
 
   const isRunning = phase === "scoping" || phase === "specialists" || phase === "composing" || phase === "auditing"
   const heroMotion = enterMotion(0)
+  const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
+  const issueBlocked = pkg ? ittIssueBlocked(pkg.id, inventoryOverlays) : false
 
   return (
     <div className="space-y-6">
@@ -824,6 +840,47 @@ export function TenderStudioPage() {
               </div>
             )}
           </section>
+
+          {validationSummary && (
+            <section className={cn(
+              pcmCard,
+              "rounded-[16px] border p-4 space-y-2",
+              issueBlocked ? "border-amber-400/50 bg-amber-500/5" : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]",
+            )}>
+              <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("tenderStudio.inventoryCheck")}</h2>
+              <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                {t("tenderStudio.residualLine", {
+                  residual: formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
+                  requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
+                })}
+              </p>
+              <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                {controlReason(validationSummary, locale)}
+              </p>
+              {issueBlocked && (
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  {t("tenderStudio.draftAllowedBlocked")}
+                </p>
+              )}
+              {canApplyResidualToTender(validationSummary) && appliedTenderQtyByPackage[pkg!.id] !== validationSummary.residualProcurementQty ? (
+                <Button
+                  type="button"
+                  onClick={() => applyResidualToTender(pkg!.id, ACTIVE_USER.name)}
+                  className={cn(pcmButton, "w-full gap-1.5 rounded-[10px] bg-[var(--color-bg-inverse)] text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90")}
+                >
+                  <SafeIcon name="PenLine" className="h-3.5 w-3.5" />
+                  {t("tenderStudio.applyQty", { qty: formatTenderQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale) })}
+                </Button>
+              ) : appliedTenderQtyByPackage[pkg!.id] === validationSummary.residualProcurementQty ? (
+                <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                  {t("tenderStudio.proposedIs", {
+                    residual: formatTenderQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
+                    requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
+                  })}
+                </p>
+              ) : null}
+            </section>
+          )}
 
           {/* Drafted tender catalogue */}
           {draftedTenders.length > 0 && (
@@ -1109,7 +1166,8 @@ export function TenderStudioPage() {
                             <Button
                               type="button"
                               onClick={submitForApproval}
-                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90")}
+                              disabled={issueBlocked}
+                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90 disabled:opacity-50")}
                             >
                               <SafeIcon name="SendHorizontal" className="h-3.5 w-3.5" />
                               {t("tenderStudio.issue")}

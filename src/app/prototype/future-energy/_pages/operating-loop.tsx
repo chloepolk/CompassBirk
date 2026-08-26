@@ -34,6 +34,12 @@ import {
   awardGovCopy,
   formatAwardAuditLine,
 } from "@/lib/compass/award-governance"
+import { DemandValidationCard, ApplyResidualConfirm } from "../_components/hub/demand-validation-card"
+import {
+  allRequirementSummaries,
+  canApplyResidualToTender,
+  openValidationActions,
+} from "../data/future-energy/_demand-validation"
 
 const HORIZON_MAP: Record<HorizonKey, MissionHorizon> = {
   immediate: "shock",
@@ -114,6 +120,10 @@ export function OperatingLoopPage() {
     resubmitAwardApproval,
     confirmAward,
     confirmAwardNotes,
+    inventoryOverlays,
+    recordInventoryDisposition,
+    appliedTenderQtyByPackage,
+    applyResidualToTender,
   } = useStore()
   const flightPathSteps = translatedFlightPathSteps(t)
 
@@ -147,8 +157,19 @@ export function OperatingLoopPage() {
     setCompletingMissionId(id)
   }, [])
 
-  const { missions, closed } = React.useMemo(() => buildDiamondMissions(tenderStages, locale), [tenderStages, locale])
+  const { missions, closed } = React.useMemo(
+    () => buildDiamondMissions(tenderStages, locale, appliedTenderQtyByPackage),
+    [tenderStages, locale, appliedTenderQtyByPackage],
+  )
   const orderedMissions = React.useMemo(() => orderMissions(missions, missionPriority), [missions, missionPriority])
+  const validationActions = React.useMemo(
+    () => openValidationActions(inventoryOverlays),
+    [inventoryOverlays],
+  )
+  const residualConfirms = React.useMemo(
+    () => allRequirementSummaries(inventoryOverlays).filter(s => canApplyResidualToTender(s)),
+    [inventoryOverlays],
+  )
 
   const saveEdit = React.useCallback((missionId: string, oldValue: string, newValue: string) => {
     const mission = orderedMissions.find((m) => m.id === missionId)
@@ -260,10 +281,12 @@ export function OperatingLoopPage() {
   const showOpen = statusFilter === null || statusFilter === "open"
   const showCompleted = statusFilter === null || statusFilter === "completed"
   const showSections = statusFilter === null
+  const showValidation = showOpen && (validationActions.length > 0 || residualConfirms.length > 0)
 
   const totalVisible =
     (showOpen ? openMissions.length : 0) +
-    (showCompleted ? completedLiveMissions.length + closedCards.length : 0)
+    (showCompleted ? completedLiveMissions.length + closedCards.length : 0) +
+    (showValidation ? validationActions.length + residualConfirms.length : 0)
 
   const protectTotal = orderedMissions.filter((m) => m.valueType === "protection").reduce((s, m) => s + m.projectedValue, 0)
   const createTotal = orderedMissions.filter((m) => m.valueType === "creation").reduce((s, m) => s + m.projectedValue, 0)
@@ -527,6 +550,40 @@ export function OperatingLoopPage() {
           <EmptyState />
         ) : showSections ? (
           <div className="space-y-6">
+            {showValidation && (
+              <div className="space-y-3">
+                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                  {t("actionCentre.demandSection")}
+                </h3>
+                <p className="text-[12px] text-[var(--color-text-secondary)]">
+                  {t("actionCentre.demandIntro")}
+                </p>
+                {validationActions.map((action, i) => {
+                  const motion = listItemMotion(i)
+                  return (
+                    <div key={action.id} className={motion.className} style={motion.style}>
+                      <DemandValidationCard
+                        action={action}
+                        overlays={inventoryOverlays}
+                        onRecord={recordInventoryDisposition}
+                      />
+                    </div>
+                  )
+                })}
+                {residualConfirms.map((summary, i) => {
+                  const motion = listItemMotion(validationActions.length + i)
+                  return (
+                    <div key={`apply-${summary.requirement.id}`} className={motion.className} style={motion.style}>
+                      <ApplyResidualConfirm
+                        summary={summary}
+                        appliedQty={appliedTenderQtyByPackage[summary.requirement.packageId]}
+                        onApply={() => applyResidualToTender(summary.requirement.packageId, ACTIVE_USER.name)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             {showOpen && openMissions.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
@@ -547,6 +604,34 @@ export function OperatingLoopPage() {
           </div>
         ) : (
           <div className="space-y-3">
+            {showValidation && (
+              <>
+                {validationActions.map((action, i) => {
+                  const motion = listItemMotion(i)
+                  return (
+                    <div key={action.id} className={motion.className} style={motion.style}>
+                      <DemandValidationCard
+                        action={action}
+                        overlays={inventoryOverlays}
+                        onRecord={recordInventoryDisposition}
+                      />
+                    </div>
+                  )
+                })}
+                {residualConfirms.map((summary, i) => {
+                  const motion = listItemMotion(validationActions.length + i)
+                  return (
+                    <div key={`apply-${summary.requirement.id}`} className={motion.className} style={motion.style}>
+                      <ApplyResidualConfirm
+                        summary={summary}
+                        appliedQty={appliedTenderQtyByPackage[summary.requirement.packageId]}
+                        onApply={() => applyResidualToTender(summary.requirement.packageId, ACTIVE_USER.name)}
+                      />
+                    </div>
+                  )
+                })}
+              </>
+            )}
             {showOpen && openMissions.map((mission, i) => renderOpenMission(mission, i))}
             {showCompleted && (
               <>

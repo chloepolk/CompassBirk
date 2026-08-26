@@ -90,12 +90,77 @@ export const EMPLOYEES: Employee[] = [
     email: "v.cole@future-energy.com",
     department: "Project",
   },
+  {
+    id: "helen-voss",
+    name: "Lena Vogt",
+    role: "Cable Engineering Lead",
+    email: "l.vogt@future-energy.com",
+    department: "Project",
+  },
+  {
+    id: "owen-brennan",
+    name: "Ciaran Walsh",
+    role: "Structural QA Lead",
+    email: "c.walsh@future-energy.com",
+    department: "Quality",
+  },
+  {
+    id: "nadia-khatri",
+    name: "Samira Qureshi",
+    role: "Structural Engineering Lead",
+    email: "s.qureshi@future-energy.com",
+    department: "Project",
+  },
+  {
+    id: "lars-holm",
+    name: "Erik Nilsen",
+    role: "Cathodic Protection QA Lead",
+    email: "e.nilsen@future-energy.com",
+    department: "Quality",
+  },
+  {
+    id: "yasmin-okeke",
+    name: "Zainab Adeyemi",
+    role: "Cathodic Protection Engineer",
+    email: "z.adeyemi@future-energy.com",
+    department: "Project",
+  },
+  {
+    id: "mateo-ruiz",
+    name: "Diego Vargas",
+    role: "Subsea Quality Lead",
+    email: "d.vargas@future-energy.com",
+    department: "Quality",
+  },
+  {
+    id: "claire-penrose",
+    name: "Elise Moreau",
+    role: "Subsea Engineering Lead",
+    email: "e.moreau@future-energy.com",
+    department: "Project",
+  },
+  {
+    id: "henrik-dahl",
+    name: "Anders Berg",
+    role: "Skagen Package Manager",
+    email: "a.berg@future-energy.com",
+    department: "Supply Chain",
+  },
+  {
+    id: "catherine-ward",
+    name: "Judith Hale",
+    role: "NorthBank Project Director",
+    email: "j.hale@future-energy.com",
+    department: "Project",
+  },
 ]
 
 const ROLE_ALIASES: Record<string, string> = {
   "SCM Manager": "Senior Project SCM Manager",
   "Contracts Lead": "Senior Contracts Counsel",
   "Quality Lead": "Lead Quality Engineer",
+  "Marine Assurance Lead": "Vessel & Marine Assurance Lead",
+  "Procurement user": "Senior Project SCM Manager",
 }
 
 function normalizeRole(role: string): string {
@@ -130,6 +195,24 @@ const PRIMARY_REASONS: Record<string, string> = {
     "Owen tracks supplier milestones after award — expediting, shipping documentation and DDP delivery into the mobilisation port.",
   "Project Director":
     "Vanessa is the programme-level escalation point when a package threatens the installation schedule.",
+  "Cable Engineering Lead":
+    "Lena owns 66 kV electrical compatibility — conductor metal, termination and loss checks sit with cable engineering.",
+  "Structural QA Lead":
+    "Ciaran owns flange inspection close-out before a transition-piece match can be approved from inventory.",
+  "Structural Engineering Lead":
+    "Samira owns geometry and transfer decisions on spare structural items that are not an exact match.",
+  "Cathodic Protection QA Lead":
+    "Erik owns batch-release evidence for sacrificial anodes before they can be counted as usable.",
+  "Cathodic Protection Engineer":
+    "Zainab recalculates design life when anode mass differs from the specified 225 kg unit.",
+  "Subsea Quality Lead":
+    "Diego reviews certificates and preservation records on J-tube seals before inventory use is approved.",
+  "Subsea Engineering Lead":
+    "Elise confirms adaptor and centralizer fit when J-tube inside diameter differs from the specified 375 mm.",
+  "Skagen Package Manager":
+    "Anders decides whether Skagen-reserved lots can transfer to Meridian.",
+  "NorthBank Project Director":
+    "Judith owns NorthBank repair-contingency stock and must record whether a reserved lot can be released.",
 }
 
 const RELATED_ASSIGN: Record<string, { role: string; reason: string }> = {
