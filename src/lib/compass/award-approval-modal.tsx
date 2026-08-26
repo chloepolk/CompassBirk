@@ -497,6 +497,7 @@ function ReturnForRevisionForm({
         <DateInputDMY
           value={due}
           onChange={setDue}
+          locale={locale}
           className={INPUT_FIELD_CLS}
         />
       </div>

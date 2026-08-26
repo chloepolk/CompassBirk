@@ -90,12 +90,77 @@ export const EMPLOYEES: Employee[] = [
     email: "r.ashworth@seaway7.com",
     department: "Project",
   },
+  {
+    id: "helen-voss",
+    name: "Helen Voss",
+    role: "Cable Engineering Lead",
+    email: "h.voss@seaway7.com",
+    department: "Project",
+  },
+  {
+    id: "owen-brennan",
+    name: "Owen Brennan",
+    role: "Structural QA Lead",
+    email: "o.brennan@seaway7.com",
+    department: "Quality",
+  },
+  {
+    id: "nadia-khatri",
+    name: "Nadia Khatri",
+    role: "Structural Engineering Lead",
+    email: "n.khatri@seaway7.com",
+    department: "Project",
+  },
+  {
+    id: "lars-holm",
+    name: "Lars Holm",
+    role: "Cathodic Protection QA Lead",
+    email: "l.holm@seaway7.com",
+    department: "Quality",
+  },
+  {
+    id: "yasmin-okeke",
+    name: "Yasmin Okeke",
+    role: "Cathodic Protection Engineer",
+    email: "y.okeke@seaway7.com",
+    department: "Project",
+  },
+  {
+    id: "mateo-ruiz",
+    name: "Mateo Ruiz",
+    role: "Subsea Quality Lead",
+    email: "m.ruiz@seaway7.com",
+    department: "Quality",
+  },
+  {
+    id: "claire-penrose",
+    name: "Claire Penrose",
+    role: "Subsea Engineering Lead",
+    email: "c.penrose@seaway7.com",
+    department: "Project",
+  },
+  {
+    id: "henrik-dahl",
+    name: "Henrik Dahl",
+    role: "Skagen Package Manager",
+    email: "h.dahl@seaway7.com",
+    department: "Supply Chain",
+  },
+  {
+    id: "catherine-ward",
+    name: "Catherine Ward",
+    role: "NorthBank Project Director",
+    email: "c.ward@seaway7.com",
+    department: "Project",
+  },
 ]
 
 const ROLE_ALIASES: Record<string, string> = {
   "SCM Manager": "Senior Project SCM Manager",
   "Contracts Lead": "Senior Contracts Counsel",
   "Quality Lead": "Lead Quality Engineer",
+  "Marine Assurance Lead": "Vessel & Marine Assurance Lead",
+  "Procurement user": "Senior Project SCM Manager",
 }
 
 function normalizeRole(role: string): string {
@@ -130,6 +195,24 @@ const PRIMARY_REASONS: Record<string, string> = {
     "Derek tracks supplier milestones after award — expediting, shipping documentation and DDP delivery into the mobilisation port.",
   "Project Director":
     "Rachel is the programme-level escalation point when a package threatens the installation schedule.",
+  "Cable Engineering Lead":
+    "Helen owns 66 kV electrical compatibility — conductor metal, termination and loss checks sit with cable engineering.",
+  "Structural QA Lead":
+    "Owen owns flange inspection close-out before a transition-piece match can be approved from inventory.",
+  "Structural Engineering Lead":
+    "Nadia owns geometry and transfer decisions on spare structural items that are not an exact match.",
+  "Cathodic Protection QA Lead":
+    "Lars owns batch-release evidence for sacrificial anodes before they can be counted as usable.",
+  "Cathodic Protection Engineer":
+    "Yasmin recalculates design life when anode mass differs from the specified 225 kg unit.",
+  "Subsea Quality Lead":
+    "Mateo reviews certificates and preservation records on J-tube seals before inventory use is approved.",
+  "Subsea Engineering Lead":
+    "Claire confirms adaptor and centralizer fit when J-tube inside diameter differs from the specified 850 mm.",
+  "Skagen Package Manager":
+    "Henrik decides whether Skagen-reserved lots can transfer to Meridian.",
+  "NorthBank Project Director":
+    "Catherine owns NorthBank repair-contingency stock and must record whether a reserved lot can be released.",
 }
 
 const RELATED_ASSIGN: Record<string, { role: string; reason: string }> = {

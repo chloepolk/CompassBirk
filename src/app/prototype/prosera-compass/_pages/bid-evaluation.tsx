@@ -36,6 +36,14 @@ import {
   type AwardApprovalSnapshot,
 } from "@/lib/compass/award-governance"
 import { AwardGovernanceChip, AwardRecommendPanel, AwardNotificationToast } from "@/lib/compass/award-approval-modal"
+import {
+  awardSubmissionBlocked,
+  awardValidationLines,
+  controlReason,
+  displayPackageQuantity,
+  formatQty,
+  summarizePackage,
+} from "../data/seaway7/_demand-validation"
 
 type EvalStatus = "ready" | "awaiting_returns" | "not_issued" | "awarded"
 
@@ -299,7 +307,7 @@ function EmptyPackageState({ status, pkg }: { status: EvalStatus; pkg: TenderPac
 }
 
 export function BidEvaluationPage() {
-  const { focusEvalPackageId, tenderStages, openBidEvaluation, awardApprovals, submitAwardRecommendation } = useStore()
+  const { focusEvalPackageId, tenderStages, openBidEvaluation, awardApprovals, submitAwardRecommendation, inventoryOverlays, appliedTenderQtyByPackage } = useStore()
   const rows = React.useMemo(() => buildPackageRows(tenderStages), [tenderStages])
 
   const defaultId =
@@ -342,10 +350,13 @@ export function BidEvaluationPage() {
   const govCopy = awardGovCopy("en")
   const govStatus = pkg ? awardGovernanceStatusFor(pkg.stage, awardRecord) : null
   const awardUnlocked = govStatus === "approved_for_award" || govStatus === "awarded" || pkg?.stage === "outcome_roi"
+  const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
+  const awardBlocked = pkg ? awardSubmissionBlocked(pkg.id, inventoryOverlays) : false
 
   const recommendSelected = () => {
     if (!pkg || !selectedResult || selectedResult.gatingStatus === "Fail") return
     if (awardRecord && awardRecord.status !== "procurement_review") return
+    if (awardBlocked) return
     const approver = personForRole(pkg.sponsorRole)
     const snapshot = buildAwardSnapshot({
       packageId: pkg.id,
@@ -354,7 +365,10 @@ export function BidEvaluationPage() {
       projectName: PROJECT.name,
       ittRef,
       budgetUsd: pkg.budget,
-      evidence: pkg.evidence,
+      evidence: [
+        ...pkg.evidence,
+        ...(validationSummary ? awardValidationLines(validationSummary) : []),
+      ],
       selected: selectedResult,
       allResults: results,
       gateLabel: (id) => GATE_LABELS[id as GateId] ?? id,
@@ -512,9 +526,20 @@ export function BidEvaluationPage() {
                   </div>
                 )}
                 <p className="mt-1 max-w-2xl text-[12px] text-[var(--color-text-secondary)]">
-                  {pkg.quantity} · budget {formatCurrency(pkg.budget)} · closes{" "}
+                  {displayPackageQuantity(pkg.id, pkg.quantity, appliedTenderQtyByPackage)} · budget {formatCurrency(pkg.budget)} · closes{" "}
                   {pkg.submissionDeadline}
                 </p>
+                {validationSummary && (
+                  <div className={cn(
+                    "mt-2 rounded-[10px] border px-3 py-2 text-[12px] leading-relaxed",
+                    awardBlocked
+                      ? "border-amber-400/50 bg-amber-500/5 text-[var(--color-text-secondary)]"
+                      : "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]",
+                  )}>
+                    Residual procurement quantity: {formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom)} of {formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom)} requested. {controlReason(validationSummary)}
+                    {awardBlocked ? " Award recommendation is blocked until the inventory check is current and every plausible match has a recorded disposition." : ""}
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {weightChips.map((w) => (
@@ -549,7 +574,7 @@ export function BidEvaluationPage() {
                       <button
                         type="button"
                         onClick={recommendSelected}
-                        disabled={!selectedResult || selectedResult.gatingStatus === "Fail" || (awardRecord != null && awardRecord.status !== "procurement_review")}
+                        disabled={!selectedResult || selectedResult.gatingStatus === "Fail" || awardBlocked || (awardRecord != null && awardRecord.status !== "procurement_review")}
                         className="inline-flex shrink-0 items-center gap-1.5 rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90 disabled:opacity-50"
                       >
                         <SafeIcon name="BadgeCheck" className="size-3.5" />

@@ -14,6 +14,7 @@ import { personForRole } from "./org"
 import { agentFor, type MissionTheme } from "./agents"
 import { TENDER_PACKAGES, CLOSED_PACKAGES, TODAY, PROJECT, type TenderPackage } from "../data/seaway7/_tenders"
 import { componentById } from "../data/seaway7/_documents"
+import { displayPackageQuantity } from "../data/seaway7/_demand-validation"
 import { formatDateDMY } from "@/lib/compass/locale-display"
 
 /* ------------------------------------------------------------------ */
@@ -427,8 +428,14 @@ export interface DiamondData {
  * `stageOverrides` carries session progress (e.g. an ITT drafted in
  * Tender Studio advances its package to the approval gate).
  */
-export function buildDiamondMissions(stageOverrides?: Record<string, MissionStage>): DiamondData {
-  const missions = TENDER_PACKAGES.map(pkg => missionFromPackage(pkg, stageOverrides?.[pkg.id]))
+export function buildDiamondMissions(
+  stageOverrides?: Record<string, MissionStage>,
+  appliedQty?: Record<string, number>,
+): DiamondData {
+  const missions = TENDER_PACKAGES.map(pkg => {
+    const quantity = displayPackageQuantity(pkg.id, pkg.quantity, appliedQty)
+    return missionFromPackage({ ...pkg, quantity }, stageOverrides?.[pkg.id])
+  })
 
   // Stable display order: furthest-progressed active work first, awarded last.
   missions.sort((a, b) => stageIndex(b.stage) - stageIndex(a.stage))

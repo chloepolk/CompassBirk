@@ -24,6 +24,15 @@ import {
   type DocumentCategory,
 } from "../data/seaway7/_documents"
 import { TENDER_PACKAGES, PROJECT, TODAY, tenderById, type TenderPackage } from "../data/seaway7/_tenders"
+import {
+  canApplyResidualToTender,
+  controlReason,
+  displayPackageQuantity,
+  formatQty,
+  formatTenderQty,
+  ittIssueBlocked,
+  summarizePackage,
+} from "../data/seaway7/_demand-validation"
 import type {
   ScopeOutput,
   TechnicalOutput,
@@ -476,7 +485,7 @@ function DocumentRepository({ activeDocRefs }: { activeDocRefs: Set<string> }) {
 /* ------------------------------------------------------------------ */
 
 export function TenderStudioPage() {
-  const { focusTenderId, openTenderStudio, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender } = useStore()
+  const { focusTenderId, openTenderStudio, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender, inventoryOverlays, appliedTenderQtyByPackage, applyResidualToTender } = useStore()
 
   const [prompt, setPrompt] = React.useState("")
   const [phase, setPhase] = React.useState<Phase>("idle")
@@ -523,7 +532,10 @@ export function TenderStudioPage() {
         loadDraft(existing)
       } else {
         const s = COMPONENT_SPECS.find(c => c.id === t.componentId)
-        if (s) setPrompt(`Draft the ITT for ${t.quantity} of ${s.name} (package ${t.packageRef})`)
+        if (s) {
+          const qty = displayPackageQuantity(t.id, t.quantity, appliedTenderQtyByPackage)
+          setPrompt(`Draft the ITT for ${qty} of ${s.name} (package ${t.packageRef})`)
+        }
       }
     }
     openTenderStudio(null)
@@ -540,6 +552,19 @@ export function TenderStudioPage() {
     loadDraft(draftedTenders[0])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  React.useEffect(() => {
+    if (!pkg) return
+    const applied = appliedTenderQtyByPackage[pkg.id]
+    if (applied == null) return
+    const draft = draftedTenders.find(d => d.packageId === pkg.id)
+    if (draft && draft.quantity !== quantity) loadDraft(draft)
+    else if (!draft) {
+      const summary = summarizePackage(pkg.id, inventoryOverlays)
+      if (summary) setQuantity(formatTenderQty(applied, summary.requirement.uom))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedTenderQtyByPackage])
 
   const activeDocRefs = React.useMemo(() => {
     const refs = new Set<string>()
@@ -626,17 +651,21 @@ export function TenderStudioPage() {
   }, [saveDraftedTender])
 
   const submitForApproval = React.useCallback(() => {
-    if (pkg) advanceTenderStage(pkg.id, "decide")
+    if (!pkg) return
+    if (ittIssueBlocked(pkg.id, inventoryOverlays)) return
+    advanceTenderStage(pkg.id, "decide")
     setSubmitted(true)
     if (itt) {
       const existing = draftedTenders.find(d => d.id === itt.ittRef)
       if (existing) saveDraftedTender({ ...existing, submitted: true })
     }
     setTimeout(() => setPage("operating-loop"), 900)
-  }, [pkg, advanceTenderStage, setPage, itt, draftedTenders, saveDraftedTender])
+  }, [pkg, advanceTenderStage, setPage, itt, draftedTenders, saveDraftedTender, inventoryOverlays])
 
   const isRunning = phase === "scoping" || phase === "specialists" || phase === "composing" || phase === "auditing"
   const heroMotion = enterMotion(0)
+  const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
+  const issueBlocked = pkg ? ittIssueBlocked(pkg.id, inventoryOverlays) : false
 
   return (
     <div className="space-y-6">
@@ -703,6 +732,41 @@ export function TenderStudioPage() {
               </div>
             )}
           </section>
+
+          {validationSummary && (
+            <section className={cn(
+              pcmCard,
+              "rounded-[16px] border p-4 space-y-2",
+              issueBlocked ? "border-amber-400/50 bg-amber-500/5" : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]",
+            )}>
+              <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">Inventory check</h2>
+              <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                Residual procurement quantity: {formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom)} of {formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom)} requested.
+              </p>
+              <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                {controlReason(validationSummary)}
+              </p>
+              {issueBlocked && (
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  Drafting is allowed. Send for approval is blocked until every plausible match has a recorded disposition and the check is current.
+                </p>
+              )}
+              {canApplyResidualToTender(validationSummary) && appliedTenderQtyByPackage[pkg!.id] !== validationSummary.residualProcurementQty ? (
+                <Button
+                  type="button"
+                  onClick={() => applyResidualToTender(pkg!.id, ACTIVE_USER.name)}
+                  className={cn(pcmButton, "w-full gap-1.5 rounded-[10px] bg-[var(--color-bg-inverse)] text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90")}
+                >
+                  <SafeIcon name="PenLine" className="h-3.5 w-3.5" />
+                  Apply {formatTenderQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom)} to the ITT
+                </Button>
+              ) : appliedTenderQtyByPackage[pkg!.id] === validationSummary.residualProcurementQty ? (
+                <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+                  Proposed tender quantity is {formatTenderQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom)} (requested {formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom)}).
+                </p>
+              ) : null}
+            </section>
+          )}
 
           {/* Drafted tender catalogue */}
           {draftedTenders.length > 0 && (
@@ -987,7 +1051,8 @@ export function TenderStudioPage() {
                             <Button
                               type="button"
                               onClick={submitForApproval}
-                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90")}
+                              disabled={issueBlocked}
+                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90 disabled:opacity-50")}
                             >
                               <SafeIcon name="SendHorizontal" className="h-3.5 w-3.5" />
                               Send for approval

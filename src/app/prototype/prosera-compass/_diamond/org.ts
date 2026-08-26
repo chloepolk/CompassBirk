@@ -20,6 +20,15 @@ const PEOPLE: Record<string, OrgPerson> = {
   "Cost & Estimating Analyst": { name: "Sophie Nakamura", role: "Cost & Estimating Analyst" },
   "Expediting & Logistics Lead": { name: "Derek Boyle", role: "Expediting & Logistics Lead" },
   "Project Director": { name: "Rachel Ashworth", role: "Project Director" },
+  "Cable Engineering Lead": { name: "Helen Voss", role: "Cable Engineering Lead" },
+  "Structural QA Lead": { name: "Owen Brennan", role: "Structural QA Lead" },
+  "Structural Engineering Lead": { name: "Nadia Khatri", role: "Structural Engineering Lead" },
+  "Cathodic Protection QA Lead": { name: "Lars Holm", role: "Cathodic Protection QA Lead" },
+  "Cathodic Protection Engineer": { name: "Yasmin Okeke", role: "Cathodic Protection Engineer" },
+  "Subsea Quality Lead": { name: "Mateo Ruiz", role: "Subsea Quality Lead" },
+  "Subsea Engineering Lead": { name: "Claire Penrose", role: "Subsea Engineering Lead" },
+  "Skagen Package Manager": { name: "Henrik Dahl", role: "Skagen Package Manager" },
+  "NorthBank Project Director": { name: "Catherine Ward", role: "NorthBank Project Director" },
 }
 
 export function personForRole(role: string): OrgPerson {

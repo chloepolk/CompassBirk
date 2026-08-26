@@ -1,10 +1,24 @@
 "use client"
 
 import * as React from "react"
-import { computeAll, buildCustomerAggregates, type ComputedData, type CustomerAggregate, type RegionAggregate, type CityAggregate, type Job, type DataScope } from "./data/_transform"
-import type { QualitySummary } from "./data/_validate"
 import { generateFindings, type BPFinding } from "./data/_insights"
-import type { Region } from "./data/_regions"
+import type { MatchOverlayMap } from "./data/seaway7/_demand-validation"
+import {
+  overlayFromDisposition,
+  ittIssueBlocked,
+  awardSubmissionBlocked,
+  canApplyResidualToTender,
+  formatQty,
+  formatTenderQty,
+  summarizePackage,
+} from "./data/seaway7/_demand-validation"
+import {
+  CANDIDATE_MATCHES,
+  SEED_AUDIT_EVENTS,
+  type AuditEvent,
+  type Disposition,
+} from "./data/seaway7/_inventory"
+import { TENDER_PACKAGES } from "./data/seaway7/_tenders"
 import type {
   AgentPhase,
   SpecialistOutput,
@@ -15,9 +29,7 @@ import type {
   DrillState,
   AgentApiResponse,
 } from "./agents/_types"
-import type { SavedScenario } from "./_sandbox/types"
 import type { ScopeOutput, IttDocument, TenderAuditOutput } from "./agents/_tender-types"
-import type { AppSpec } from "./_modules/spec"
 import type { GateTaskStatus } from "./_diamond/types"
 import type { MissionStage } from "./_diamond/stages"
 import {
@@ -50,7 +62,7 @@ import { sanitizeOrchestratorOutput } from "@/lib/compass/data-grounded-language
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-export type Page = "commercial-center" | "customer-intel" | "pricing-intel" | "market-position" | "process-velocity" | "operating-loop" | "tender-studio" | "bid-evaluation"
+export type Page = "operating-loop" | "tender-studio" | "bid-evaluation"
 export type DrillLevel = "macro" | "region" | "city" | "customer" | "job"
 export type IntelRailSection = "findings" | "reasoning" | "context" | "ask"
 
@@ -86,7 +98,7 @@ export interface TaskAction {
 interface CockpitState {
   activePage: Page
   drillLevel: DrillLevel
-  selectedRegion: Region | null
+  selectedRegion: string | null
   selectedCity: string | null
   selectedCustomer: string | null
   selectedJobType: string | null
@@ -104,7 +116,7 @@ interface AgentState {
 export interface AcmeDemoStore {
   activePage: Page
   drillLevel: DrillLevel
-  selectedRegion: Region | null
+  selectedRegion: string | null
   selectedCity: string | null
   selectedCustomer: string | null
   selectedJobType: string | null
@@ -112,7 +124,7 @@ export interface AcmeDemoStore {
   intelRailSection: IntelRailSection
 
   setPage: (page: Page) => void
-  drillToRegion: (region: Region) => void
+  drillToRegion: (region: string) => void
   drillToCity: (city: string) => void
   drillToCustomer: (customer: string) => void
   drillToJob: (jobNumber: number) => void
@@ -121,17 +133,8 @@ export interface AcmeDemoStore {
   resetDrill: () => void
   setIntelRailSection: (section: IntelRailSection) => void
 
-  data: ComputedData
-  dataQuality: QualitySummary
-  dataScope: DataScope
   allFindings: BPFinding[]
   contextFindings: BPFinding[]
-  filteredCustomers: CustomerAggregate[]
-  filteredCityCustomers: CustomerAggregate[]
-  filteredRegion: RegionAggregate | null
-  filteredCity: CityAggregate | null
-  selectedCustomerData: CustomerAggregate | null
-  selectedJobData: Job | null
   breadcrumbs: { label: string; onClick?: () => void }[]
 
   authenticated: boolean
@@ -156,15 +159,8 @@ export interface AcmeDemoStore {
   sendChatMessage: (message: string) => void
   clearChat: () => void
 
-  sandboxOpen: boolean
-  setSandboxOpen: (open: boolean) => void
-  biOpen: boolean
-  setBiOpen: (open: boolean) => void
   intelPanelOpen: boolean
   setIntelPanelOpen: (open: boolean) => void
-  savedScenarios: SavedScenario[]
-  saveScenario: (scenario: SavedScenario) => void
-  deleteScenario: (id: string) => void
 
   /** Persisted manual ordering of Operating Loop missions (mission ids). */
   missionPriority: string[]
@@ -225,25 +221,18 @@ export interface AcmeDemoStore {
   postponeTask: (taskId: string, until: string, reason: string) => void
   sendTaskAlert: (taskId: string) => void
 
-  /** Modular "app boards" keyed by boardId (pricing, process-velocity, customer-intel…):
-   *  each persists tile order, hidden ids, and the pinned hero. The open tile is
-   *  session-only and global (one detail overlay at a time). */
-  boards: Record<string, { order: string[]; hidden: string[]; heroId: string | null }>
-  getBoard: (boardId: string) => { order: string[]; hidden: string[]; heroId: string | null }
-  setBoardOrder: (boardId: string, ids: string[]) => void
-  setModuleHidden: (boardId: string, id: string, hidden: boolean) => void
-  setBoardHero: (boardId: string, id: string | null) => void
-  openModuleId: string | null
-  openModule: (id: string) => void
-  closeModule: () => void
-
-  /** User-created, agent-composed pricing apps (persisted). */
-  customApps: AppSpec[]
-  saveCustomApp: (spec: AppSpec) => void
-  deleteCustomApp: (id: string) => void
-  /** Soft-deleted custom apps, recoverable from "Recently deleted". */
-  deletedCustomApps: AppSpec[]
-  restoreCustomApp: (id: string) => void
+  inventoryOverlays: MatchOverlayMap
+  inventoryAudit: AuditEvent[]
+  recordInventoryDisposition: (args: {
+    matchId: string
+    disposition: Disposition
+    approvedQty: number
+    reason: string
+    actor: string
+  }) => void
+  /** Residual procurement quantity written into the proposed ITT after user confirmation. */
+  appliedTenderQtyByPackage: Record<string, number>
+  applyResidualToTender: (packageId: string, actor: string) => void
 }
 
 /* ------------------------------------------------------------------ */
@@ -402,7 +391,6 @@ type PipelineOptions = {
 
 async function executeAgentPipeline(
   cockpitState: CockpitState,
-  data: ComputedData,
   { silent = false, signal, setAgentState }: PipelineOptions,
 ): Promise<void> {
   const cacheKey = makeCacheKey(cockpitState)
@@ -426,9 +414,9 @@ async function executeAgentPipeline(
 
     const specialistsNeeded = getSpecialistsForPage(cockpitState.activePage)
     const contextMap: Record<string, Record<string, unknown>> = {
-      portfolio: buildPortfolioContext(data, drill),
-      pricing: buildPricingContext(data, drill),
-      market: buildMarketContext(data, drill),
+      portfolio: buildPortfolioContext(drill),
+      pricing: buildPricingContext(drill),
+      market: buildMarketContext(drill),
     }
 
     const specialistPromises = specialistsNeeded.map(async (id) => {
@@ -467,7 +455,7 @@ async function executeAgentPipeline(
 
     update(s => ({ ...s, agentPhase: "orchestrating" }))
 
-    const orchestratorContext = buildOrchestratorContext(specialistOutputs, drill, getPageContext(cockpitState.activePage), data)
+    const orchestratorContext = buildOrchestratorContext(specialistOutputs, drill, getPageContext(cockpitState.activePage))
 
     const orchRes = await fetch("/api/acme/orchestrate", {
       method: "POST",
@@ -503,7 +491,7 @@ async function executeAgentPipeline(
     agentCache.set(cacheKey, { orchestrator: orchJson.data, verifier: null })
     storeBriefing(cacheKey, { orchestrator: orchJson.data, verifier: null })
 
-    const verifierContext = buildVerifierContext(orchJson.data, data, drill)
+    const verifierContext = buildVerifierContext(orchJson.data, drill)
 
     await fetch("/api/acme/verify", {
       method: "POST",
@@ -561,7 +549,6 @@ async function executeAgentPipeline(
 
 async function runPipelineWithDedup(
   cockpitState: CockpitState,
-  data: ComputedData,
   options: PipelineOptions,
 ): Promise<void> {
   const cacheKey = makeCacheKey(cockpitState)
@@ -573,7 +560,7 @@ async function runPipelineWithDedup(
     return
   }
 
-  const promise = executeAgentPipeline(cockpitState, data, options)
+  const promise = executeAgentPipeline(cockpitState, options)
   inFlightPipelines.set(cacheKey, promise)
   try {
     await promise
@@ -597,6 +584,43 @@ export function useStore(): AcmeDemoStore {
 /* ------------------------------------------------------------------ */
 /*  Provider                                                           */
 /* ------------------------------------------------------------------ */
+
+function rewriteTextQty(text: string, from: string[], to: string): string {
+  return from.reduce((acc, f) => {
+    if (!f || f === to) return acc
+    return acc.split(f).join(to)
+  }, text)
+}
+
+function rewriteIttQuantity(itt: IttDocument, from: string[], to: string): IttDocument {
+  const r = (s: string) => rewriteTextQty(s, from, to)
+  return {
+    ...itt,
+    projectSummary: itt.projectSummary.map(r),
+    technical: {
+      ...itt.technical,
+      scopeIntro: r(itt.technical.scopeIntro),
+      notes: itt.technical.notes.map(r),
+      parameters: itt.technical.parameters.map(p => ({ ...p, requirement: r(p.requirement) })),
+    },
+    pricing: {
+      intro: r(itt.pricing.intro),
+      items: itt.pricing.items.map((item, i) => ({
+        ...item,
+        description: r(item.description),
+        qty: i === 0 ? to : r(item.qty),
+      })),
+    },
+  }
+}
+
+function qtyAliases(requestedQty: number, uom: string, packageQty: string): string[] {
+  return Array.from(new Set([
+    packageQty,
+    formatTenderQty(requestedQty, uom),
+    formatQty(requestedQty, uom),
+  ]))
+}
 
 export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode }) {
 
@@ -623,8 +647,10 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const abortRef = React.useRef<AbortController | null>(null)
   const prefetchAbortRef = React.useRef<AbortController | null>(null)
 
-  const data = React.useMemo(() => computeAll(), [])
-  const allFindings = React.useMemo(() => generateFindings(data), [data])
+  const [inventoryOverlays, setInventoryOverlays] = React.useState<MatchOverlayMap>({})
+  const [inventoryAudit, setInventoryAudit] = React.useState<AuditEvent[]>(SEED_AUDIT_EVENTS)
+  const [appliedTenderQtyByPackage, setAppliedTenderQtyByPackage] = React.useState<Record<string, number>>({})
+  const allFindings = React.useMemo(() => generateFindings(inventoryOverlays), [inventoryOverlays])
 
   const actions = React.useMemo(() => ({
     setPage: (page: Page) =>
@@ -639,7 +665,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
         selectedJob: null,
       })),
 
-    drillToRegion: (region: Region) =>
+    drillToRegion: (region: string) =>
       setState(s => ({ ...s, drillLevel: "region" as DrillLevel, selectedRegion: region, selectedCity: null, selectedCustomer: null, selectedJob: null })),
 
     drillToCity: (city: string) =>
@@ -724,7 +750,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
         verifierResult: stored.verifier,
         agentError: null,
       })
-      await runPipelineWithDedup(cockpitState, data, {
+      await runPipelineWithDedup(cockpitState, {
         silent: true,
         signal: controller.signal,
       })
@@ -734,7 +760,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       return
     }
 
-    await runPipelineWithDedup(cockpitState, data, {
+    await runPipelineWithDedup(cockpitState, {
       silent: false,
       signal: controller.signal,
       setAgentState,
@@ -743,7 +769,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     if (!controller.signal.aborted) {
       applyCachedAgentState(cockpitState)
     }
-  }, [applyCachedAgentState, data])
+  }, [applyCachedAgentState])
 
   const prefetchAllAgentInsights = React.useCallback(async (currentState: CockpitState) => {
     if (prefetchAbortRef.current) prefetchAbortRef.current.abort()
@@ -757,12 +783,12 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       if (page === currentState.activePage && isMacroState(currentState)) continue
       if (agentCache.has(makeCacheKey(prefetchState))) continue
 
-      await runPipelineWithDedup(prefetchState, data, {
+      await runPipelineWithDedup(prefetchState, {
         silent: true,
         signal: controller.signal,
       })
     }
-  }, [data])
+  }, [])
 
   // Run pipeline for the active view after login and on navigation changes.
   React.useEffect(() => {
@@ -788,7 +814,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
 
   const derived = React.useMemo(() => {
     const contextFindings = allFindings.filter(f => {
-      if (f.page !== state.activePage) return false
+      const pageMatch = f.category === "inventory-validation" || f.page === state.activePage
+      if (!pageMatch) return false
       if (state.drillLevel === "macro") return f.drillLevel === "macro"
       if ((state.drillLevel === "region" || state.drillLevel === "city") && state.selectedRegion) {
         return f.drillLevel === "macro" || (f.drillLevel === "region" && f.regionScope === state.selectedRegion)
@@ -798,36 +825,6 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       }
       return true
     })
-
-    // Customer Score is customer-level (scope-independent), so drill subsets
-    // re-aggregated from job slices inherit the canonical score by name.
-    const scoreByName = new Map(data.customers.map(c => [c.customerName, c.customerScore]))
-    const withScore = (list: CustomerAggregate[]): CustomerAggregate[] =>
-      list.map(c => (c.customerScore ? c : { ...c, customerScore: scoreByName.get(c.customerName) }))
-
-    const filteredCustomers = state.selectedRegion
-      ? withScore(buildCustomerAggregates(data.jobs.filter(j => j.region === state.selectedRegion)))
-      : data.customers
-
-    const filteredCityCustomers = state.selectedCity
-      ? withScore(buildCustomerAggregates(data.jobs.filter(j => j.city === state.selectedCity)))
-      : []
-
-    const filteredRegion = state.selectedRegion
-      ? data.regions.find(r => r.region === state.selectedRegion) ?? null
-      : null
-
-    const filteredCity = (state.selectedCity && filteredRegion)
-      ? filteredRegion.cities.find(c => c.city === state.selectedCity) ?? null
-      : null
-
-    const selectedCustomerData = state.selectedCustomer
-      ? data.customers.find(c => c.customerName === state.selectedCustomer) ?? null
-      : null
-
-    const selectedJobData = state.selectedJob
-      ? data.jobs.find(j => j.jobNumber === state.selectedJob) ?? null
-      : null
 
     const breadcrumbs: { label: string; onClick?: () => void }[] = []
     if (state.selectedRegion) {
@@ -872,17 +869,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     const bpReasoning = orch?.reasoning ?? []
 
     return {
-      data,
-      dataQuality: data.dataQuality,
-      dataScope: data.dataScope,
       allFindings,
       contextFindings,
-      filteredCustomers,
-      filteredCityCustomers,
-      filteredRegion,
-      filteredCity,
-      selectedCustomerData,
-      selectedJobData,
       breadcrumbs,
       isThinking,
       isAgentLoading,
@@ -892,7 +880,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       bpFindings,
       bpReasoning,
     }
-  }, [state, data, allFindings, actions, agentState, authenticated])
+  }, [state, allFindings, actions, agentState, authenticated])
 
   /* ---------------------------------------------------------------- */
   /*  Chat State                                                       */
@@ -947,12 +935,12 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       selectedCustomer: state.selectedCustomer,
       selectedJobType: state.selectedJobType,
     }
-    const chatBriefing = buildChatBriefing(data)
+    const chatBriefing = buildChatBriefing()
     const dataContext = {
-      portfolio: buildPortfolioContext(data, drill),
-      pricing: buildPricingContext(data, drill),
-      market: buildMarketContext(data, drill),
-      orchestratorData: buildOrchestratorContext([], drill, getPageContext(state.activePage), data),
+      portfolio: buildPortfolioContext(drill),
+      pricing: buildPricingContext(drill),
+      market: buildMarketContext(drill),
+      orchestratorData: buildOrchestratorContext([], drill, getPageContext(state.activePage)),
       bidEvaluation: buildBidEvaluationContext(),
     }
 
@@ -1004,38 +992,13 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     } finally {
       setChatLoading(false)
     }
-  }, [chatLoading, chatMessages, state, data])
+  }, [chatLoading, chatMessages, state])
 
   /* ---------------------------------------------------------------- */
-  /*  Sandbox State                                                    */
+  /*  Panel + mission order                                            */
   /* ---------------------------------------------------------------- */
 
-  const [sandboxOpen, setSandboxOpen] = React.useState(false)
-  const [biOpen, setBiOpen] = React.useState(false)
   const [intelPanelOpen, setIntelPanelOpen] = React.useState(false)
-  const [savedScenarios, setSavedScenarios] = React.useState<SavedScenario[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const raw = localStorage.getItem("bp-sandbox-scenarios")
-      return raw ? JSON.parse(raw) : []
-    } catch { return [] }
-  })
-
-  const saveScenario = React.useCallback((scenario: SavedScenario) => {
-    setSavedScenarios(prev => {
-      const next = [scenario, ...prev.filter(s => s.id !== scenario.id)].slice(0, 5)
-      try { localStorage.setItem("bp-sandbox-scenarios", JSON.stringify(next)) } catch {}
-      return next
-    })
-  }, [])
-
-  const deleteScenario = React.useCallback((id: string) => {
-    setSavedScenarios(prev => {
-      const next = prev.filter(s => s.id !== id)
-      try { localStorage.setItem("bp-sandbox-scenarios", JSON.stringify(next)) } catch {}
-      return next
-    })
-  }, [])
 
   const [missionPriority, setMissionPriorityState] = React.useState<string[]>(() => {
     if (typeof window === "undefined") return []
@@ -1061,11 +1024,45 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const [focusEvalPackageId, setFocusEvalPackageId] = React.useState<string | null>(null)
   const [awardApprovals, setAwardApprovals] = React.useState<Record<string, AwardApprovalRecord>>({})
 
+  const inventoryOverlaysRef = React.useRef(inventoryOverlays)
+  inventoryOverlaysRef.current = inventoryOverlays
+
+  const recordInventoryDisposition = React.useCallback((args: {
+    matchId: string
+    disposition: Disposition
+    approvedQty: number
+    reason: string
+    actor: string
+  }) => {
+    const seed = CANDIDATE_MATCHES.find(m => m.id === args.matchId)
+    if (!seed) return
+    const overlay = overlayFromDisposition({
+      match: seed,
+      disposition: args.disposition,
+      approvedQty: args.approvedQty,
+      reason: args.reason,
+      actor: args.actor,
+    })
+    setInventoryOverlays(prev => ({ ...prev, [args.matchId]: overlay }))
+    const event: AuditEvent = {
+      id: `EVT-${Date.now().toString(36)}`,
+      requirementId: seed.requirementId,
+      eventType: `Disposition: ${args.disposition}`,
+      actor: args.actor,
+      timestamp: overlay.timestamp,
+      detail: args.reason,
+      source: args.matchId,
+    }
+    setInventoryAudit(prev => [...prev, event])
+  }, [])
+
   const advanceTenderStage = React.useCallback((packageId: string, stage: MissionStage) => {
+    if (stage === "decide" && ittIssueBlocked(packageId, inventoryOverlaysRef.current)) return
     setTenderStages(prev => ({ ...prev, [packageId]: stage }))
   }, [])
 
   const submitAwardRecommendation = React.useCallback((packageId: string, snapshot: AwardApprovalSnapshot, actor: AwardActor, noteToApprover = "") => {
+    if (awardSubmissionBlocked(packageId, inventoryOverlaysRef.current)) return
     setAwardApprovals(prev => ({
       ...prev,
       [packageId]: commitAwardRecommendation(prev[packageId], snapshot, actor, noteToApprover),
@@ -1202,130 +1199,44 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
   }, [])
 
-  /* ---------------------------------------------------------------- */
-  /*  Pricing Intel app board (persisted layout)                       */
-  /* ---------------------------------------------------------------- */
-
-  // Backward-compatible storage key: pricing keeps its original key so existing
-  // saved layouts survive; other boards use a per-board namespace.
-  const boardStorageKey = (boardId: string) => (boardId === "pricing" ? "bp-pricing-board" : `bp-board-${boardId}`)
-  const emptyBoard = () => ({ order: [] as string[], hidden: [] as string[], heroId: null as string | null })
-
-  const [boards, setBoards] = React.useState<Record<string, { order: string[]; hidden: string[]; heroId: string | null }>>(() => {
-    if (typeof window === "undefined") return {}
-    const result: Record<string, { order: string[]; hidden: string[]; heroId: string | null }> = {}
-    for (const boardId of ["pricing", "process-velocity", "customer-intel", "commercial-center"]) {
-      try {
-        const raw = localStorage.getItem(boardStorageKey(boardId))
-        const parsed = raw ? JSON.parse(raw) : null
-        if (parsed && Array.isArray(parsed.order)) {
-          result[boardId] = { order: parsed.order, hidden: parsed.hidden ?? [], heroId: parsed.heroId ?? null }
+  const applyResidualToTender = React.useCallback((packageId: string, actor: string) => {
+    const summary = summarizePackage(packageId, inventoryOverlaysRef.current)
+    if (!summary || !canApplyResidualToTender(summary)) return
+    const residual = summary.residualProcurementQty
+    const req = summary.requirement
+    const pkg = TENDER_PACKAGES.find(p => p.id === packageId)
+    const nextQty = formatTenderQty(residual, req.uom)
+    const from = qtyAliases(req.requestedQty, req.uom, pkg?.quantity ?? "")
+    setAppliedTenderQtyByPackage(prev => ({ ...prev, [packageId]: residual }))
+    setDraftedTenders(prev => {
+      const next = prev.map(d => {
+        if (d.packageId !== packageId) return d
+        return {
+          ...d,
+          quantity: nextQty,
+          prompt: rewriteTextQty(d.prompt, from, nextQty),
+          scope: {
+            ...d.scope,
+            objective: rewriteTextQty(d.scope.objective, from, nextQty),
+            projectSummary: d.scope.projectSummary.map(s => rewriteTextQty(s, from, nextQty)),
+            considerations: d.scope.considerations.map(s => rewriteTextQty(s, from, nextQty)),
+          },
+          itt: rewriteIttQuantity(d.itt, from, nextQty),
         }
-      } catch {}
+      })
+      try { localStorage.setItem("s7-drafted-tenders", JSON.stringify(next)) } catch {}
+      return next
+    })
+    const event: AuditEvent = {
+      id: `EVT-${Date.now().toString(36)}`,
+      requirementId: req.id,
+      eventType: "Proposed tender quantity confirmed",
+      actor,
+      timestamp: new Date().toISOString(),
+      detail: `Wrote residual procurement quantity ${nextQty} into the proposed ITT (requested ${formatTenderQty(req.requestedQty, req.uom)}).`,
+      source: packageId,
     }
-    return result
-  })
-  const [openModuleId, setOpenModuleId] = React.useState<string | null>(null)
-
-  const getBoard = React.useCallback(
-    (boardId: string) => boards[boardId] ?? emptyBoard(),
-    [boards],
-  )
-
-  const persistBoard = (boardId: string, next: { order: string[]; hidden: string[]; heroId: string | null }) => {
-    try { localStorage.setItem(boardStorageKey(boardId), JSON.stringify(next)) } catch {}
-  }
-
-  const setBoardOrder = React.useCallback((boardId: string, ids: string[]) => {
-    setBoards(prev => {
-      const cur = prev[boardId] ?? emptyBoard()
-      const next = { ...cur, order: ids }
-      persistBoard(boardId, next)
-      return { ...prev, [boardId]: next }
-    })
-  }, [])
-
-  const setModuleHidden = React.useCallback((boardId: string, id: string, hidden: boolean) => {
-    setBoards(prev => {
-      const cur = prev[boardId] ?? emptyBoard()
-      const set = new Set(cur.hidden)
-      if (hidden) set.add(id); else set.delete(id)
-      const next = { ...cur, hidden: [...set] }
-      persistBoard(boardId, next)
-      return { ...prev, [boardId]: next }
-    })
-  }, [])
-
-  const setBoardHero = React.useCallback((boardId: string, id: string | null) => {
-    setBoards(prev => {
-      const cur = prev[boardId] ?? emptyBoard()
-      const next = { ...cur, heroId: id }
-      persistBoard(boardId, next)
-      return { ...prev, [boardId]: next }
-    })
-  }, [])
-
-  const openModule = React.useCallback((id: string) => setOpenModuleId(id), [])
-  const closeModule = React.useCallback(() => setOpenModuleId(null), [])
-
-  /* ---------------------------------------------------------------- */
-  /*  Custom (agent-composed) pricing apps                             */
-  /* ---------------------------------------------------------------- */
-
-  const [customApps, setCustomApps] = React.useState<AppSpec[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const raw = localStorage.getItem("bp-custom-apps")
-      return raw ? JSON.parse(raw) : []
-    } catch { return [] }
-  })
-
-  const [deletedCustomApps, setDeletedCustomApps] = React.useState<AppSpec[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const raw = localStorage.getItem("bp-custom-apps-trash")
-      return raw ? JSON.parse(raw) : []
-    } catch { return [] }
-  })
-
-  const saveCustomApp = React.useCallback((spec: AppSpec) => {
-    setCustomApps(prev => {
-      const next = [spec, ...prev.filter(s => s.id !== spec.id)].slice(0, 12)
-      try { localStorage.setItem("bp-custom-apps", JSON.stringify(next)) } catch {}
-      return next
-    })
-  }, [])
-
-  const deleteCustomApp = React.useCallback((id: string) => {
-    setCustomApps(prev => {
-      const removed = prev.find(s => s.id === id)
-      const next = prev.filter(s => s.id !== id)
-      try { localStorage.setItem("bp-custom-apps", JSON.stringify(next)) } catch {}
-      if (removed) {
-        setDeletedCustomApps(trash => {
-          const nextTrash = [removed, ...trash.filter(s => s.id !== id)].slice(0, 12)
-          try { localStorage.setItem("bp-custom-apps-trash", JSON.stringify(nextTrash)) } catch {}
-          return nextTrash
-        })
-      }
-      return next
-    })
-  }, [])
-
-  const restoreCustomApp = React.useCallback((id: string) => {
-    setDeletedCustomApps(trash => {
-      const restored = trash.find(s => s.id === id)
-      const nextTrash = trash.filter(s => s.id !== id)
-      try { localStorage.setItem("bp-custom-apps-trash", JSON.stringify(nextTrash)) } catch {}
-      if (restored) {
-        setCustomApps(prev => {
-          const next = [restored, ...prev.filter(s => s.id !== id)].slice(0, 12)
-          try { localStorage.setItem("bp-custom-apps", JSON.stringify(next)) } catch {}
-          return next
-        })
-      }
-      return nextTrash
-    })
+    setInventoryAudit(prev => [...prev, event])
   }, [])
 
   /* ---------------------------------------------------------------- */
@@ -1373,15 +1284,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       chatLoading,
       sendChatMessage,
       clearChat,
-      sandboxOpen,
-      setSandboxOpen,
-      biOpen,
-      setBiOpen,
       intelPanelOpen,
       setIntelPanelOpen,
-      savedScenarios,
-      saveScenario,
-      deleteScenario,
       missionPriority,
       setMissionPriority,
       focusMissionId,
@@ -1409,21 +1313,13 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       overrideTask,
       postponeTask,
       sendTaskAlert,
-      boards,
-      getBoard,
-      setBoardOrder,
-      setModuleHidden,
-      setBoardHero,
-      openModuleId,
-      openModule,
-      closeModule,
-      customApps,
-      saveCustomApp,
-      deleteCustomApp,
-      deletedCustomApps,
-      restoreCustomApp,
+      inventoryOverlays,
+      inventoryAudit,
+      recordInventoryDisposition,
+      appliedTenderQtyByPackage,
+      applyResidualToTender,
     }),
-    [state, actions, derived, authenticated, login, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, sandboxOpen, biOpen, intelPanelOpen, savedScenarios, saveScenario, deleteScenario, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, boards, getBoard, setBoardOrder, setModuleHidden, setBoardHero, openModuleId, openModule, closeModule, customApps, saveCustomApp, deleteCustomApp, deletedCustomApps, restoreCustomApp]
+    [state, actions, derived, authenticated, login, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
   )
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
