@@ -50,8 +50,7 @@ function procurementFindings(): BPFinding[] {
         "Four bid PDFs received against ITT-MER-SCM-2101.",
         "PKG-2105 (J-tube seals) is sequenced behind the cable award for OD confirmation.",
       ],
-      recommendation: "Run Bid Evaluation on PKG-2101 and include the inventory-validation summary in the award recommendation.",
-      page: "operating-loop",
+recommendation: "Run Bid Evaluation on PKG-2101 and include the inventory-validation summary in the award recommendation.",      page: "operating-loop",
       drillLevel: "macro",
     },
     {

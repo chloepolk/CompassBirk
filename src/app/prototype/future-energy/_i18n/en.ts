@@ -28,7 +28,7 @@ const en = {
   },
   nav: {
     actionCentre: "Action Centre",
-    tenderStudio: "Tender Studio",
+    tenderStudio: "Tender Management",
     bidEvaluation: "Bid Evaluation",
     intelligencePanel: "Intelligence Panel",
     closeIntelPanel: "Close intelligence panel",
@@ -404,7 +404,7 @@ const en = {
       "Award recommendation is blocked until the inventory check is current and every plausible match has a recorded disposition.",
   },
   tenderStudio: {
-    title: "Tender Studio",
+    title: "Tender Management",
     subtitle: "Draft ITTs from controlled documents",
     draftTender: "Draft a tender",
     placeholder: "Describe the package to tender…",

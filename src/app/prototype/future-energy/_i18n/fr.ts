@@ -26,7 +26,7 @@ const fr: EnMessages = {
   },
   nav: {
     actionCentre: "Centre d'actions",
-    tenderStudio: "Studio d'appels d'offres",
+    tenderStudio: "Gestion des appels d'offres",
     bidEvaluation: "Évaluation des offres",
     intelligencePanel: "Panneau d'intelligence",
     closeIntelPanel: "Fermer le panneau d'intelligence",
@@ -403,7 +403,7 @@ const fr: EnMessages = {
       "La recommandation d’attribution est bloquée tant que le contrôle d’inventaire n’est pas à jour et que chaque correspondance plausible n’a pas de disposition enregistrée.",
   },
   tenderStudio: {
-    title: "Studio d'appels d'offres",
+    title: "Gestion des appels d'offres",
     subtitle: "Rédiger des AO à partir des documents contrôlés",
     draftTender: "Rédiger un appel d’offres",
     placeholder: "Décrivez le lot à mettre en appel d'offres…",
