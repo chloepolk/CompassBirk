@@ -763,6 +763,7 @@ export function BidEvaluationPage() {
         <AwardRecommendPanel
           snapshot={recommendSnapshot}
           locale={locale}
+          tenant="future-energy"
           onClose={() => setRecommendSnapshot(null)}
           onSubmit={(note) => {
             if (!pkg) return

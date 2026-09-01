@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const { context, drillState, locale, tenant } = await req.json()
     const SPECIALIST_SCHEMA = tenant === "future-energy" ? SPECIALIST_SCHEMA_FE : SPECIALIST_SCHEMA_COMPASS
     const PRICING_SPECIALIST_PROMPT = tenant === "future-energy" ? PRICING_FE : PRICING_COMPASS
-    const language = `${outputLanguageInstruction(locale)}\n\n`
+    const language = `${outputLanguageInstruction(locale, { tenant })}\n\n`
 
     const response = await callWithFallback({
       model: MODELS.openai,

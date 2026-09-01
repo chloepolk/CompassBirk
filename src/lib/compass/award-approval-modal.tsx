@@ -57,6 +57,7 @@ function useAwardNoteImpact(
   snapshot: AwardApprovalSnapshot | null | undefined,
   notes: string,
   locale: DisplayLocale,
+  tenant?: string,
 ): AwardNoteImpact | null {
   const local = React.useMemo(
     () => (snapshot ? computeAwardNoteImpact(snapshot, notes, locale) : null),
@@ -72,7 +73,7 @@ function useAwardNoteImpact(
       fetch("/api/acme/award-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshot, notes, locale }),
+        body: JSON.stringify({ snapshot, notes, locale, tenant }),
       })
         .then((r) => r.json())
         .then((j) => {
@@ -81,7 +82,7 @@ function useAwardNoteImpact(
         .catch(() => {})
     }, 450)
     return () => window.clearTimeout(t)
-  }, [snapshot, notes, locale])
+  }, [snapshot, notes, locale, tenant])
   return remote ?? local
 }
 
@@ -356,11 +357,13 @@ function AttachmentEditor({
 export function AwardRecommendPanel({
   snapshot,
   locale = "en",
+  tenant,
   onClose,
   onSubmit,
 }: {
   snapshot: AwardApprovalSnapshot
   locale?: DisplayLocale
+  tenant?: string
   onClose: () => void
   onSubmit: (noteToApprover: string) => void
 }) {
@@ -569,10 +572,12 @@ function ResubmitComparison({
 function RevisionCard({
   record,
   locale,
+  tenant,
   onResubmit,
 }: {
   record: AwardApprovalRecord
   locale: DisplayLocale
+  tenant?: string
   onResubmit: (args: {
     snapshot: AwardApprovalSnapshot
     actionTaken: string
@@ -593,7 +598,7 @@ function RevisionCard({
   )
   const [confirming, setConfirming] = React.useState(false)
   const noteText = [actionTaken, explanation].filter(Boolean).join("\n")
-  const impact = useAwardNoteImpact(original, noteText, locale)
+  const impact = useAwardNoteImpact(original, noteText, locale, tenant)
 
   if (!snapshot || !original) return null
   const rows = eligibleSupplierRows(snapshot)
@@ -744,6 +749,7 @@ function RevisionCard({
 export function AwardGovernanceCardBlock({
   record,
   locale = "en",
+  tenant,
   onApprove,
   onRequestClarification,
   onReturnForRevision,
@@ -754,6 +760,7 @@ export function AwardGovernanceCardBlock({
 }: {
   record: AwardApprovalRecord
   locale?: DisplayLocale
+  tenant?: string
   onApprove: (comments: string) => void
   onRequestClarification: (question: string) => void
   onReturnForRevision: (args: {
@@ -788,7 +795,7 @@ export function AwardGovernanceCardBlock({
   const [response, setResponse] = React.useState("")
   const [attachments, setAttachments] = React.useState<AwardSupportingDocument[]>([])
   const [sources, setSources] = React.useState<string[]>([])
-  const clarificationImpact = useAwardNoteImpact(original, response, locale)
+  const clarificationImpact = useAwardNoteImpact(original, response, locale, tenant)
   const viewerName = snapshot?.requiredApproverName ?? ""
   const mustConfirmNotes = needsNoteConfirmation(record, viewerName)
   const proposalChanged = Boolean(original && snapshot && !recommendationUnchanged(original, snapshot))
@@ -891,7 +898,7 @@ export function AwardGovernanceCardBlock({
   if (status === "revision_required" && record.revision) {
     return (
       <div className="mt-3">
-        <RevisionCard record={record} locale={locale} onResubmit={onResubmit} />
+        <RevisionCard record={record} locale={locale} tenant={tenant} onResubmit={onResubmit} />
       </div>
     )
   }

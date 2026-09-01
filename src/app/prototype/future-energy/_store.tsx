@@ -58,11 +58,9 @@ import {
   buildBidEvaluationContext,
 } from "./agents/_context"
 import { sanitizeOrchestratorOutput } from "@/lib/compass/data-grounded-language"
-import {
-  type Locale,
-  loadStoredLocale,
-  persistLocale,
-} from "./_i18n"
+import { type Locale } from "./_i18n"
+import { asFeLocale } from "@/lib/compass/product-locale"
+import { useAppLocale } from "@prosera/i18n/react"
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -666,20 +664,10 @@ function qtyAliases(requestedQty: number, uom: string, packageQty: string): stri
 
 export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode }) {
 
+  const { locale: appLocale, setLocale: setAppLocale } = useAppLocale()
+  const locale = asFeLocale(appLocale)
+
   const [authenticated, setAuthenticated] = React.useState(false)
-  const [locale, setLocaleState] = React.useState<Locale>("en")
-
-  React.useEffect(() => {
-    const stored = loadStoredLocale()
-    setLocaleState(stored)
-    persistLocale(stored)
-  }, [])
-
-  React.useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = locale === "fr" ? "fr-FR" : "en-GB"
-    }
-  }, [locale])
 
   const [state, setState] = React.useState<CockpitState>({
     activePage: "operating-loop",
@@ -958,9 +946,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
     setChatMessages([])
     setChatLoading(false)
-    setLocaleState(next)
-    persistLocale(next)
-  }, [])
+    setAppLocale(next)
+  }, [setAppLocale])
 
   const login = React.useCallback(() => {
     if (abortRef.current) abortRef.current.abort()

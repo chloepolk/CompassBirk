@@ -105,7 +105,7 @@ function ThemeToggle() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Language Toggle (EN / FR)                                          */
+/*  Language Toggle (EN / FR) — writes through @prosera/i18n          */
 /* ------------------------------------------------------------------ */
 
 function LanguageToggle() {

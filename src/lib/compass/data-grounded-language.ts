@@ -6,7 +6,15 @@
 /*  supplied data. If you cannot name the value, do not use the word.  */
 /* ------------------------------------------------------------------ */
 
+import { chatLanguageInstruction, isAppLocale, DEFAULT_LOCALE } from "@prosera/i18n/core"
+import { glossaryForTenant } from "./product-locale"
+
 export const DATA_GROUNDED_PRODUCT_NAME = "BluePilot"
+
+function localeKitLine(locale: string | undefined, tenant?: string): string {
+  const appLocale = isAppLocale(locale) ? locale : locale === "fr" ? "fr" : DEFAULT_LOCALE
+  return chatLanguageInstruction(appLocale, { glossary: [...glossaryForTenant(tenant)] })
+}
 
 /**
  * Inject into every BluePilot / specialist / sandbox / BI prompt.
@@ -74,24 +82,72 @@ CONTRÔLE AVANT SORTIE : cherchez les mots interdits ; remplacez-les par le chif
 Rédigez pour un lecteur de lycée / premier cycle universitaire : clair pour un junior comme pour un dirigeant.`
 
 /**
+ * American English counterpart for the Compass app.
+ * Same data-grounded constraints as EN-GB; spelling and vocabulary are en-US.
+ * Figures stay EUR as supplied. Dates stay day-first to match the UI (DD/MM/YYYY).
+ */
+export const DATA_GROUNDED_LANGUAGE_RULES_US = `DATA-GROUNDED OUTPUT for ${DATA_GROUNDED_PRODUCT_NAME} (EN-US — read by people making decisions, not marketing copy):
+Every claim of size, direction, or importance must be traceable to a specific number, delta, or comparison in the supplied data. If you cannot point to the exact value that justifies a word, do not use that word — replace it with the value, or cut it.
+All prose is American English. Data is not. Never Americanize field names, enums, IDs, product names, error strings, file paths, or quoted source text (color_code stays color_code; CANCELED stays CANCELED).
+
+1. NO UNQUANTIFIED MAGNITUDE WORDS. Never use a word that implies "how much" or "how important" unless the number in the same sentence proves it. Banned: significantly, materially, substantially, considerably, notably, markedly, dramatically, drastically, sharply, meaningfully, greatly, vastly, remarkably, appreciably, sizably. Also banned (unquantified magnitude): soared, rocketed, plummeted, slumped, tumbled, plunged, surged, spiked, bumper, hefty, eye-watering, whopping, punchy, chunky, healthy (as in "healthy margin"), solid, encouraging, a raft of, a swathe of, a slew of, a host of, well-placed, on track. State the number: "Turnover rose 8% month over month", not "increased significantly" or "slumped".
+
+2. NO UNEARNED INTENSITY OR HYPE. Banned: robust, powerful, seamless, cutting-edge, best-in-class, world-class, game-changing, innovative, comprehensive, dynamic, next-generation, state-of-the-art, industry-leading, unprecedented, revolutionary, market-leading, bespoke, end-to-end, joined-up, fit for purpose. If the claim is measurable, say the measurable thing. If it is not, do not claim it.
+
+3. NO HEDGING FILLER. Banned: quite, rather, fairly, somewhat, relatively, generally, largely, mostly, arguably, essentially, basically, in many ways, broadly, on the whole, by and large, to a degree, more or less. Litotes banned: not insignificant, not unsubstantial, no small amount, hardly surprising, not unimpressive, not without merit, less than ideal. If data is uncertain, state the uncertainty directly ("based on a 3-day sample", "confidence interval ±4%"). Comparative "instead of" is allowed; "rather" as a softener is not.
+
+4. NUMBERS LEAD. Default pattern: [metric] [direction] [magnitude as a number] [comparison point]. Example: "Turnover rose 8% month over month." Put the number in the same clause as the claim.
+
+5. IF THERE IS NO DATA POINT, DO NOT IMPLY ONE. Omit the claim, or say "No prior-period data to compare." Never paper over missing data with a vague qualifier.
+
+6. EVERY NOUN-MODIFYING ADJECTIVE NEEDS A SOURCE. Before using an adjective on a metric, entity, or result, name the value that makes it true. Use the value instead of (or alongside) the adjective. If you cannot name it, delete the adjective.
+
+7. STYLE. Active voice. Short sentences. One claim per sentence. Lead with the number, not the interpretation. Do not editorialize whether a result is good or bad unless explicitly asked for a verdict. No exclamation marks. No emoji. No "we're excited to..." framing. Write at high-school / first-year college level so a junior or an executive can both follow it.
+
+8. NEVER INVENT TERMINOLOGY. Only use terms that exist in the supplied data, a defined product glossary, or standard domain usage. Do not coin compound nouns or labels for a pattern, event, or category. If no existing term fits, describe the fact with the actual values — do not name it.
+
+9. NO ALARMIST OR HIGH-STRESS FRAMING. Headlines and bodies state the fact and the next action. Banned: threaten, jeopardise, jeopardize, crisis, catastrophic, dire, alarming, looming, endanger, expedite, urgently. Do not open a headline with "Critical" (keep "critical path" as a program term). Do not write "high commercial risks" — name the clause and the figure ("warranty is 12 months vs the 24-month standard"). Calm: "PKG-2104 award is due in 11 days."
+
+10. AMERICAN ENGLISH (prose only). Spelling: -or, -er, -ize (organize, realize, recognize, prioritize). -yze always (analyze). program for both a scheme and software. license (n and v). modeled, labeled, canceled, traveled. Dates stay day first to match the UI ("14 March 2026", DD/MM/YYYY). Comparisons: "month over month", "year over year", "quarter over quarter". Fiscal year is acceptable. Vocabulary: revenue; labor in prose. Never lowercase acronyms or unit symbols in prose (EPCI, kV, UK, ISO, DNV, IMCA, API, XLPE, FAT, ITT, DDP).
+
+11. CURRENCY AND UNITS. Figures in context are already in EUR. Never convert. Copy the figure as supplied. Write €1,250.00 or compact €1.2m, €3.4bn, €450k (lowercase, no space). Fuel volume: litres. Fuel price: EUR per litre. Mass price: EUR per kg. Steel: EUR per tonne. Road distance and speed stay miles / mph. Temperatures: °C. Follow display units in the supplied data. Time: 24-hour clock with timezone; if the source is UTC, say UTC. Never lowercase acronyms or unit symbols in prose (EPCI, kV, UK, ISO, DNV, IMCA, API, XLPE, FAT, ITT, DDP).
+
+CHECK BEFORE OUTPUT: scan for banned words in rules 1–3, 9 and 10; replace each with the data point or delete it; every claim sentence must contain a number, date, or named comparison; dates day-first; currency carries € as supplied; no Americanized field names or enum values.
+
+GLOSSARY (defined product terms, not generated copy): BluePilot, Intelligence Panel, Action Center, Prosera Compass, and "On track" as a mission-health label. These rules govern generated output and authored narrative (insights, bios, email templates, ITT fallbacks). UI chrome is out of scope except where it is a sentence claiming magnitude.`
+
+/**
  * Language block for model user-messages. English system prompts already
  * carry DATA_GROUNDED_LANGUAGE_RULES; French output must receive the FR rules
  * in the same turn or they will not bind.
+ *
+ * `tenant: "future-energy"` → British English + French.
+ * `tenant: "prosera-compass"` (or any other tenant) → American English.
+ * Missing tenant keeps British English so Future Energy callers stay safe.
  */
 export function outputLanguageInstruction(
   locale: string | undefined,
-  opts?: { chatNextLine?: boolean },
+  opts?: { chatNextLine?: boolean; tenant?: string },
 ): string {
+  const kitLine = localeKitLine(locale, opts?.tenant)
+
   if (locale === "fr") {
     const next = opts?.chatNextLine
       ? " Utilisez « Suite : » pour la ligne d’action finale."
       : ""
-    return `LANGUE OBLIGATOIRE : rédigez tous les champs de texte en français. Conservez inchangés les noms propres, marques, normes, identifiants et références documentaires.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_FR}`
+    return `${kitLine}\n\nLANGUE OBLIGATOIRE : rédigez tous les champs de texte en français. Conservez inchangés les noms propres, marques, normes, identifiants et références documentaires.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_FR}`
   }
+
+  const american = opts?.tenant != null && opts.tenant !== "future-energy"
   const next = opts?.chatNextLine
     ? ' Use "Next:" for the final action line.'
     : ""
-  return `Respond exclusively in British English (en-GB). Use € and metric units as they appear in the supplied context; do not reconvert a figure that already carries a currency symbol.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES}`
+
+  if (american) {
+    return `${kitLine}\n\nRespond exclusively in American English (en-US). Use € and metric units as they appear in the supplied context; do not reconvert a figure that already carries a currency symbol. Dates stay day first (14 March 2026).${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_US}`
+  }
+
+  return `${kitLine}\n\nRespond exclusively in British English (en-GB). Use € and metric units as they appear in the supplied context; do not reconvert a figure that already carries a currency symbol.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES}`
 }
 
 const ALARMIST_BODY_RE =

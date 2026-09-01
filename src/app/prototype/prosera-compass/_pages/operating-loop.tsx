@@ -404,6 +404,7 @@ export function OperatingLoopPage() {
               <AwardGovernanceCardBlock
                 record={awardRecord}
                 locale="en"
+                tenant="prosera-compass"
                 onApprove={(comments) => approveAward(mission.id, comments, approverActor)}
                 onRequestClarification={(question) => {
                   requestAwardClarification(mission.id, question, approverActor)

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -25,7 +25,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const jar = await cookies()
-  const lang = jar.get("fe-locale")?.value === "fr" ? "fr-FR" : "en-GB"
+  const pathname = (await headers()).get("x-pathname") ?? ""
+  const lang = pathname.startsWith("/prototype/prosera-compass")
+    ? "en-US"
+    : jar.get("fe-locale")?.value === "fr"
+      ? "fr-FR"
+      : "en-GB"
   return (
     <html lang={lang} suppressHydrationWarning>
       <body

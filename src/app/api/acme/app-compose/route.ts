@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       `\nEnabled features: ${JSON.stringify(features ?? {})}`,
       `\n${buildCatalogPromptContext()}`,
       `\nCompose the AppSpec JSON now. Output ONLY the JSON object.`,
-      `\n${outputLanguageInstruction(locale)} Write every user-visible title, label, narrative, recommendation, chart legend, table heading, tooltip and empty state in that language. Preserve IDs, selectors, source names, standards and brands.`,
+      `\n${outputLanguageInstruction(locale, { tenant })} Write every user-visible title, label, narrative, recommendation, chart legend, table heading, tooltip and empty state in that language. Preserve IDs, selectors, source names, standards and brands.`,
     ].join("\n")
 
     const response = await callWithRetry(

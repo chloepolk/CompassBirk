@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const CHAT_SYSTEM_PROMPT = tenant === "future-energy" ? CHAT_FE : CHAT_COMPASS
 
     const briefingBlock = chatBriefing ? `${chatBriefing}\n` : ""
-    const languageInstruction = outputLanguageInstruction(locale, { chatNextLine: true })
+    const languageInstruction = outputLanguageInstruction(locale, { chatNextLine: true, tenant })
     const contextMessage = `${languageInstruction}\n\n${briefingBlock}Current cockpit context:\n${JSON.stringify(dataContext, null, 1)}`
 
     const stream = await createChatStream(CHAT_SYSTEM_PROMPT, contextMessage, messages)

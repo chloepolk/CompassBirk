@@ -30,6 +30,9 @@ const pc = read(pcStudio)
 if (!ts.includes("Figures in context are already in EUR. Never convert.")) {
   fail("EN RULE 11 must say figures are already in EUR and never convert")
 }
+if (!ts.includes("Respond exclusively in American English (en-US).")) {
+  fail("US English instruction must exist for Compass")
+}
 if (!ts.includes("Les montants dans le contexte sont déjà en EUR. Ne convertissez jamais.")) {
   fail("FR RULE 11 must say amounts are already in EUR and never convert")
 }

@@ -19,6 +19,12 @@ function isPublicPath(pathname: string): boolean {
   return false
 }
 
+function nextWithPathname(request: NextRequest): NextResponse {
+  const headers = new Headers(request.headers)
+  headers.set("x-pathname", request.nextUrl.pathname)
+  return NextResponse.next({ request: { headers } })
+}
+
 function deny(request: NextRequest): NextResponse {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -47,15 +53,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (isPublicPath(pathname)) return NextResponse.next()
+  if (isPublicPath(pathname)) return nextWithPathname(request)
 
   const secret = getAccessSecret()
   // No secret configured → open for local demos. Set PROTOTYPE_ACCESS_SECRET to gate.
-  if (!secret) return NextResponse.next()
+  if (!secret) return nextWithPathname(request)
 
   const token = request.cookies.get(PROTOTYPE_ACCESS_COOKIE)?.value
   if (await verifyAccessCookie(secret, token)) {
-    return NextResponse.next()
+    return nextWithPathname(request)
   }
 
   return deny(request)

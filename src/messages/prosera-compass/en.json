@@ -1,0 +1,14 @@
+{
+  "language": {
+    "label": "Language"
+  },
+  "nav": {
+    "actionCenter": "Action Center",
+    "tenderStudio": "Tender Management",
+    "bidEvaluation": "Bid Evaluation",
+    "intelligencePanel": "Intelligence Panel"
+  },
+  "common": {
+    "toggleTheme": "Toggle theme"
+  }
+}

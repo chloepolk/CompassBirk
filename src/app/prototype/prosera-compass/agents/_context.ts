@@ -274,7 +274,7 @@ export function buildPortfolioContext(drill: DrillState): Record<string, unknown
     asOf: TODAY,
     view: drill.page,
     workspaceSurfaces: [
-      "Action Centre — live tender pipeline and savings ledger",
+      "Action Center — live tender pipeline and savings ledger",
       "Tender Management — ITT drafting from controlled documents",
       "Bid Evaluation — multi-ITT gated scoring of supplier returns",
     ],
@@ -420,7 +420,7 @@ export function buildChatBriefing(): string {
   return `PROGRAMME: ${PROJECT.name} — ${PROJECT.scope}. Mobilisation port: ${PROJECT.mobilisationPort}. As of ${TODAY}.
 
 WORKSPACE SURFACES:
-- Action Centre: live tender pipeline, 5-gate flight path, owners, deadlines, savings ledger.
+- Action Center: live tender pipeline, 5-gate flight path, owners, deadlines, savings ledger.
 - Tender Management: draft ITTs from controlled documents (specs, QA manual, T&Cs, charter) with multi-agent assemble/audit.
 - Bid Evaluation: multi-ITT portfolio of tabulated returns with hard gates + 100-point composite scoring (see BID EVALUATION below).
 
