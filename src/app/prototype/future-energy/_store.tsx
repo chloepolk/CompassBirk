@@ -11,6 +11,7 @@ import {
   formatQty,
   formatTenderQty,
   summarizePackage,
+  openValidationActionForPackage,
 } from "./data/future-energy/_demand-validation"
 import {
   CANDIDATE_MATCHES,
@@ -190,6 +191,15 @@ export interface AcmeDemoStore {
   /** Package to focus when Bid Evaluation opens (set by the board's Evaluate bids action). */
   focusEvalPackageId: string | null
   openBidEvaluation: (packageId: string | null) => void
+  /** Demand-validation action to expand when the Action Centre opens. */
+  focusDemandActionId: string | null
+  openDispositionOnFocus: boolean
+  consumeDispositionFocus: () => void
+  openActionCentre: (args?: {
+    packageId?: string | null
+    actionId?: string | null
+    openDisposition?: boolean
+  }) => void
 
   /** Session award-approval workflow, keyed by package / mission id. */
   awardApprovals: Record<string, AwardApprovalRecord>
@@ -1233,6 +1243,37 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     }))
   }, [])
 
+  const [focusDemandActionId, setFocusDemandActionId] = React.useState<string | null>(null)
+  const [openDispositionOnFocus, setOpenDispositionOnFocus] = React.useState(false)
+
+  const consumeDispositionFocus = React.useCallback(() => {
+    setOpenDispositionOnFocus(false)
+  }, [])
+
+  const openActionCentre = React.useCallback((args?: {
+    packageId?: string | null
+    actionId?: string | null
+    openDisposition?: boolean
+  }) => {
+    let actionId = args?.actionId ?? null
+    if (!actionId && args?.packageId) {
+      actionId = openValidationActionForPackage(args.packageId, inventoryOverlaysRef.current)?.id ?? null
+    }
+    setFocusDemandActionId(actionId)
+    if (args?.packageId) setFocusMission(args.packageId)
+    setOpenDispositionOnFocus(Boolean(args?.openDisposition && actionId))
+    setState(s => ({
+      ...s,
+      activePage: "operating-loop" as Page,
+      drillLevel: "macro" as DrillLevel,
+      selectedRegion: null,
+      selectedCity: null,
+      selectedCustomer: null,
+      selectedJobType: null,
+      selectedJob: null,
+    }))
+  }, [])
+
   /* ---------------------------------------------------------------- */
   /*  Drafted tender catalogue (persisted)                             */
   /* ---------------------------------------------------------------- */
@@ -1364,6 +1405,10 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       openTenderStudio,
       focusEvalPackageId,
       openBidEvaluation,
+      focusDemandActionId,
+      openDispositionOnFocus,
+      consumeDispositionFocus,
+      openActionCentre,
       awardApprovals,
       submitAwardRecommendation,
       approveAward,
@@ -1387,7 +1432,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       appliedTenderQtyByPackage,
       applyResidualToTender,
     }),
-    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
+    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
   )
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

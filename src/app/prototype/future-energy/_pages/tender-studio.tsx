@@ -25,6 +25,7 @@ import {
 } from "../_i18n/tender"
 import { enterMotion, listItemMotion, pcmButton, pcmCard } from "../_components/motion"
 import { ACTIVE_USER } from "../_components/hub/active-user"
+import { RecordDispositionModal } from "../_components/hub/record-disposition-modal"
 import {
   COMPONENT_SPECS,
   CHARTER,
@@ -39,6 +40,7 @@ import {
   formatQty,
   formatTenderQty,
   ittIssueBlocked,
+  openValidationActionForPackage,
   summarizePackage,
 } from "../data/future-energy/_demand-validation"
 import type {
@@ -553,7 +555,7 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
 
 export function TenderStudioPage() {
   const t = useT()
-  const { locale, focusTenderId, openTenderStudio, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender, inventoryOverlays, appliedTenderQtyByPackage, applyResidualToTender } = useStore()
+  const { locale, focusTenderId, openTenderStudio, openBidEvaluation, openActionCentre, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender, inventoryOverlays, appliedTenderQtyByPackage, applyResidualToTender, recordInventoryDisposition } = useStore()
 
   const [prompt, setPrompt] = React.useState("")
   const [phase, setPhase] = React.useState<Phase>("idle")
@@ -569,6 +571,7 @@ export function TenderStudioPage() {
   const [auditOpen, setAuditOpen] = React.useState(false)
   // Pipeline steps stay collapsed unless the user expands them (less is more).
   const [pipelineOpen, setPipelineOpen] = React.useState(false)
+  const [heldDispositionAction, setHeldDispositionAction] = React.useState<ReturnType<typeof openValidationActionForPackage>>(undefined)
   const runningRef = React.useRef(false)
 
   // Restore a catalogued draft into the working area without re-running the pipeline.
@@ -774,6 +777,7 @@ export function TenderStudioPage() {
   const heroMotion = enterMotion(0)
   const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
   const issueBlocked = pkg ? ittIssueBlocked(pkg.id, inventoryOverlays) : false
+  const openDemandAction = pkg ? openValidationActionForPackage(pkg.id, inventoryOverlays) : undefined
 
   return (
     <div className="space-y-6">
@@ -852,6 +856,7 @@ export function TenderStudioPage() {
                 {t("tenderStudio.residualLine", {
                   residual: formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
                   requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
+                  approved: formatQty(validationSummary.approvedInventoryQty, validationSummary.requirement.uom, locale),
                 })}
               </p>
               <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
@@ -862,6 +867,25 @@ export function TenderStudioPage() {
                   {t("tenderStudio.draftAllowedBlocked")}
                 </p>
               )}
+              <div className="flex flex-wrap gap-1.5">
+                {openDemandAction && (
+                  <Button
+                    type="button"
+                    onClick={() => setHeldDispositionAction(openDemandAction)}
+                    className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-bg-inverse)] text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90")}
+                  >
+                    {t("demand.recordDisposition")}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => openActionCentre({ packageId: pkg!.id, openDisposition: false })}
+                  className="h-auto rounded-[10px] border border-[var(--color-border-default)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)]"
+                >
+                  {t("demand.openActionCentre")}
+                </Button>
+              </div>
               {canApplyResidualToTender(validationSummary) && appliedTenderQtyByPackage[pkg!.id] !== validationSummary.residualProcurementQty ? (
                 <Button
                   type="button"
@@ -1333,6 +1357,21 @@ export function TenderStudioPage() {
           )}
         </div>
       </div>
+      {heldDispositionAction && (
+        <RecordDispositionModal
+          action={heldDispositionAction}
+          overlays={inventoryOverlays}
+          appliedQty={pkg ? appliedTenderQtyByPackage[pkg.id] : undefined}
+          onRecord={recordInventoryDisposition}
+          onApplyResidual={(packageId) => applyResidualToTender(packageId, ACTIVE_USER.name)}
+          onOpenTenderStudio={() => setHeldDispositionAction(undefined)}
+          onOpenBidEvaluation={(packageId) => {
+            setHeldDispositionAction(undefined)
+            openBidEvaluation(packageId)
+          }}
+          onClose={() => setHeldDispositionAction(undefined)}
+        />
+      )}
     </div>
   )
 }

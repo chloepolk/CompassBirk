@@ -204,10 +204,20 @@ const fr: EnMessages = {
     selectReason: "Sélectionnez un motif",
     approveFrom: "Approuver {qty} depuis {id}",
     residualPreview:
-      "La quantité d’achat résiduelle serait de {residual} sur {requested} demandée. La quantité d’AO proposée ne change qu’après une confirmation distincte.",
+      "Si elle est enregistrée, l’inventaire approuvé serait de {approved} et la quantité d’achat résiduelle de {residual} sur {requested} demandée. La quantité d’AO proposée ne change qu’après une confirmation distincte.",
     avoidanceIfApproved:
       "Opportunité d’évitement d’achat identifiée si cette quantité est approuvée\u00a0: {amount} (pas des économies réalisées).",
     recordDisposition: "Enregistrer la disposition",
+    pickDisposition: "Sélectionnez une disposition avant d’enregistrer.",
+    recorded: "Disposition enregistrée.",
+    nextSteps: "Étapes suivantes",
+    qtyBalance:
+      "Demandé {requested}. Inventaire approuvé {approved}. Quantité d’achat résiduelle {residual}.",
+    statusReview: "Revue requise",
+    openActionCentre: "Ouvrir dans le Centre d’actions",
+    openTenderStudio: "Ouvrir la gestion des appels d’offres",
+    openBidEvaluation: "Ouvrir l’évaluation des offres",
+    writeToItt: "Écrire {residual} dans l’AO proposé",
     proposedQty: "Quantité d’AO proposée · {ref}",
     proposedIs: "La quantité d’AO proposée est {residual} (demandé {requested}).",
     confirmWrite:
@@ -420,7 +430,7 @@ const fr: EnMessages = {
     issue: "Émettre l'AO",
     issued: "Émis",
     inventoryCheck: "Contrôle d’inventaire",
-    residualLine: "Quantité d’achat résiduelle\u00a0: {residual} sur {requested} demandée.",
+    residualLine: "Demandé {requested}. Inventaire approuvé {approved}. Quantité d’achat résiduelle {residual}.",
     draftAllowedBlocked:
       "La rédaction est autorisée. L’envoi pour approbation est bloqué tant que chaque correspondance plausible n’a pas de disposition enregistrée et que le contrôle n’est pas à jour.",
     applyQty: "Appliquer {qty} à l’AO",

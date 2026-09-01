@@ -119,26 +119,32 @@ recommendation: "Run Bid Evaluation on PKG-2101 and include the inventory-valida
 function demandValidationFindings(overlays: MatchOverlayMap = {}): BPFinding[] {
   const open = openValidationActions(overlays)
   const blocked = allRequirementSummaries(overlays).filter(s => s.control !== "clear")
-  const jts = allRequirementSummaries(overlays).find(s => s.requirement.id === "REQ-MER-2105")
+  const cable = allRequirementSummaries(overlays).find(s => s.requirement.id === "REQ-MER-2101")
   const findings: BPFinding[] = []
 
-  if (jts) {
-    const pending = jts.matches.find(m => m.id === "MATCH-0013" && m.decisionStatus === "validation-pending")
+  if (cable) {
+    const pending = cable.matches.find(m => m.id === "MATCH-0003" && m.decisionStatus === "validation-pending")
+    const approved = formatQty(cable.approvedInventoryQty, cable.requirement.uom)
+    const residual = formatQty(cable.residualProcurementQty, cable.requirement.uom)
+    const requested = formatQty(cable.requirement.requestedQty, cable.requirement.uom)
     findings.push({
-      id: "fe-jts-inventory-hold",
+      id: "fe-cable-inventory-hold",
       category: "inventory-validation",
       severity: "high",
-      title: "18 J-tube seals in Rotterdam need a quality decision before the tender quantity is locked",
+      title: pending
+        ? `PKG-2101 has ${approved} approved inventory; 450 m aluminium substitute still needs a disposition`
+        : `PKG-2101 approved inventory is ${approved}; residual procurement is ${residual}`,
       narrative:
         pending
-          ? `REQ-MER-2105 asks for ${formatQty(jts.requirement.requestedQty, jts.requirement.uom)}. Compass found 18 unreserved units at Rotterdam Warehouse with matching dimensions and material (INV-0013). Certificates and preservation records still need review. If those units are approved, residual procurement quantity is ${formatQty(jts.requirement.requestedQty - 18, jts.requirement.uom)}; if they are rejected with a reason, the tender stays at ${formatQty(jts.requirement.requestedQty, jts.requirement.uom)}.`
-          : `REQ-MER-2105 still has unresolved inventory matches. ITT issue is blocked until every plausible match has a recorded disposition.`,
+          ? `REQ-MER-2101 asks for ${requested}. Approved inventory is ${approved}. Residual procurement is ${residual}. MATCH-0003 is 450 m of aluminium 66 kV cable at the same dimensions. If that quantity is approved, approved inventory is 1,050 m and residual procurement is 3,950 m.`
+          : `REQ-MER-2101 requested ${requested}. Approved inventory is ${approved}. Residual procurement is ${residual}.`,
       evidence: [
-        "TS-SUB-JTS-005: cable OD 150 mm / tube ID 375 mm, 3.0 bar, diverless ROV.",
-        "INV-0013: 18 units, New / preserved, Central inventory, certificate and preservation review required.",
+        "TS-CBL-66KV-001: 66 kV array cable, 5,000 m requested.",
+        "INV-0001: 600 m approved from exact-spec stock.",
+        "INV-0003: 450 m aluminium substitute awaiting disposition (ACT-0001).",
         `${open.length} open demand-validation actions on the Action Centre.`,
       ],
-      recommendation: "Complete the quality review on MATCH-0013 (ACT-0008), then record use, partial use, or reject with a reason.",
+      recommendation: "Record a disposition on MATCH-0003 (ACT-0001). Use-inventory on 450 m sets approved inventory to 1,050 m and residual procurement to 3,950 m.",
       page: "operating-loop",
       drillLevel: "macro",
     })
@@ -148,7 +154,7 @@ function demandValidationFindings(overlays: MatchOverlayMap = {}): BPFinding[] {
     findings.push({
       id: "fe-inventory-gates-blocked",
       category: "inventory-validation",
-      severity: "critical",
+      severity: "high",
       title: `ITT issue and award are blocked on ${blocked.length} packages until inventory matches are closed`,
       narrative: blocked
         .map(s => `${s.requirement.packageId}: ${s.unresolvedMatches.length} unresolved match${s.unresolvedMatches.length === 1 ? "" : "es"} (${formatQty(s.requirement.requestedQty, s.requirement.uom)} requested).`)
@@ -156,7 +162,7 @@ function demandValidationFindings(overlays: MatchOverlayMap = {}): BPFinding[] {
       evidence: blocked.map(s =>
         `${s.requirement.packageRef} last search ${s.lastCheckAt.slice(0, 16).replace("T", " ")} UTC · ${s.locationsSearched.join(", ") || "no location"}`,
       ),
-      recommendation: "Record a disposition on every plausible match in Action Centre before sending an ITT for approval or submitting an award recommendation.",
+      recommendation: "Record a disposition on every open Action Centre inventory card before sending an ITT for approval or submitting an award recommendation.",
       page: "operating-loop",
       drillLevel: "macro",
     })

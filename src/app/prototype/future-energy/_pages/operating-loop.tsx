@@ -34,10 +34,11 @@ import {
   awardGovCopy,
   formatAwardAuditLine,
 } from "@/lib/compass/award-governance"
-import { DemandValidationCard, ApplyResidualConfirm } from "../_components/hub/demand-validation-card"
+import { DemandValidationCard } from "../_components/hub/demand-validation-card"
+import { RecordDispositionModal } from "../_components/hub/record-disposition-modal"
+import { employeeByRole } from "../data/_people"
+import { requirementById, type ValidationAction } from "../data/future-energy/_inventory"
 import {
-  allRequirementSummaries,
-  canApplyResidualToTender,
   openValidationActions,
 } from "../data/future-energy/_demand-validation"
 
@@ -111,6 +112,9 @@ export function OperatingLoopPage() {
     tenderStages,
     openTenderStudio,
     openBidEvaluation,
+    focusDemandActionId,
+    openDispositionOnFocus,
+    consumeDispositionFocus,
     locale,
     awardApprovals,
     approveAward,
@@ -141,6 +145,7 @@ export function OperatingLoopPage() {
   const [emailPreviewMissionId, setEmailPreviewMissionId] = React.useState<string | null>(null)
   const [auditViewMissionId, setAuditViewMissionId] = React.useState<string | null>(null)
   const [toastName, setToastName] = React.useState<string | null>(null)
+  const [dispositionAction, setDispositionAction] = React.useState<ValidationAction | null>(null)
 
   const openEdit = React.useCallback((id: string) => {
     setExpandedId(id)
@@ -166,10 +171,16 @@ export function OperatingLoopPage() {
     () => openValidationActions(inventoryOverlays),
     [inventoryOverlays],
   )
-  const residualConfirms = React.useMemo(
-    () => allRequirementSummaries(inventoryOverlays).filter(s => canApplyResidualToTender(s)),
-    [inventoryOverlays],
-  )
+  const visibleDemand = React.useMemo(() => {
+    return validationActions.filter((action) => {
+      if (horizonFilter && horizonFilter !== "immediate") return false
+      if (assigneeFilter === "assigned-to-you") {
+        const owner = employeeByRole(action.owner)
+        return owner?.name === ACTIVE_USER.name || action.owner === ACTIVE_USER.role
+      }
+      return true
+    })
+  }, [validationActions, horizonFilter, assigneeFilter])
 
   const saveEdit = React.useCallback((missionId: string, oldValue: string, newValue: string) => {
     const mission = orderedMissions.find((m) => m.id === missionId)
@@ -281,12 +292,12 @@ export function OperatingLoopPage() {
   const showOpen = statusFilter === null || statusFilter === "open"
   const showCompleted = statusFilter === null || statusFilter === "completed"
   const showSections = statusFilter === null
-  const showValidation = showOpen && (validationActions.length > 0 || residualConfirms.length > 0)
+  const showDemand = showOpen && visibleDemand.length > 0
 
   const totalVisible =
+    (showDemand ? visibleDemand.length : 0) +
     (showOpen ? openMissions.length : 0) +
-    (showCompleted ? completedLiveMissions.length + closedCards.length : 0) +
-    (showValidation ? validationActions.length + residualConfirms.length : 0)
+    (showCompleted ? completedLiveMissions.length + closedCards.length : 0)
 
   const protectTotal = orderedMissions.filter((m) => m.valueType === "protection").reduce((s, m) => s + m.projectedValue, 0)
   const createTotal = orderedMissions.filter((m) => m.valueType === "creation").reduce((s, m) => s + m.projectedValue, 0)
@@ -306,12 +317,65 @@ export function OperatingLoopPage() {
     [orderedMissions, bpReasoning, useStaticFallback, locale],
   )
 
+  React.useEffect(() => {
+    if (!focusDemandActionId) return
+    setExpandedId(focusDemandActionId)
+    const el = document.getElementById(`demand-${focusDemandActionId}`)
+    el?.scrollIntoView({ block: "center", behavior: "smooth" })
+    if (openDispositionOnFocus) {
+      const action = validationActions.find((a) => a.id === focusDemandActionId)
+      if (action) setDispositionAction(action)
+      consumeDispositionFocus()
+    }
+  }, [focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, validationActions])
+
+  const renderDemandAction = (action: ValidationAction, i: number) => {
+    const motion = listItemMotion(i)
+    const req = requirementById(action.requirementId)
+    const packageId = req?.packageId
+    const mission = packageId ? orderedMissions.find((m) => m.id === packageId) : undefined
+    const stage = mission ? (missionPatches[mission.id]?.stage ?? mission.stage) : undefined
+    const canDraft = stage === "mission_created" || stage === "understand"
+    const canEvaluate = stage === "execute"
+    const followOnLabel = canEvaluate
+      ? t("actionCentre.evaluateBids")
+      : canDraft
+        ? t("actionCentre.draftItt")
+        : undefined
+    const onFollowOn = !packageId
+      ? undefined
+      : canEvaluate
+        ? () => openBidEvaluation(packageId)
+        : canDraft
+          ? () => openTenderStudio(packageId)
+          : undefined
+    return (
+      <div key={action.id} className={motion.className} style={motion.style}>
+        <DemandValidationCard
+          action={action}
+          overlays={inventoryOverlays}
+          rank={i + 1}
+          expanded={expandedId === action.id}
+          onToggleExpand={() => setExpandedId((id) => (id === action.id ? null : action.id))}
+          onRecordClick={() => {
+            setExpandedId(action.id)
+            setDispositionAction(action)
+          }}
+          followOnLabel={followOnLabel}
+          onFollowOn={onFollowOn}
+        />
+      </div>
+    )
+  }
+
+  const demandCount = showDemand ? visibleDemand.length : 0
+
   const renderOpenMission = (mission: DiamondMission, i: number) => {
     const expanded = expandedId === mission.id
     const patch = missionPatches[mission.id]
     const fields = missionFields(mission, locale, patch)
     const person = personForRole(fields.ownerRole, locale)
-    const motion = listItemMotion(i)
+    const motion = listItemMotion(demandCount + i)
     const reconciling = reconcilingId === mission.id
     const assignedToYou = isMissionOwnedByActiveUser({ ...mission, owner: fields.ownerRole })
     // Packages ahead of the approval gate can be drafted in Tender Management.
@@ -367,7 +431,7 @@ export function OperatingLoopPage() {
         <MissionActionCard
           primaryActionLabel={primaryActionLabel}
           onPrimaryAction={onPrimaryAction}
-          rank={i + 1}
+          rank={demandCount + i + 1}
           title={mission.name}
           narrative={fields.narrative}
           valueChip={formatCurrency(mission.projectedValue, locale)}
@@ -550,45 +614,12 @@ export function OperatingLoopPage() {
           <EmptyState />
         ) : showSections ? (
           <div className="space-y-6">
-            {showValidation && (
-              <div className="space-y-3">
-                <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  {t("actionCentre.demandSection")}
-                </h3>
-                <p className="text-[12px] text-[var(--color-text-secondary)]">
-                  {t("actionCentre.demandIntro")}
-                </p>
-                {validationActions.map((action, i) => {
-                  const motion = listItemMotion(i)
-                  return (
-                    <div key={action.id} className={motion.className} style={motion.style}>
-                      <DemandValidationCard
-                        action={action}
-                        overlays={inventoryOverlays}
-                        onRecord={recordInventoryDisposition}
-                      />
-                    </div>
-                  )
-                })}
-                {residualConfirms.map((summary, i) => {
-                  const motion = listItemMotion(validationActions.length + i)
-                  return (
-                    <div key={`apply-${summary.requirement.id}`} className={motion.className} style={motion.style}>
-                      <ApplyResidualConfirm
-                        summary={summary}
-                        appliedQty={appliedTenderQtyByPackage[summary.requirement.packageId]}
-                        onApply={() => applyResidualToTender(summary.requirement.packageId, ACTIVE_USER.name)}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {showOpen && openMissions.length > 0 && (
+            {showOpen && (visibleDemand.length > 0 || openMissions.length > 0) && (
               <div className="space-y-3">
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
                   {t("actionCentre.openSection")}
                 </h3>
+                {showDemand && visibleDemand.map((action, i) => renderDemandAction(action, i))}
                 {openMissions.map((mission, i) => renderOpenMission(mission, i))}
               </div>
             )}
@@ -604,34 +635,7 @@ export function OperatingLoopPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {showValidation && (
-              <>
-                {validationActions.map((action, i) => {
-                  const motion = listItemMotion(i)
-                  return (
-                    <div key={action.id} className={motion.className} style={motion.style}>
-                      <DemandValidationCard
-                        action={action}
-                        overlays={inventoryOverlays}
-                        onRecord={recordInventoryDisposition}
-                      />
-                    </div>
-                  )
-                })}
-                {residualConfirms.map((summary, i) => {
-                  const motion = listItemMotion(validationActions.length + i)
-                  return (
-                    <div key={`apply-${summary.requirement.id}`} className={motion.className} style={motion.style}>
-                      <ApplyResidualConfirm
-                        summary={summary}
-                        appliedQty={appliedTenderQtyByPackage[summary.requirement.packageId]}
-                        onApply={() => applyResidualToTender(summary.requirement.packageId, ACTIVE_USER.name)}
-                      />
-                    </div>
-                  )
-                })}
-              </>
-            )}
+            {showDemand && visibleDemand.map((action, i) => renderDemandAction(action, i))}
             {showOpen && openMissions.map((mission, i) => renderOpenMission(mission, i))}
             {showCompleted && (
               <>
@@ -699,6 +703,24 @@ export function OperatingLoopPage() {
             })),
           ].sort((a, b) => a.timestamp.localeCompare(b.timestamp))}
           onClose={() => setAuditViewMissionId(null)}
+        />
+      )}
+      {dispositionAction && (
+        <RecordDispositionModal
+          action={dispositionAction}
+          overlays={inventoryOverlays}
+          appliedQty={appliedTenderQtyByPackage[requirementById(dispositionAction.requirementId)?.packageId ?? ""]}
+          onRecord={recordInventoryDisposition}
+          onApplyResidual={(packageId) => applyResidualToTender(packageId, ACTIVE_USER.name)}
+          onOpenTenderStudio={(packageId) => {
+            setDispositionAction(null)
+            openTenderStudio(packageId)
+          }}
+          onOpenBidEvaluation={(packageId) => {
+            setDispositionAction(null)
+            openBidEvaluation(packageId)
+          }}
+          onClose={() => setDispositionAction(null)}
         />
       )}
       {toastName && (
