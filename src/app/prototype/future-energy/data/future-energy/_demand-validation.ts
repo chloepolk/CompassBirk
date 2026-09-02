@@ -217,6 +217,15 @@ export function openValidationActions(overlays: MatchOverlayMap = {}): Validatio
   })
 }
 
+export function openValidationActionForPackage(
+  packageId: string,
+  overlays: MatchOverlayMap = {},
+): ValidationAction | undefined {
+  const req = requirementByPackageId(packageId)
+  if (!req) return undefined
+  return openValidationActions(overlays).find(a => a.requirementId === req.id)
+}
+
 export function ittIssueBlocked(packageId: string, overlays: MatchOverlayMap = {}): boolean {
   const summary = summarizePackage(packageId, overlays)
   return summary != null && summary.control !== "clear"

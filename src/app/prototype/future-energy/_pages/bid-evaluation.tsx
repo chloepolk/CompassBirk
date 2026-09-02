@@ -30,10 +30,12 @@ import {
   type TenderPackage,
 } from "../data/future-energy/_tenders"
 import { BidderNotifyModal } from "../_components/hub/bidder-notify-modal"
+import { RecordDispositionModal } from "../_components/hub/record-disposition-modal"
 import { personForRole } from "../_diamond/org"
 import { emailForPerson } from "../_components/hub/hub-types"
 import { ACTIVE_USER } from "../_components/hub/active-user"
 import {
+  openValidationActionForPackage,
   awardValidationLines,
   awardSubmissionBlocked,
   controlReason,
@@ -321,7 +323,7 @@ function EmptyPackageState({ status, pkg }: { status: EvalStatus; pkg: TenderPac
 
 export function BidEvaluationPage() {
   const t = useT()
-  const { focusEvalPackageId, tenderStages, openBidEvaluation, locale, awardApprovals, submitAwardRecommendation, inventoryOverlays, appliedTenderQtyByPackage } = useStore()
+  const { focusEvalPackageId, tenderStages, openBidEvaluation, openTenderStudio, openActionCentre, locale, awardApprovals, submitAwardRecommendation, inventoryOverlays, appliedTenderQtyByPackage, recordInventoryDisposition, applyResidualToTender } = useStore()
   const rows = React.useMemo(() => buildPackageRows(tenderStages, locale), [tenderStages, locale])
 
   const defaultId =
@@ -354,6 +356,7 @@ export function BidEvaluationPage() {
   const [recommendSnapshot, setRecommendSnapshot] = React.useState<AwardApprovalSnapshot | null>(null)
   const [toastName, setToastName] = React.useState<string | null>(null)
   const [selectedBidId, setSelectedBidId] = React.useState<string | null>(null)
+  const [heldDispositionAction, setHeldDispositionAction] = React.useState<ReturnType<typeof openValidationActionForPackage>>(undefined)
   React.useEffect(() => {
     const top = results.find((r) => r.finalRank === 1) ?? results[0]
     setSelectedBidId(top?.bidId ?? null)
@@ -366,6 +369,7 @@ export function BidEvaluationPage() {
   const awardUnlocked = govStatus === "approved_for_award" || govStatus === "awarded" || pkg?.stage === "outcome_roi"
   const validationSummary = pkg ? summarizePackage(pkg.id, inventoryOverlays) : null
   const awardBlocked = pkg ? awardSubmissionBlocked(pkg.id, inventoryOverlays) : false
+  const openDemandAction = pkg ? openValidationActionForPackage(pkg.id, inventoryOverlays) : undefined
 
   const recommendSelected = () => {
     if (!pkg || !selectedResult || selectedResult.gatingStatus === "Fail") return
@@ -545,17 +549,38 @@ export function BidEvaluationPage() {
                 </p>
                 {validationSummary && (
                   <div className={cn(
-                    "mt-2 rounded-[10px] border px-3 py-2 text-[12px] leading-relaxed",
+                    "mt-2 space-y-2 rounded-[10px] border px-3 py-2 text-[12px] leading-relaxed",
                     awardBlocked
                       ? "border-amber-400/50 bg-amber-500/5 text-[var(--color-text-secondary)]"
                       : "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]",
                   )}>
-                    {t("tenderStudio.residualLine", {
-                      residual: formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
-                      requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
-                    })}{" "}
-                    {controlReason(validationSummary, locale)}
-                    {awardBlocked ? ` ${t("bidEval.awardBlocked")}` : ""}
+                    <p>
+                      {t("tenderStudio.residualLine", {
+                        residual: formatQty(validationSummary.residualProcurementQty, validationSummary.requirement.uom, locale),
+                        requested: formatQty(validationSummary.requirement.requestedQty, validationSummary.requirement.uom, locale),
+                        approved: formatQty(validationSummary.approvedInventoryQty, validationSummary.requirement.uom, locale),
+                      })}{" "}
+                      {controlReason(validationSummary, locale)}
+                      {awardBlocked ? ` ${t("bidEval.awardBlocked")}` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {openDemandAction && (
+                        <button
+                          type="button"
+                          onClick={() => setHeldDispositionAction(openDemandAction)}
+                          className="inline-flex items-center rounded-[8px] bg-[var(--color-bg-inverse)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90"
+                        >
+                          {t("demand.recordDisposition")}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openActionCentre({ packageId: pkg.id, actionId: openDemandAction?.id, openDisposition: false })}
+                        className="inline-flex items-center rounded-[8px] border border-[var(--color-border-default)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)]"
+                      >
+                        {t("demand.openActionCentre")}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -710,6 +735,21 @@ export function BidEvaluationPage() {
         </div>
       </div>
 
+      {heldDispositionAction && (
+        <RecordDispositionModal
+          action={heldDispositionAction}
+          overlays={inventoryOverlays}
+          appliedQty={pkg ? appliedTenderQtyByPackage[pkg.id] : undefined}
+          onRecord={recordInventoryDisposition}
+          onApplyResidual={(packageId) => applyResidualToTender(packageId, ACTIVE_USER.name)}
+          onOpenTenderStudio={(packageId) => {
+            setHeldDispositionAction(undefined)
+            openTenderStudio(packageId)
+          }}
+          onOpenBidEvaluation={() => setHeldDispositionAction(undefined)}
+          onClose={() => setHeldDispositionAction(undefined)}
+        />
+      )}
       {notifyOpen && (
         <BidderNotifyModal
           ittRef={ittRef}

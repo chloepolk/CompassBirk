@@ -205,10 +205,20 @@ const en = {
     selectReason: "Select a reason",
     approveFrom: "Approve {qty} from {id}",
     residualPreview:
-      "Residual procurement quantity would be {residual} of {requested} requested. The proposed tender quantity changes only after a separate confirmation.",
+      "If recorded, approved inventory would be {approved} and residual procurement {residual} of {requested} requested. The proposed tender quantity changes only after a separate confirmation.",
     avoidanceIfApproved:
       "Identified purchase-avoidance opportunity if this quantity is approved: {amount} (not realised savings).",
     recordDisposition: "Record disposition",
+    pickDisposition: "Select a disposition before recording.",
+    recorded: "Disposition recorded.",
+    nextSteps: "Next steps",
+    qtyBalance:
+      "Requested {requested}. Approved inventory {approved}. Residual procurement {residual}.",
+    statusReview: "Review required",
+    openActionCentre: "Open in Action Centre",
+    openTenderStudio: "Open Tender Management",
+    openBidEvaluation: "Open Bid Evaluation",
+    writeToItt: "Write {residual} into the proposed ITT",
     proposedQty: "Proposed tender quantity · {ref}",
     proposedIs: "Proposed tender quantity is {residual} (requested {requested}).",
     confirmWrite:
@@ -421,7 +431,7 @@ const en = {
     issue: "Issue ITT",
     issued: "Issued",
     inventoryCheck: "Inventory check",
-    residualLine: "Residual procurement quantity: {residual} of {requested} requested.",
+    residualLine: "Requested {requested}. Approved inventory {approved}. Residual procurement {residual}.",
     draftAllowedBlocked:
       "Drafting is allowed. Send for approval is blocked until every plausible match has a recorded disposition and the check is current.",
     applyQty: "Apply {qty} to the ITT",
