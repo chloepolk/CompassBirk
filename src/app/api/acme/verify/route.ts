@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const { orchestratorOutput, sourceData, drillState, verifiableBenchmarks, locale, tenant } = await req.json()
     const VERIFIER_SCHEMA = tenant === "future-energy" ? VERIFIER_SCHEMA_FE : VERIFIER_SCHEMA_COMPASS
     const VERIFIER_PROMPT = tenant === "future-energy" ? VERIFIER_FE : VERIFIER_COMPASS
-    const language = `${outputLanguageInstruction(locale)}\n\n`
+    const language = `${outputLanguageInstruction(locale, { tenant })}\n\n`
 
     if (!orchestratorOutput?.findings?.length) {
       return Response.json({

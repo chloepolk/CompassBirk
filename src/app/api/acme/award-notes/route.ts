@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     locale = asLocale(body.locale)
     snapshot = body.snapshot as SnapshotIn | undefined
     notes = Array.isArray(body.notes) ? body.notes.map(String) : String(body.notes ?? "")
+    const tenant = typeof body.tenant === "string" ? body.tenant : undefined
 
     if (!snapshot || typeof snapshot.proposedAwardUsd !== "number") {
       return Response.json({ fallback: true, data: null, error: "snapshot.proposedAwardUsd is required" }, { status: 400 })
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
       return Response.json({ fallback: true, data: deterministic })
     }
 
-    const language = outputLanguageInstruction(locale)
+    const language = outputLanguageInstruction(locale, { tenant })
     const originalEur = usdToEur(snapshot.proposedAwardUsd)
 
     const response = await callWithFallback({

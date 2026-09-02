@@ -14,7 +14,7 @@ import { employeeForCurrentTimelineStep } from "./mission-timeline-helpers"
 function buildDefaultBody(mission: DiamondMission, narrative: string): string {
   return `Dear colleague,
 
-I am writing about ${mission.name}, currently active on the Action Centre.
+I am writing about ${mission.name}, currently active on the Action Center.
 
 ${narrative}
 

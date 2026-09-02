@@ -479,6 +479,7 @@ export function OperatingLoopPage() {
               <AwardGovernanceCardBlock
                 record={awardRecord}
                 locale={locale}
+                tenant="future-energy"
                 onApprove={(comments) => approveAward(mission.id, comments, approverActor)}
                 onRequestClarification={(question) => {
                   requestAwardClarification(mission.id, question, approverActor)

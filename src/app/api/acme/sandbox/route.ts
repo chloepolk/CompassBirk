@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const { scenarioPrompt, locale, tenant } = await req.json()
     const SANDBOX_SYSTEM_PROMPT = tenant === "future-energy" ? SANDBOX_FE : SANDBOX_COMPASS
-    const language = outputLanguageInstruction(locale)
+    const language = outputLanguageInstruction(locale, { tenant })
 
     const stream = await createChatStream(
       SANDBOX_SYSTEM_PROMPT,

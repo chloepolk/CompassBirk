@@ -704,6 +704,7 @@ export function BidEvaluationPage() {
         <AwardRecommendPanel
           snapshot={recommendSnapshot}
           locale="en"
+          tenant="prosera-compass"
           onClose={() => setRecommendSnapshot(null)}
           onSubmit={(note) => {
             if (!pkg) return

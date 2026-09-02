@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         : "The user has no specific intent — surface the highest-value apps for this commercial field-services business.",
       "",
       buildCatalogPromptContext(),
-      outputLanguageInstruction(locale),
+      outputLanguageInstruction(locale, { tenant }),
     ].join("\n")
 
     const response = await callWithRetry(

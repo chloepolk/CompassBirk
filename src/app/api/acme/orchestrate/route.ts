@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const { specialistOutputs, drillState, pageContext, orchestratorContext, locale, tenant } = await req.json()
     const ORCHESTRATOR_SCHEMA = tenant === "future-energy" ? ORCHESTRATOR_SCHEMA_FE : ORCHESTRATOR_SCHEMA_COMPASS
     const ORCHESTRATOR_PROMPT = tenant === "future-energy" ? ORCHESTRATOR_FE : ORCHESTRATOR_COMPASS
-    const languageInstruction = `\n${outputLanguageInstruction(locale)}\n`
+    const languageInstruction = `\n${outputLanguageInstruction(locale, { tenant })}\n`
 
     const availableSpecialists = (specialistOutputs || []).filter(Boolean)
     if (availableSpecialists.length === 0) {
