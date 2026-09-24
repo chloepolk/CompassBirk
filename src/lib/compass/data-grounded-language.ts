@@ -6,7 +6,7 @@
 /*  supplied data. If you cannot name the value, do not use the word.  */
 /* ------------------------------------------------------------------ */
 
-import { chatLanguageInstruction, isAppLocale, DEFAULT_LOCALE } from "@prosera/i18n/core"
+import { chatLanguageInstruction, isAppLocale, DEFAULT_LOCALE } from "./i18n-kit"
 import { glossaryForTenant } from "./product-locale"
 
 export const DATA_GROUNDED_PRODUCT_NAME = "Compass"

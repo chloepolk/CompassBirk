@@ -69,7 +69,7 @@ import {
 import { sanitizeOrchestratorOutput } from "@/lib/compass/data-grounded-language"
 import { type Locale } from "./_i18n"
 import { asFeLocale } from "@/lib/compass/product-locale"
-import { useAppLocale } from "@prosera/i18n/react"
+import { useAppLocale } from "@/lib/compass/prosera-locale-provider"
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

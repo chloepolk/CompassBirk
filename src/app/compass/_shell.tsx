@@ -107,7 +107,7 @@ function ThemeToggle() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Language Toggle (EN / DE) — writes through @prosera/i18n          */
+/*  Language Toggle (EN / DE) — writes through CompassLocaleProvider  */
 /* ------------------------------------------------------------------ */
 
 function LanguageToggle() {

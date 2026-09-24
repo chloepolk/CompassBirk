@@ -1,30 +1,81 @@
 "use client"
 
 import * as React from "react"
-import { LocaleProvider, useAppLocale } from "@prosera/i18n/react"
-import enFe from "@/app/compass/_i18n/en"
-import deFe from "@/app/compass/_i18n/de"
+import { DEFAULT_LOCALE, isAppLocale, type AppLocale } from "./i18n-kit"
 import {
   FE_LOCALE_COOKIE_KEY,
   FE_LOCALE_STORAGE_KEY,
-  fourLocaleMessages,
   htmlLangForProduct,
   type ProductId,
 } from "./product-locale"
 
-const FE_MESSAGES = fourLocaleMessages(
-  enFe as unknown as Record<string, unknown>,
-  deFe as unknown as Record<string, unknown>,
-)
+type LocaleContextValue = {
+  locale: AppLocale
+  setLocale: (locale: AppLocale) => void
+}
+
+const LocaleContext = React.createContext<LocaleContextValue | null>(null)
+
+function readStoredLocale(storageKey: string, fallback: AppLocale): AppLocale {
+  if (typeof window === "undefined") return fallback
+  try {
+    const stored = window.localStorage.getItem(storageKey)
+    if (isAppLocale(stored)) return stored
+  } catch {
+    /* ignore */
+  }
+  return fallback
+}
+
+function LocaleProvider({
+  children,
+  storageKey = FE_LOCALE_STORAGE_KEY,
+  defaultLocale = DEFAULT_LOCALE,
+}: {
+  children: React.ReactNode
+  storageKey?: string
+  defaultLocale?: AppLocale
+}) {
+  const [locale, setLocaleState] = React.useState<AppLocale>(defaultLocale)
+
+  React.useEffect(() => {
+    const stored = readStoredLocale(storageKey, defaultLocale)
+    setLocaleState(stored)
+    document.documentElement.lang = htmlLangForProduct("compass-logistics", stored)
+  }, [storageKey, defaultLocale])
+
+  const setLocale = React.useCallback(
+    (next: AppLocale) => {
+      setLocaleState(next)
+      document.documentElement.lang = htmlLangForProduct("compass-logistics", next)
+      try {
+        window.localStorage.setItem(storageKey, next)
+      } catch {
+        /* ignore */
+      }
+    },
+    [storageKey],
+  )
+
+  const value = React.useMemo(
+    () => ({ locale, setLocale }),
+    [locale, setLocale],
+  )
+
+  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
+}
+
+export function useAppLocale(): LocaleContextValue {
+  const ctx = React.useContext(LocaleContext)
+  if (!ctx) {
+    throw new Error("useAppLocale must be used within CompassLocaleProvider")
+  }
+  return ctx
+}
 
 export function CompassLocaleProvider({ children }: { children: React.ReactNode }) {
   return (
-    <LocaleProvider
-      messages={FE_MESSAGES}
-      storageKey={FE_LOCALE_STORAGE_KEY}
-      defaultLocale="en"
-      timeZone="Europe/Berlin"
-    >
+    <LocaleProvider storageKey={FE_LOCALE_STORAGE_KEY} defaultLocale="en">
       {children}
     </LocaleProvider>
   )

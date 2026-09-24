@@ -1,12 +1,8 @@
-import {
-  type AppLocale,
-  type LocaleMessageMap,
-  isAppLocale,
-} from "@prosera/i18n/core"
+import { type AppLocale, isAppLocale } from "./i18n-kit"
 
 export type ProductId = "compass-logistics"
 
-/** Locales the UI may switch to. Kit still types en/fr/de/es. */
+/** Locales the UI may switch to. */
 export const FE_SELECTABLE_LOCALES = ["en", "de"] as const
 export type FeSelectableLocale = (typeof FE_SELECTABLE_LOCALES)[number]
 
@@ -27,14 +23,6 @@ export function isFeLocale(value: unknown): value is FeSelectableLocale {
 
 export function asFeLocale(value: unknown): FeSelectableLocale {
   return isFeLocale(value) ? value : "en"
-}
-
-/** Kit catalogs require all four keys; unused locales reuse English. */
-export function fourLocaleMessages<T extends Record<string, unknown>>(
-  en: T,
-  de: T = en,
-): LocaleMessageMap<T> {
-  return { en, fr: en, de, es: en }
 }
 
 export function htmlLangForProduct(_product: ProductId, locale: string): string {
