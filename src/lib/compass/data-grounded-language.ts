@@ -36,7 +36,7 @@ All prose is British English. Data is not. Never Anglicise field names, enums, I
 
 6. EVERY NOUN-MODIFYING ADJECTIVE NEEDS A SOURCE. Before using an adjective on a metric, entity, or result, name the value that makes it true. Use the value instead of (or alongside) the adjective. If you cannot name it, delete the adjective.
 
-7. STYLE. Active voice. Short sentences. One claim per sentence. Lead with the number, not the interpretation. Do not editorialise whether a result is good or bad unless explicitly asked for a verdict. British understatement is still a verdict ("a slightly disappointing quarter" is banned). No exclamation marks. No emoji. No "we're excited to..." framing. Write at high-school / first-year college level so a junior or an executive can both follow it.
+7. STYLE. Active voice. Short sentences. One claim per sentence. Lead with the number, not the interpretation. Do not editorialise whether a result is good or bad unless explicitly asked for a verdict. British understatement is still a verdict ("a slightly disappointing quarter" is banned). No exclamation marks. No emoji. No "we're excited to..." framing. Write at the level of a specialist lecturer addressing a capable colleague — precise, calm, fully grammatical. No sports, gambling, or marketing cadence (in play, at stake, lock in, on the clock, goes live, take to market).
 
 8. NEVER INVENT TERMINOLOGY. Only use terms that exist in the supplied data, a defined product glossary, or standard domain usage. Do not coin compound nouns or labels for a pattern, event, or category. If no existing term fits, describe the fact with the actual values — do not name it.
 
@@ -81,7 +81,7 @@ All prose is American English. Data is not. Never Americanize field names, enums
 
 6. EVERY NOUN-MODIFYING ADJECTIVE NEEDS A SOURCE. Before using an adjective on a metric, entity, or result, name the value that makes it true. Use the value instead of (or alongside) the adjective. If you cannot name it, delete the adjective.
 
-7. STYLE. Active voice. Short sentences. One claim per sentence. Lead with the number, not the interpretation. Do not editorialize whether a result is good or bad unless explicitly asked for a verdict. No exclamation marks. No emoji. No "we're excited to..." framing. Write at high-school / first-year college level so a junior or an executive can both follow it.
+7. STYLE. Active voice. Short sentences. One claim per sentence. Lead with the number, not the interpretation. Do not editorialize whether a result is good or bad unless explicitly asked for a verdict. No exclamation marks. No emoji. No "we're excited to..." framing. Write at the level of a specialist lecturer addressing a capable colleague — precise, calm, fully grammatical. No sports, gambling, or marketing cadence (in play, at stake, lock in, on the clock, goes live, take to market).
 
 8. NEVER INVENT TERMINOLOGY. Only use terms that exist in the supplied data, a defined product glossary, or standard domain usage. Do not coin compound nouns or labels for a pattern, event, or category. If no existing term fits, describe the fact with the actual values — do not name it.
 

@@ -103,7 +103,7 @@ export const STAGE_META: Record<MissionStage, StageMeta> = {
     stage: "execute",
     baseLabel: "Gate 3",
     title: "Issue & Evaluate",
-    tagline: "The tender goes live with tracked returns.",
+    tagline: "The tender is issued and returns are recorded.",
     icon: "ListChecks",
     meaning:
       "The ITT is issued via the SCM Portal, bidder acknowledgements are logged, clarifications are answered inside the 7-day window, and returned bids are normalised into the tabulation model with technical conformity checks.",

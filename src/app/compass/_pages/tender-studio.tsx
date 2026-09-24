@@ -92,12 +92,12 @@ function fallbackScope(baseSpec: ComponentSpec, quantity: string, locale: Locale
       ? [
           "Challenger bleiben No History, bis zwölf Monate geprüfter Ausführung vorliegen (SRC-008).",
           "Kraftstoffzuschlag nach SRC-005 offenlegen; Relationenraten in EUR.",
-          "Qualifikationstore (Versicherung, Due Diligence, Datenanbindung) stehen außerhalb der Gewichtungen.",
+          "Qualifikationstore (Versicherung, Due Diligence, Datenanbindung) gehen nicht in die Gewichtungen ein.",
         ]
       : [
           "Challengers remain No History until twelve months of verified execution exist (SRC-008).",
           "Disclose fuel surcharge under SRC-005; price lane rates in EUR.",
-          "Qualification gates (insurance, due diligence, data integration) sit outside the weights.",
+          "Qualification gates (insurance, due diligence, data integration) are excluded from the weighted score.",
         ],
   }
 }

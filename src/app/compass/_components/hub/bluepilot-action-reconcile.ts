@@ -51,12 +51,12 @@ function deriveRisk(mission: DiamondMission, newRecommendation: string, locale: 
     return locale === "de" ? "Die verantwortliche Person hat den Plan gestrafft — der verdichtete Zeitplan erhöht die Ausführungsvarianz; tägliche Nachverfolgung erforderlich." : "Owner tightened the plan — compressed timeline increases execution variance; monitor daily."
   }
   if (/pause|hold|delay|postpone/.test(lower)) {
-    return locale === "de" ? "Die verantwortliche Person hat die Ausführung verschoben — das Wertefenster kann sich verengen, wenn die Entscheidung nicht rasch rückgängig gemacht wird." : "Owner deferred execution — value window may narrow if the change is not reversed soon."
+    return locale === "de" ? "Die verantwortliche Person hat die Ausführung verschoben — der verbleibende Entscheidungszeitraum kann sich verkürzen, wenn die Änderung nicht zeitnah rückgängig gemacht wird." : "The owner deferred execution. The remaining decision period may shorten if the change is not reversed promptly."
   }
   if (/expand|additional|broader|more accounts/.test(lower)) {
     return locale === "de" ? "Umfang auf Anweisung der verantwortlichen Person erweitert — Budgetbasis und kommerzielle Leitplanken vor der Ausgabe prüfen." : "Scope expanded per owner direction — validate budget baseline and commercial guardrails before issue."
   }
-  return locale === "de" ? "Anpassung mit der verantwortlichen Person abgestimmt — Abweichungen zwischen überarbeiteter Empfehlung und Losausführung beobachten." : "Owner-aligned adjustment — watch for drift between the revised recommendation and package execution."
+    return locale === "de" ? "Anpassung mit der verantwortlichen Person abgestimmt — Abweichungen zwischen überarbeiteter Empfehlung und Losausführung beobachten." : "The owner aligned this adjustment. Monitor any divergence between the revised recommendation and package execution."
 }
 
 function applyEditToTimeline(

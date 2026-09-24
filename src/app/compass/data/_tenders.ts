@@ -61,7 +61,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     submissionDeadline: "2026-10-23",
     openedAt: "2026-09-28",
     bidders: 0,
-    narrative: "Sourcing need: European Road Freight Services 2027 must succeed the frameworks that expire on 31 December 2026. Draft the bilingual RFP against 18 lanes, 2,448 forecast shipments and the SRC-002 SLA before invitations go out. Carrier responses are not yet on file.",
+    narrative: "Sourcing need: European Road Freight Services 2027 must succeed the frameworks that expire on 31 December 2026. Draft the bilingual RFP against 18 lanes, 2,448 forecast shipments and the SRC-002 SLA before invitations are issued. Carrier responses have not yet been received.",
     risk: "The RheinRoute and NorthBridge frameworks expire 31 December 2026 with 120-day notice. A late award compresses transition into the January 2027 service start.",
     evidence: [
       "SRC-001: FTL/LTL capacity across 18 European lanes; visibility by API, EDI or daily file.",
@@ -113,7 +113,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     openedAt: "2024-10-01",
     bidders: 1,
     narrative: "CON-2024-02 with NorthBridge Freight Ltd also ends 31 December 2026. NorthBridge is the strongest incumbent on service score and is a candidate in the dual-award scenario (35%) alongside AlpineLink.",
-    risk: "Notice window is the same as CON-2024-01 — treat as one governed event, not two isolated tenders.",
+    risk: "Notice window is the same as CON-2024-01 — treat as one sourcing event, not two isolated tenders.",
     evidence: [
       "Contract value €3.08m; OTD target 97.5%.",
       "Evaluation rank 3; include in dual-award scenario AWD-02.",

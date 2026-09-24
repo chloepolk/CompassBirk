@@ -37,7 +37,7 @@ function procurementFindings(): BPFinding[] {
       severity: "critical",
       title: "RFP-2026-001 bid deadline is 23 October 2026",
       narrative:
-        "European Road Freight Services 2027 is the governed event. Carrier responses are not yet on file. Contract expiry, the sourcing need, a performance exception and a corrective action are open. Award target 20 November 2026.",
+        "European Road Freight Services 2027 is the active sourcing event. Carrier responses have not yet been received. Contract expiry, the sourcing need, a performance exception and a corrective action remain open. Award target 20 November 2026.",
       evidence: [
         "Bid deadline 23 October 2026; award target 20 November 2026; service start 1 January 2027.",
         "Estimated annual value €5.65m across 18 lanes and 2,448 forecast shipments.",
@@ -99,7 +99,7 @@ const FINDINGS_DE: Record<string, Pick<BPFinding, "title" | "narrative" | "evide
   "clp-rfp-deadline": {
     title: "Die Angebotsfrist für RFP-2026-001 ist der 23. Oktober 2026",
     narrative:
-      "Europäische Straßengüterverkehre 2027 ist das gesteuerte Ereignis. Trägerantworten liegen noch nicht vor. Vertragsablauf, Beschaffungsbedarf, eine Leistungsabweichung und eine Korrekturmaßnahme sind offen. Zuschlagsziel 20. November 2026.",
+      "Europäische Straßengüterverkehre 2027 ist das aktive Beschaffungsereignis. Trägerantworten sind noch nicht eingegangen. Vertragsablauf, Beschaffungsbedarf, eine Leistungsabweichung und eine Korrekturmaßnahme bleiben offen. Zuschlagsziel 20. November 2026.",
     evidence: [
       "Angebotsfrist 23. Oktober 2026; Zuschlagsziel 20. November 2026; Leistungsstart 1. Januar 2027.",
       "Geschätzter Jahreswert 5,65 Mio. € über 18 Relationen und 2.448 prognostizierte Sendungen.",

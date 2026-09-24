@@ -26,7 +26,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
     title: "Europäische Straßengüterverkehre 2027",
     quantity: "18 Relationen · 2.448 prognostizierte Sendungen",
     narrative:
-      "Beschaffungsbedarf: Europäische Straßengüterverkehre 2027 müssen die Rahmenverträge ablösen, die am 31. Dezember 2026 auslaufen. Entwerfen Sie die zweisprachige RFP gegen 18 Relationen, 2.448 prognostizierte Sendungen und das SLA SRC-002, bevor Einladungen rausgehen. Trägerantworten liegen noch nicht vor.",
+      "Beschaffungsbedarf: Europäische Straßengüterverkehre 2027 müssen die Rahmenverträge ablösen, die am 31. Dezember 2026 auslaufen. Entwerfen Sie die zweisprachige RFP gegen 18 Relationen, 2.448 prognostizierte Sendungen und das SLA SRC-002, bevor die Einladungen versendet werden. Trägerantworten sind noch nicht eingegangen.",
     risk:
       "Die Rahmenverträge RheinRoute und NorthBridge laufen am 31. Dezember 2026 mit 120-Tage-Kündigungsfrist aus. Ein später Zuschlag verdichtet den Übergang in den Leistungsstart Januar 2027.",
     evidence: [
@@ -55,7 +55,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
     narrative:
       "CON-2024-02 mit NorthBridge Freight Ltd endet ebenfalls am 31. Dezember 2026. NorthBridge ist der stärkste Incumbent beim Service-Score und Kandidat im Dual-Award-Szenario (35 %) neben AlpineLink.",
     risk:
-      "Das Kündigungsfenster ist dasselbe wie bei CON-2024-01 — als ein gesteuertes Ereignis behandeln, nicht als zwei isolierte Ausschreibungen.",
+      "Das Kündigungsfenster ist dasselbe wie bei CON-2024-01 — als ein Beschaffungsereignis behandeln, nicht als zwei isolierte Ausschreibungen.",
     evidence: [
       "Vertragswert 3,08 Mio. €; Pünktlichkeitsziel 97,5 %.",
       "Bewertungsrang 3; in Dual-Award-Szenario AWD-02 aufnehmen.",
