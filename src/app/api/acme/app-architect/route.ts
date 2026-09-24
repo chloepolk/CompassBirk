@@ -1,8 +1,6 @@
 import { getClient, getGeminiClient, callWithRetry, extractJson, MODELS, fallbackResponse, errorResponse } from "@/lib/compass/engine"
-import { APP_ARCHITECT_PROMPT as ARCHITECT_COMPASS } from "@/app/prototype/prosera-compass/agents/_prompts"
-import { APP_ARCHITECT_PROMPT as ARCHITECT_FE } from "@/app/prototype/future-energy/agents/_prompts"
-import { buildCatalogPromptContext as catalogCompass } from "@/app/prototype/prosera-compass/_modules/catalog"
-import { buildCatalogPromptContext as catalogFE } from "@/app/prototype/future-energy/_modules/catalog"
+import { APP_ARCHITECT_PROMPT } from "@/app/compass/agents/_prompts"
+import { buildCatalogPromptContext } from "@/app/compass/_modules/catalog"
 import { outputLanguageInstruction } from "@/lib/compass/data-grounded-language"
 
 export const runtime = "nodejs"
@@ -74,16 +72,14 @@ export async function POST(req: Request) {
   const model = gemini ? MODELS.gemini : MODELS.openai
 
   try {
-    const { intent, locale, tenant } = await req.json()
-    const APP_ARCHITECT_PROMPT = tenant === "future-energy" ? ARCHITECT_FE : ARCHITECT_COMPASS
-    const buildCatalogPromptContext = tenant === "future-energy" ? catalogFE : catalogCompass
+    const { intent, locale } = await req.json()
     const userMsg = [
       typeof intent === "string" && intent.trim()
         ? `User intent: ${intent.trim()}`
         : "The user has no specific intent — surface the highest-value apps for this commercial field-services business.",
       "",
       buildCatalogPromptContext(),
-      outputLanguageInstruction(locale, { tenant }),
+      outputLanguageInstruction(locale, { tenant: "compass-logistics" }),
     ].join("\n")
 
     const response = await callWithRetry(

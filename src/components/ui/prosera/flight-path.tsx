@@ -4,7 +4,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { SafeIcon } from "@/components/prosera-lib/safe-icon"
 import { cn } from "@/lib/utils"
-import { pulseOnceClass } from "@/app/prototype/prosera-compass/_components/motion"
+import { pulseOnceClass } from "@/app/compass/_components/motion"
 
 export type FlightPathStepState = "done" | "current" | "upcoming"
 

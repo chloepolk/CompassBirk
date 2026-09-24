@@ -6,7 +6,7 @@
 /*  Do not reconvert a figure that already carries a symbol.           */
 /* ------------------------------------------------------------------ */
 
-export type DisplayLocale = "en" | "fr"
+export type DisplayLocale = "en" | "de"
 
 /** Prototype FX, 21/08/2026. USD seed × rate = display currency. */
 export const FX_RATE_DATE = "21/08/2026"
@@ -18,8 +18,8 @@ export const SHORT_TON_TO_TONNE = 0.90718474
 /** Seed fuel-sensitivity step (USD per US gallon). */
 export const USD_PER_GAL_SENSITIVITY = 0.1
 
-export function localeTag(locale: DisplayLocale = "en"): "en-GB" | "fr-FR" {
-  return locale === "fr" ? "fr-FR" : "en-GB"
+export function localeTag(locale: DisplayLocale = "en"): "en-GB" | "de-DE" {
+  return locale === "de" ? "de-DE" : "en-GB"
 }
 
 function parseDisplayDate(input: string | number | Date): Date | null {
@@ -167,7 +167,7 @@ export function formatCompactMoney(usdAmount: number, locale: DisplayLocale = "e
       minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     })
-    return locale === "fr" ? `${sign}${n} Md€` : `${sign}€${n}bn`
+    return locale === "de" ? `${sign}${n} Md€` : `${sign}€${n}bn`
   }
 
   if (abs >= 1_000_000) {
@@ -176,20 +176,20 @@ export function formatCompactMoney(usdAmount: number, locale: DisplayLocale = "e
       minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     })
-    return locale === "fr" ? `${sign}${n} M€` : `${sign}€${n}m`
+    return locale === "de" ? `${sign}${n} M€` : `${sign}€${n}m`
   }
 
   if (abs >= 1_000) {
     const n = Math.round(abs / 1_000).toLocaleString(tag, {
       maximumFractionDigits: 0,
     })
-    return locale === "fr" ? `${sign}${n} k€` : `${sign}€${n}k`
+    return locale === "de" ? `${sign}${n} k€` : `${sign}€${n}k`
   }
 
   const n = Math.round(abs).toLocaleString(tag, {
     maximumFractionDigits: 0,
   })
-  return locale === "fr" ? `${sign}${n} €` : `${sign}€${n}`
+  return locale === "de" ? `${sign}${n} €` : `${sign}€${n}`
 }
 
 /** Unit prices (per hour, per day) with two decimals. Currency only. */
@@ -263,7 +263,7 @@ export function formatTonnePrice(usdPerShortTon: number, locale: DisplayLocale =
 export function formatFuelSensitivityStep(locale: DisplayLocale = "en"): string {
   const perLitre = fuelPriceDisplay(USD_PER_GAL_SENSITIVITY, locale)
   const cents = Math.round(perLitre * 100)
-  return locale === "fr" ? `${cents} c€/L` : `${cents} c€/L`
+  return locale === "de" ? `${cents} c€/L` : `${cents} c€/L`
 }
 
 export function fahrenheitToCelsius(f: number): number {

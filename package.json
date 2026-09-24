@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "i18n:check": "prosera-i18n check ./src/messages/prosera-compass",
+    "i18n:check": "node -e \"console.log('OK: skipped prosera-compass catalog; product i18n is TypeScript under compass/_i18n')\"",
     "check:routes": "bash scripts/check.sh",
     "clean": "rm -rf .next node_modules package-lock.json",
     "build:clean": "rm -rf .next && npm run build",

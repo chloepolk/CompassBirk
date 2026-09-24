@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prosera Compass",
-  description: "Prosera Compass — supply chain intelligence for offshore wind procurement.",
+  title: "Compass Logistics Procurement",
+  description: "Compass Logistics Procurement — logistics-services sourcing and vendor performance.",
 };
 
 export default async function RootLayout({
@@ -25,12 +25,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const jar = await cookies()
-  const pathname = (await headers()).get("x-pathname") ?? ""
-  const lang = pathname.startsWith("/prototype/prosera-compass")
-    ? "en-US"
-    : jar.get("fe-locale")?.value === "fr"
-      ? "fr-FR"
-      : "en-GB"
+  const lang = jar.get("fe-locale")?.value === "de" ? "de-DE" : "en-GB"
   return (
     <html lang={lang} suppressHydrationWarning>
       <body

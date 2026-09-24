@@ -1,15 +1,13 @@
 import { createChatStream, errorResponse } from "@/lib/compass/engine"
-import { SANDBOX_SYSTEM_PROMPT as SANDBOX_COMPASS } from "@/app/prototype/prosera-compass/agents/_prompts"
-import { SANDBOX_SYSTEM_PROMPT as SANDBOX_FE } from "@/app/prototype/future-energy/agents/_prompts"
+import { SANDBOX_SYSTEM_PROMPT } from "@/app/compass/agents/_prompts"
 import { outputLanguageInstruction } from "@/lib/compass/data-grounded-language"
 
 export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
-    const { scenarioPrompt, locale, tenant } = await req.json()
-    const SANDBOX_SYSTEM_PROMPT = tenant === "future-energy" ? SANDBOX_FE : SANDBOX_COMPASS
-    const language = outputLanguageInstruction(locale, { tenant })
+    const { scenarioPrompt, locale } = await req.json()
+    const language = outputLanguageInstruction(locale, { tenant: "compass-logistics" })
 
     const stream = await createChatStream(
       SANDBOX_SYSTEM_PROMPT,

@@ -1,0 +1,92 @@
+{
+  "headers": [
+    "document_id",
+    "file_name",
+    "source_class",
+    "authoritative_for",
+    "language",
+    "input_output"
+  ],
+  "records": [
+    {
+      "document_id": "SRC-001",
+      "file_name": "01_Logistics_Services_Specification.docx",
+      "source_class": "Operational specification",
+      "authoritative_for": "Service scope, operating requirements, visibility and baseline KPIs",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-002",
+      "file_name": "02_Carrier_Performance_and_SLA_Standard.docx",
+      "source_class": "Performance standard",
+      "authoritative_for": "KPI definitions, thresholds, review and escalation",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-003",
+      "file_name": "03_Procurement_Policy.docx",
+      "source_class": "Policy",
+      "authoritative_for": "Competition, evaluation governance and approvals",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-004",
+      "file_name": "04_Standard_Logistics_Contract_Terms.docx",
+      "source_class": "Legal",
+      "authoritative_for": "Insurance, liability, confidentiality, termination and audit",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-005",
+      "file_name": "05_Pricing_and_Fuel_Surcharge_Rules.docx",
+      "source_class": "Commercial standard",
+      "authoritative_for": "Rate format, fuel adjustment, accessorials and volume basis",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-006",
+      "file_name": "06_Technology_and_Data_Requirements.docx",
+      "source_class": "Technology specification",
+      "authoritative_for": "Connectivity, data fields, implementation and quality",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-007",
+      "file_name": "07_Sustainability_Requirements.docx",
+      "source_class": "Sustainability standard",
+      "authoritative_for": "Emissions reporting and improvement plan",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-008",
+      "file_name": "08_Supplier_Qualification_Standard.docx",
+      "source_class": "Qualification standard",
+      "authoritative_for": "Mandatory evidence, gates and No History treatment",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-009",
+      "file_name": "Existing_Contract_Extract.docx",
+      "source_class": "Existing contract",
+      "authoritative_for": "Current obligations, service targets and remedies",
+      "language": "EN",
+      "input_output": "Input"
+    },
+    {
+      "document_id": "SRC-010",
+      "file_name": "10_Historical_Service_Review.docx",
+      "source_class": "Historical review",
+      "authoritative_for": "Verified performance context and sourcing lessons",
+      "language": "EN",
+      "input_output": "Input"
+    }
+  ]
+}

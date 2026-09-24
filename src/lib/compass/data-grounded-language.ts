@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------ */
-/*  Data-grounded language — BluePilot and any Compass-generated copy  */
+/*  Data-grounded language — Compass-generated copy  */
 /*                                                                     */
 /*  Decision-makers read this output. Every claim of size, direction,  */
 /*  or importance must trace to a number, delta, or comparison in the  */
@@ -9,15 +9,15 @@
 import { chatLanguageInstruction, isAppLocale, DEFAULT_LOCALE } from "@prosera/i18n/core"
 import { glossaryForTenant } from "./product-locale"
 
-export const DATA_GROUNDED_PRODUCT_NAME = "BluePilot"
+export const DATA_GROUNDED_PRODUCT_NAME = "Compass"
 
 function localeKitLine(locale: string | undefined, tenant?: string): string {
-  const appLocale = isAppLocale(locale) ? locale : locale === "fr" ? "fr" : DEFAULT_LOCALE
+  const appLocale = isAppLocale(locale) ? locale : locale === "de" ? "de" : DEFAULT_LOCALE
   return chatLanguageInstruction(appLocale, { glossary: [...glossaryForTenant(tenant)] })
 }
 
 /**
- * Inject into every BluePilot / specialist / sandbox / BI prompt.
+ * Inject into every Compass / specialist / sandbox / BI prompt.
  * Keep in sync with .cursor/rules/data-grounded-language.mdc
  */
 export const DATA_GROUNDED_LANGUAGE_RULES = `DATA-GROUNDED OUTPUT for ${DATA_GROUNDED_PRODUCT_NAME} (EN-GB — read by people making decisions, not marketing copy):
@@ -48,38 +48,17 @@ All prose is British English. Data is not. Never Anglicise field names, enums, I
 
 CHECK BEFORE OUTPUT: scan for banned words in rules 1–3, 9 and 10; replace each with the data point or delete it; every claim sentence must contain a number, date, or named comparison; dates day-first; currency carries € as supplied; no -yze; no Anglicised field names or enum values.
 
-GLOSSARY (defined product terms, not generated copy): BluePilot, Intelligence Panel, Future Energy, Prosera Compass, and "On track" as a mission-health label. These rules govern generated output and authored narrative (insights, bios, email templates, ITT fallbacks). UI chrome is out of scope except where it is a sentence claiming magnitude.`
+GLOSSARY (defined product terms, not generated copy): Compass, Intelligence Panel, Compass Logistics Procurement, No History, and "On track" as a mission-health label. These rules govern generated output and authored narrative (insights, bios, email templates, ITT fallbacks). UI chrome is out of scope except where it is a sentence claiming magnitude.`
 
-/** French counterpart — inject whenever locale is `fr`. */
-export const DATA_GROUNDED_LANGUAGE_RULES_FR = `SORTIE ANCRÉE DANS LES DONNÉES pour ${DATA_GROUNDED_PRODUCT_NAME} (non négociable — lu par des décideurs, pas un texte marketing) :
-Toute affirmation de taille, de direction ou d’importance doit renvoyer à un nombre, un écart ou une comparaison présents dans les données fournies. Si vous ne pouvez pas citer la valeur exacte qui justifie un mot, n’utilisez pas ce mot — remplacez-le par la valeur, ou supprimez-le.
+/** German counterpart — inject whenever locale is `de`. */
+export const DATA_GROUNDED_LANGUAGE_RULES_DE = `DATENGESTÜTZTE AUSGABE für ${DATA_GROUNDED_PRODUCT_NAME} (DE — von Entscheidern gelesen, keine Marketingtexte):
+Jede Aussage zu Größe, Richtung oder Bedeutung muss auf eine Zahl, eine Abweichung oder einen Vergleich in den gelieferten Daten zurückgehen. Wenn Sie den genauen Wert nicht nennen können, verwenden Sie das Wort nicht.
 
-1. PAS DE MOTS DE MAGNITUDE SANS CHIFFRE. N’utilisez jamais un mot qui dit « combien » ou « à quel point c’est important » sauf si le nombre dans la même phrase le prouve. Interdits : significativement, considérablement, substantiellement, notablement, nettement, dramatiquement, fortement, largement, grandement, vastement. Indiquez l’écart, le pourcentage, la valeur absolue ou la comparaison (« +12 % vs. le trimestre précédent », pas « a augmenté de façon significative »).
+11. WÄHRUNG UND EINHEITEN. Die Beträge im Kontext sind bereits in EUR. Niemals umrechnen. Zahl unverändert übernehmen. Format: 1.250 € oder kompakt 1,2 Mio. €, 3,4 Mrd. €, 450 Tsd. €.
 
-2. PAS D’INTENSITÉ NI DE SUPERLATIF SANS MESURE. Interdits : robuste, puissant, fluide, à la pointe, best-in-class, world-class, innovant, complet, dynamique (sauf terme technique source), nouvelle génération, leader du secteur, sans précédent, révolutionnaire. Si c’est mesurable, dites la mesure. Sinon, ne l’affirmez pas.
+GLOSSAR: Compass, Intelligence Panel, Compass Logistics Procurement, No History.
 
-3. PAS DE REMPLISSAGE ATTÉNUANT. Interdits : assez, plutôt, relativement, généralement, largement, essentiellement, principalement, en quelque sorte, dans l’ensemble. Si les données sont incertaines, dites l’incertitude (« échantillon de 3 jours », « intervalle de confiance ±4 % »).
-
-4. LES CHIFFRES D’ABORD. Schéma : [indicateur] [direction] [magnitude en nombre] [point de comparaison]. Mettez le nombre dans la même proposition que l’affirmation.
-
-5. PAS DE DONNÉE = PAS D’IMPLICATION. Omettez l’affirmation, ou écrivez « Pas de donnée de période antérieure pour comparer. » Ne comblez jamais un trou avec un qualificatif vague.
-
-6. CHAQUE ADJECTIF QUI QUALIFIE UN INDICATEUR DOIT AVOIR UNE SOURCE. Nommez la valeur qui le rend vrai. Sinon, supprimez l’adjectif.
-
-7. STYLE. Voix active. Phrases courtes. Une affirmation par phrase. Le chiffre d’abord, pas l’interprétation. N’éditorialisez pas « bon » ou « mauvais » sauf demande explicite de verdict. Pas de point d’exclamation. Pas d’émoji. Pas de « nous sommes ravis de… ».
-
-8. N’INVENTEZ PAS DE TERMES. Utilisez uniquement les termes des données, d’un glossaire produit, ou de l’usage métier standard. Ne créez pas d’étiquette pour un motif. Décrivez les valeurs.
-
-9. PAS DE TON ALARMISTE. Les titres disent le fait et l’action. Interdits : menacer, compromettre, crise, catastrophique, alarmant, urgemment, mettre en péril. N’ouvrez pas un titre par « Critique ». Ne dites pas « risques commerciaux élevés » — citez la clause et le chiffre (« garantie de 12 mois contre le standard de 24 mois »). Calme : « L’attribution de PKG-2104 est due dans 11 jours. » Pas : « Des échéances critiques menacent le programme. »
-
-10. TYPOGRAPHIE FRANÇAISE. Espace fine insécable avant : ; ? ! et à l’intérieur des guillemets « ». Mois en minuscules (« 14 mars 2026 »). Virgule décimale dans les nombres en prose (1,2 et non 1.2).
-
-11. DEVISE ET UNITÉS. Les montants dans le contexte sont déjà en EUR. Ne convertissez jamais. Recopiez le chiffre tel quel. Format : 1 250 € ou compact 1,2 M€, 3,4 Md€, 450 k€. Volume carburant : litres. Prix carburant : EUR par litre. Prix massique : EUR par kg. Acier : EUR par tonne. Distances et vitesses routières restent miles / mph. Températures : °C. Ne mettez jamais en minuscules les sigles et symboles d’unité (EPCI, kV, UK, ISO, DNV, IMCA, API, XLPE, FAT, ITT, DDP).
-
-GLOSSAIRE PRODUIT (termes définis, pas de la copie générée) : BluePilot, Intelligence Panel, Future Energy, Prosera Compass, « On track » / « Dans les temps » comme état de santé de mission.
-
-CONTRÔLE AVANT SORTIE : cherchez les mots interdits ; remplacez-les par le chiffre ou supprimez-les ; chaque phrase d’affirmation doit contenir un nombre, une date ou une comparaison nommée.
-Rédigez pour un lecteur de lycée / premier cycle universitaire : clair pour un junior comme pour un dirigeant.`
+KONTROLLE VOR DER AUSGABE: verbotene Wörter ersetzen oder streichen; jeder Aussagesatz braucht eine Zahl, ein Datum oder einen benannten Vergleich.`
 
 /**
  * American English counterpart for the Compass app.
@@ -114,16 +93,14 @@ All prose is American English. Data is not. Never Americanize field names, enums
 
 CHECK BEFORE OUTPUT: scan for banned words in rules 1–3, 9 and 10; replace each with the data point or delete it; every claim sentence must contain a number, date, or named comparison; dates day-first; currency carries € as supplied; no Americanized field names or enum values.
 
-GLOSSARY (defined product terms, not generated copy): BluePilot, Intelligence Panel, Action Center, Prosera Compass, and "On track" as a mission-health label. These rules govern generated output and authored narrative (insights, bios, email templates, ITT fallbacks). UI chrome is out of scope except where it is a sentence claiming magnitude.`
+GLOSSARY (defined product terms, not generated copy): Compass, Intelligence Panel, Action Centre, Compass Logistics Procurement, and "On track" as a mission-health label. These rules govern generated output and authored narrative (insights, bios, email templates, ITT fallbacks). UI chrome is out of scope except where it is a sentence claiming magnitude.`
 
 /**
  * Language block for model user-messages. English system prompts already
- * carry DATA_GROUNDED_LANGUAGE_RULES; French output must receive the FR rules
+ * carry DATA_GROUNDED_LANGUAGE_RULES; German output must receive the DE rules
  * in the same turn or they will not bind.
  *
- * `tenant: "future-energy"` → British English + French.
- * `tenant: "prosera-compass"` (or any other tenant) → American English.
- * Missing tenant keeps British English so Future Energy callers stay safe.
+ * British English is the default. German is used when locale is `de`.
  */
 export function outputLanguageInstruction(
   locale: string | undefined,
@@ -131,21 +108,16 @@ export function outputLanguageInstruction(
 ): string {
   const kitLine = localeKitLine(locale, opts?.tenant)
 
-  if (locale === "fr") {
+  if (locale === "de") {
     const next = opts?.chatNextLine
-      ? " Utilisez « Suite : » pour la ligne d’action finale."
+      ? " Verwenden Sie « Weiter: » für die letzte Handlungszeile."
       : ""
-    return `${kitLine}\n\nLANGUE OBLIGATOIRE : rédigez tous les champs de texte en français. Conservez inchangés les noms propres, marques, normes, identifiants et références documentaires.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_FR}`
+    return `${kitLine}\n\nPFLICHTSPRACHE: Schreiben Sie alle Textfelder auf Deutsch. Eigennamen, Marken, Normen, Kennungen und Dokumentreferenzen unverändert lassen.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_DE}`
   }
 
-  const american = opts?.tenant != null && opts.tenant !== "future-energy"
   const next = opts?.chatNextLine
     ? ' Use "Next:" for the final action line.'
     : ""
-
-  if (american) {
-    return `${kitLine}\n\nRespond exclusively in American English (en-US). Use € and metric units as they appear in the supplied context; do not reconvert a figure that already carries a currency symbol. Dates stay day first (14 March 2026).${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES_US}`
-  }
 
   return `${kitLine}\n\nRespond exclusively in British English (en-GB). Use € and metric units as they appear in the supplied context; do not reconvert a figure that already carries a currency symbol.${next}\n\n${DATA_GROUNDED_LANGUAGE_RULES}`
 }

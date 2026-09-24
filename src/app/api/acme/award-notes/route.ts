@@ -34,7 +34,7 @@ const IMPACT_SCHEMA = {
 }
 
 function asLocale(value: unknown): DisplayLocale {
-  return value === "fr" ? "fr" : "en"
+  return value === "de" ? "de" : "en"
 }
 
 export async function POST(req: Request) {

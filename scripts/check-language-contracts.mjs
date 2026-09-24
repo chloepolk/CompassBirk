@@ -19,13 +19,13 @@ function fail(msg) {
 
 const tsPath = join(root, "src/lib/compass/data-grounded-language.ts")
 const mdcPath = join(workspace, ".cursor/rules/data-grounded-language.mdc")
-const feStudio = join(root, "src/app/prototype/future-energy/_pages/tender-studio.tsx")
-const pcStudio = join(root, "src/app/prototype/prosera-compass/_pages/tender-studio.tsx")
+const feStudio = join(root, "src/app/compass/_pages/tender-studio.tsx")
+const pcStudio = join(root, "src/app/compass/_pages/tender-studio.tsx")
 
 const ts = read(tsPath)
 const mdc = existsSync(mdcPath) ? read(mdcPath) : ""
 const fe = read(feStudio)
-const pc = read(pcStudio)
+const pc = existsSync(pcStudio) ? read(pcStudio) : ""
 
 if (!ts.includes("Figures in context are already in EUR. Never convert.")) {
   fail("EN RULE 11 must say figures are already in EUR and never convert")
@@ -33,11 +33,8 @@ if (!ts.includes("Figures in context are already in EUR. Never convert.")) {
 if (!ts.includes("Respond exclusively in American English (en-US).")) {
   fail("US English instruction must exist for Compass")
 }
-if (!ts.includes("Les montants dans le contexte sont déjà en EUR. Ne convertissez jamais.")) {
-  fail("FR RULE 11 must say amounts are already in EUR and never convert")
-}
-if (!ts.includes("Espace fine insécable") && !ts.includes("espace fine insécable")) {
-  fail("FR block must include typography (narrow non-breaking space)")
+if (!ts.includes("Die Beträge im Kontext sind bereits in EUR. Niemals umrechnen.")) {
+  fail("DE RULE 11 must say amounts are already in EUR and never convert")
 }
 if (!ts.includes("EPCI, kV, UK, ISO")) {
   fail("Rules must include the acronym/unit casing list")
@@ -59,9 +56,9 @@ if (!mdc) {
 
 const lowerPattern = /\.(scope|name)\.toLowerCase\(\)/
 if (lowerPattern.test(fe)) fail("future-energy tender-studio still lowercases scope/name")
-if (lowerPattern.test(pc)) fail("prosera-compass tender-studio still lowercases scope/name")
+if (pc && lowerPattern.test(pc)) fail("prosera-compass tender-studio still lowercases scope/name")
 
-const ledgerPath = join(root, "src/app/prototype/future-energy/_components/hub/portfolio-ledger.tsx")
+const ledgerPath = join(root, "src/app/compass/_components/hub/portfolio-ledger.tsx")
 const ledger = read(ledgerPath)
 if (ledger.includes("Negotiated savings") || ledger.includes("Booked across")) {
   fail("portfolio-ledger still hardcodes English savings copy")

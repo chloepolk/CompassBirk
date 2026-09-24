@@ -6,12 +6,6 @@ import {
   verifyAccessCookie,
 } from "@/lib/prototype-access"
 
-const ALLOWED_PROTOTYPE_PATHS = new Set<string>([
-  "/prototype",
-  "/prototype/prosera-compass",
-  "/prototype/future-energy",
-])
-
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/login" || pathname.startsWith("/login/")) return true
   if (pathname === "/api/health") return true
@@ -37,23 +31,11 @@ function deny(request: NextRequest): NextResponse {
 
 /**
  * Next.js 16 request proxy (replaces middleware.ts).
- * - Restricts /prototype/* to known apps
- * - Optional shared-secret gate via PROTOTYPE_ACCESS_SECRET
- *   (when unset, local/demo access stays open)
+ * Optional shared-secret gate via PROTOTYPE_ACCESS_SECRET
+ * (when unset, local/demo access stays open).
  */
 export async function proxy(request: NextRequest) {
-  const url = request.nextUrl
-  const { pathname } = url
-
-  if (pathname.startsWith("/prototype/")) {
-    if (!ALLOWED_PROTOTYPE_PATHS.has(pathname)) {
-      const notFound = url.clone()
-      notFound.pathname = "/_not-found"
-      return NextResponse.rewrite(notFound)
-    }
-  }
-
-  if (isPublicPath(pathname)) return nextWithPathname(request)
+  if (isPublicPath(request.nextUrl.pathname)) return nextWithPathname(request)
 
   const secret = getAccessSecret()
   // No secret configured → open for local demos. Set PROTOTYPE_ACCESS_SECRET to gate.

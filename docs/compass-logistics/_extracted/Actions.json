@@ -1,0 +1,100 @@
+{
+  "headers": [
+    "action_id",
+    "stage",
+    "action_type",
+    "title",
+    "owner",
+    "due_date",
+    "status",
+    "trigger",
+    "recommended_action",
+    "related_entity"
+  ],
+  "records": [
+    {
+      "action_id": "ACT-001",
+      "stage": "03 Invite",
+      "action_type": "Approval",
+      "title": "Approve bilingual RFP/ITT before issue",
+      "owner": "Category Manager",
+      "due_date": "2026-09-27",
+      "status": "Ready",
+      "trigger": "Draft sourcing event complete",
+      "recommended_action": "Review and approve release",
+      "related_entity": "RFP-2026-001"
+    },
+    {
+      "action_id": "ACT-002",
+      "stage": "04 Clarifications",
+      "action_type": "Email review",
+      "title": "Review supplier clarification on fuel surcharge",
+      "owner": "Sourcing Analyst",
+      "due_date": "2026-10-07",
+      "status": "Pending",
+      "trigger": "Relevant inbound email classified",
+      "recommended_action": "Publish response to all bidders",
+      "related_entity": "EML-004"
+    },
+    {
+      "action_id": "ACT-003",
+      "stage": "05 Bid Receipt",
+      "action_type": "Bid exception",
+      "title": "Review revised RheinRoute rate card",
+      "owner": "Sourcing Analyst",
+      "due_date": "2026-10-23",
+      "status": "Pending",
+      "trigger": "Attachment supersedes bid v1",
+      "recommended_action": "Accept v2 and retain audit trail",
+      "related_entity": "SUP-001"
+    },
+    {
+      "action_id": "ACT-004",
+      "stage": "06 Evaluation",
+      "action_type": "Qualification failure",
+      "title": "Exclude Veloce pending compliant insurance evidence",
+      "owner": "Category Manager",
+      "due_date": "2026-10-28",
+      "status": "Open",
+      "trigger": "Mandatory gate failed",
+      "recommended_action": "Disqualify or request evidence before deadline",
+      "related_entity": "SUP-005"
+    },
+    {
+      "action_id": "ACT-005",
+      "stage": "06 Evaluation",
+      "action_type": "Award approval",
+      "title": "Approve dual-award scenario",
+      "owner": "Procurement Director",
+      "due_date": "2026-11-20",
+      "status": "Ready",
+      "trigger": "Evaluation complete",
+      "recommended_action": "Award 65% AlpineLink / 35% NorthBridge",
+      "related_entity": "AWD-02"
+    },
+    {
+      "action_id": "ACT-006",
+      "stage": "07 Performance",
+      "action_type": "Performance alert",
+      "title": "RheinRoute OTD below contractual target",
+      "owner": "Logistics Procurement Lead",
+      "due_date": "2026-09-25",
+      "status": "Open",
+      "trigger": "OTD below 98% for three months",
+      "recommended_action": "Initiate supplier performance review",
+      "related_entity": "SUP-001"
+    },
+    {
+      "action_id": "ACT-007",
+      "stage": "08 Corrective Action",
+      "action_type": "Corrective action",
+      "title": "Request terminal recovery plan from RheinRoute",
+      "owner": "Supplier Manager",
+      "due_date": "2026-10-02",
+      "status": "Draft",
+      "trigger": "Five lanes account for majority of late deliveries",
+      "recommended_action": "Send corrective action request in German",
+      "related_entity": "CAP-001"
+    }
+  ]
+}

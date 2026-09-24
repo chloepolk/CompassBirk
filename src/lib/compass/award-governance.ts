@@ -970,9 +970,9 @@ export function awardGovTone(status: AwardGovernanceStatus): AwardGovTone {
 
 export function formatBudgetVariance(varianceUsd: number, locale: DisplayLocale = "en"): string {
   const abs = formatUsdAsEur(Math.abs(varianceUsd), locale)
-  if (varianceUsd < 0) return locale === "fr" ? `${abs} en dessous du budget` : `${abs} under`
-  if (varianceUsd > 0) return locale === "fr" ? `${abs} au-dessus du budget` : `${abs} over`
-  return locale === "fr" ? "égal au budget" : "equals budget"
+  if (varianceUsd < 0) return locale === "de" ? `${abs} unter Budget` : `${abs} under`
+  if (varianceUsd > 0) return locale === "de" ? `${abs} über Budget` : `${abs} over`
+  return locale === "de" ? "entspricht dem Budget" : "equals budget"
 }
 
 export function formatScoreAndRank(
@@ -982,19 +982,19 @@ export function formatScoreAndRank(
 ): string {
   const rankPart =
     rank != null
-      ? locale === "fr"
-        ? `Rang n°${rank}`
+      ? locale === "de"
+        ? `Rang ${rank}`
         : `Rank #${rank}`
-      : locale === "fr"
-        ? "Sans rang"
+      : locale === "de"
+        ? "ohne Rang"
         : "Unranked"
   const scorePart =
     score != null
-      ? locale === "fr"
-        ? `score composite ${formatFixed(score, locale)} sur 100`
+      ? locale === "de"
+        ? `Gesamtscore ${formatFixed(score, locale)} von 100`
         : `composite ${formatFixed(score, locale)}`
-      : locale === "fr"
-        ? "score non calculé"
+      : locale === "de"
+        ? "Score nicht berechnet"
         : "score not calculated"
   return `${rankPart} · ${scorePart}`
 }
@@ -1021,28 +1021,28 @@ export function buildResubmitComparison(
   let change = "—"
   if (original.recommendedSupplier !== revised.recommendedSupplier && priceDelta !== 0) {
     change =
-      locale === "fr"
-        ? `Fournisseur ${original.recommendedSupplier} → ${revised.recommendedSupplier}; prix ${priceDelta < 0 ? "réduit" : "augmenté"} de ${formatUsdAsEur(Math.abs(priceDelta), locale)}`
+      locale === "de"
+        ? `Anbieter ${original.recommendedSupplier} → ${revised.recommendedSupplier}; Preis ${priceDelta < 0 ? "gesenkt" : "erhöht"} um ${formatUsdAsEur(Math.abs(priceDelta), locale)}`
         : `Supplier ${original.recommendedSupplier} → ${revised.recommendedSupplier}; price ${priceDelta < 0 ? "reduced" : "increased"} by ${formatUsdAsEur(Math.abs(priceDelta), locale)}`
   } else if (original.recommendedSupplier !== revised.recommendedSupplier) {
     change =
-      locale === "fr"
-        ? `Fournisseur ${original.recommendedSupplier} → ${revised.recommendedSupplier}`
+      locale === "de"
+        ? `Anbieter ${original.recommendedSupplier} → ${revised.recommendedSupplier}`
         : `Supplier ${original.recommendedSupplier} → ${revised.recommendedSupplier}`
   } else if (priceDelta < 0) {
     change =
-      locale === "fr"
-        ? `Prix réduit de ${formatUsdAsEur(Math.abs(priceDelta), locale)}`
+      locale === "de"
+        ? `Preis um ${formatUsdAsEur(Math.abs(priceDelta), locale)} gesenkt`
         : `Price reduced by ${formatUsdAsEur(Math.abs(priceDelta), locale)}`
   } else if (priceDelta > 0) {
     change =
-      locale === "fr"
-        ? `Prix augmenté de ${formatUsdAsEur(priceDelta, locale)}`
+      locale === "de"
+        ? `Preis um ${formatUsdAsEur(priceDelta, locale)} erhöht`
         : `Price increased by ${formatUsdAsEur(priceDelta, locale)}`
   } else if (original.compositeScore !== revised.compositeScore) {
     const from = original.compositeScore != null ? formatFixed(original.compositeScore, locale) : "—"
     const to = revised.compositeScore != null ? formatFixed(revised.compositeScore, locale) : "—"
-    change = locale === "fr" ? `Score ${from} → ${to}` : `Score ${from} → ${to}`
+    change = locale === "de" ? `Score ${from} → ${to}` : `Score ${from} → ${to}`
   }
 
   return [
@@ -1065,8 +1065,8 @@ export function buildResubmitComparison(
       change:
         original.varianceUsd === revised.varianceUsd
           ? "—"
-          : locale === "fr"
-            ? `Écart ${formatBudgetVariance(original.varianceUsd, locale)} → ${formatBudgetVariance(revised.varianceUsd, locale)}`
+          : locale === "de"
+            ? `Abweichung ${formatBudgetVariance(original.varianceUsd, locale)} → ${formatBudgetVariance(revised.varianceUsd, locale)}`
             : `Variance ${formatBudgetVariance(original.varianceUsd, locale)} → ${formatBudgetVariance(revised.varianceUsd, locale)}`,
     },
     {
@@ -1175,7 +1175,7 @@ export const AWARD_GOV_COPY = {
     confirmNotes: "Confirm notes",
     notesConfirmed: "Notes confirmed",
     confirmNotesHint: "Confirm the notes from the other team members before approving.",
-    bluePilotImpact: "BluePilot impact",
+    bluePilotImpact: "Compass impact",
     teamNotesExpand: "Team notes & comments",
     impactActionOverview: "Action overview",
     applyToProposal: "Apply to proposal",
@@ -1187,126 +1187,123 @@ export const AWARD_GOV_COPY = {
     notifyHeld: "Award notification is held until the required approval is recorded.",
     none: "None recorded.",
   },
-  fr: {
+  de: {
     status: {
-      procurement_review: "Revue achats",
-      awaiting_approver: "En attente de l’approbateur",
-      clarification_requested: "Clarification demandée",
-      revision_required: "Révision requise",
-      approved_for_award: "Approbation d’attribution",
-      awarded: "Attribué",
+      procurement_review: "Einkaufsprüfung",
+      awaiting_approver: "Wartet auf Freigebende",
+      clarification_requested: "Klärung angefordert",
+      revision_required: "Überarbeitung erforderlich",
+      approved_for_award: "Freigabe zum Zuschlag",
+      awarded: "Zuschlag erteilt",
     } satisfies Record<AwardGovernanceStatus, string>,
     definition: {
-      procurement_review: "L’évaluation est encore en cours.",
-      awaiting_approver: "La demande a été assignée.",
-      clarification_requested: "L’approbateur a besoin d’informations supplémentaires.",
-      revision_required: "L’approbateur a renvoyé cette recommandation pour révision.",
-      approved_for_award: "L’autorité requise a approuvé.",
-      awarded: "L’attribution fournisseur est close.",
+      procurement_review: "Die Bewertung wird noch abgeschlossen.",
+      awaiting_approver: "Die Anfrage ist zugewiesen.",
+      clarification_requested: "Die freigebende Person benötigt zusätzliche Informationen.",
+      revision_required: "Die Empfehlung wurde zur Überarbeitung zurückgegeben.",
+      approved_for_award: "Die erforderliche Stelle hat freigegeben.",
+      awarded: "Der Zuschlag an den Anbieter ist erfasst.",
     } satisfies Record<AwardGovernanceStatus, string>,
     revisionReasons: {
-      price_negotiation: "Négociation de prix supplémentaire requise",
-      supplier_reconsider: "La recommandation de fournisseur doit être reconsidérée",
-      technical_deviation: "Écart technique non résolu",
-      qa_hseq: "Point QA/HSEQ non résolu",
-      legal_warranty: "Point juridique ou de garantie non résolu",
-      budget_funding: "Point de budget ou de financement",
-      evaluation_incomplete: "Preuves d’évaluation incomplètes",
-      approval_route: "Circuit d’approbation incorrect",
-      other: "Autre",
+      price_negotiation: "Weitere Preisverhandlung erforderlich",
+      supplier_reconsider: "Anbieterempfehlung sollte überprüft werden",
+      technical_deviation: "Technische Abweichung ungelöst",
+      qa_hseq: "QA/HSEQ-Thema ungelöst",
+      legal_warranty: "Rechts- oder Gewährleistungsthema ungelöst",
+      budget_funding: "Budget- oder Finanzierungsthema",
+      evaluation_incomplete: "Bewertungsevidenz unvollständig",
+      approval_route: "Freigabeweg falsch",
+      other: "Sonstiges",
     } satisfies Record<RevisionReasonCategory, string>,
-    recommendForAward: "Recommander pour attribution",
-    recommended: "Recommandé",
-    submitForApproval: "Soumettre pour approbation",
-    confirmRecommendation: "Confirmer la recommandation",
-    reviewApproval: "Examiner l’approbation",
-    confirmAward: "Confirmer l’attribution",
-    evaluateBids: "Évaluer les offres",
-    withinAuthority:
-      "La proposition d’attribution est de 200 000 € ou moins, elle reste donc dans l’autorité des achats.",
-    exceedsThreshold: "La proposition d’attribution dépasse 200 000 € : l’approbation du directeur est requise.",
-    gateBlocked:
-      "Ce dossier ne peut pas passer à « Approuvé pour attribution » tant que l’approbation requise n’est pas enregistrée.",
-    thresholdTriggered: "Seuil d’approbation déclenché",
-    thresholdYes: "Oui — au-dessus de 200 000 €",
-    thresholdNo: "Non — dans l’autorité des achats",
-    optionalNote: "Note à l’approbateur",
-    optionalNoteHint: "Facultatif. Enregistrée sur l’approbation et jointe à la notification.",
-    title: "Approbation d’attribution",
-    recommendTitle: "Recommandation d’attribution",
-    projectBidRef: "Projet et référence d’offre",
-    recommendedSupplier: "Fournisseur recommandé",
-    proposedAwardValue: "Valeur d’attribution proposée",
-    budgetVariance: "Écart budgétaire",
-    rankingScore: "Score et rang",
-    compositeScore: "Score composite",
-    requiredApprover: "Approbateur",
-    supportingDocs: "Pièces jointes",
-    sourceReferences: "Références sources",
-    approve: "Approuver",
-    requestClarification: "Demander une clarification",
-    returnForRevision: "Renvoyer pour révision",
-    clarificationQuestion: "Question de clarification",
-    clarificationQuestionHint: "Le responsable achats verra cette question sur la carte du Centre d’actions.",
-    clarificationFrom: "Clarification de",
-    clarificationResponse: "Réponse",
-    submitClarificationResponse: "Envoyer la réponse à la clarification",
-    attachDocuments: "Pièces jointes",
-    addAttachment: "Ajouter",
-    attachmentHint: "Ajoutez un libellé de document (prototype — pas de téléversement).",
-    returnToProcurement: "Renvoyer aux achats",
-    reasonCategory: "Catégorie de motif",
-    revisionInstructions: "Instructions de révision",
-    revisionInstructionsHint:
-      "Que faut-il modifier ou résoudre avant de pouvoir resoumettre cette recommandation d’attribution ?",
-    supportingReference: "Référence d’appui",
-    requiredCompletionDate: "Date de réalisation demandée",
-    actionTaken: "Action menée",
-    explainWhatChanged: "Ce qui a changé",
-    explainRequired: "Rien n’a changé dans la recommandation. Expliquez pourquoi avant de resoumettre.",
-    resubmitForApproval: "Resoumettre pour approbation",
-    resubmitSummary: "Synthèse de resoumission",
-    field: "Champ",
-    original: "Origine",
-    revised: "Révisé",
-    change: "Changement",
-    notificationSent: "Notification envoyée à",
-    comments: "Commentaires",
-    instructionsFrom: "Instructions de",
-    reason: "Motif",
-    due: "Échéance",
-    auditField: "Gouvernance d’attribution",
-    teamNotes: "Notes de l’équipe",
-    confirmNotes: "Confirmer les notes",
-    notesConfirmed: "Notes confirmées",
-    confirmNotesHint: "Confirmez les notes des autres membres de l’équipe avant d’approuver.",
-    bluePilotImpact: "Impact BluePilot",
-    teamNotesExpand: "Notes et commentaires",
-    impactActionOverview: "Aperçu de l’action",
-    applyToProposal: "Appliquer à la proposition",
-    originalProposal: "Proposition d’origine",
-    currentProposal: "Proposition actuelle",
-    approveDisabledUntilConfirm: "Confirmez les notes de l’équipe avant d’approuver.",
+    recommendForAward: "Zum Zuschlag empfehlen",
+    recommended: "Empfohlen",
+    submitForApproval: "Zur Freigabe einreichen",
+    confirmRecommendation: "Empfehlung bestätigen",
+    reviewApproval: "Freigabe prüfen",
+    confirmAward: "Zuschlag bestätigen",
+    evaluateBids: "Angebote bewerten",
+    withinAuthority: "Der vorgeschlagene Zuschlag liegt bei 200.000 € oder darunter und bleibt in der Einkaufskompetenz.",
+    exceedsThreshold: "Der vorgeschlagene Zuschlag liegt über 200.000 €, daher ist eine Direktorenfreigabe erforderlich.",
+    gateBlocked: "Dieses Angebotslos kann nicht auf Freigabe zum Zuschlag wechseln, bis die erforderliche Freigabe erfasst ist.",
+    thresholdTriggered: "Freigabeschwelle ausgelöst",
+    thresholdYes: "Ja — über 200.000 €",
+    thresholdNo: "Nein — in der Einkaufskompetenz",
+    optionalNote: "Hinweis an die freigebende Person",
+    optionalNoteHint: "Optional. Wird auf der Freigabe erfasst und in die Mitteilung aufgenommen.",
+    title: "Zuschlagsfreigabe",
+    recommendTitle: "Zuschlagsempfehlung",
+    projectBidRef: "Projekt- und Angebotsreferenz",
+    recommendedSupplier: "Empfohlener Anbieter",
+    proposedAwardValue: "Vorgeschlagener Zuschlagswert",
+    budgetVariance: "Budgetabweichung",
+    rankingScore: "Score und Rang",
+    compositeScore: "Gesamtscore",
+    requiredApprover: "Freigebende Person",
+    supportingDocs: "Belege",
+    sourceReferences: "Quellenangaben",
+    approve: "Freigeben",
+    requestClarification: "Klärung anfordern",
+    returnForRevision: "Zur Überarbeitung zurückgeben",
+    clarificationQuestion: "Klärungsfrage",
+    clarificationQuestionHint: "Die einkaufsverantwortliche Person sieht diese Frage auf der Aktionskarte.",
+    clarificationFrom: "Klärung von",
+    clarificationResponse: "Antwort",
+    submitClarificationResponse: "Klärungsantwort senden",
+    attachDocuments: "Belege",
+    addAttachment: "Hinzufügen",
+    attachmentHint: "Dokumentbezeichnung hinzufügen (Prototyp — kein Datei-Upload).",
+    returnToProcurement: "An den Einkauf zurückgeben",
+    reasonCategory: "Grundkategorie",
+    revisionInstructions: "Überarbeitungsanweisung",
+    revisionInstructionsHint: "Was muss geändert oder geklärt werden, bevor diese Empfehlung erneut eingereicht werden kann?",
+    supportingReference: "Belegreferenz",
+    requiredCompletionDate: "Erforderliches Abschlussdatum",
+    actionTaken: "Durchgeführte Aktion",
+    explainWhatChanged: "Was sich geändert hat",
+    explainRequired: "An der Empfehlung hat sich nichts geändert. Erklären Sie warum, bevor Sie erneut einreichen.",
+    resubmitForApproval: "Erneut zur Freigabe einreichen",
+    resubmitSummary: "Zusammenfassung der Wiedervorlage",
+    field: "Feld",
+    original: "Original",
+    revised: "Geändert",
+    change: "Änderung",
+    notificationSent: "Mitteilung gesendet an",
+    comments: "Kommentare",
+    instructionsFrom: "Anweisung von",
+    reason: "Grund",
+    due: "Fällig",
+    auditField: "Zuschlagsgovernance",
+    teamNotes: "Teamhinweise",
+    confirmNotes: "Hinweise bestätigen",
+    notesConfirmed: "Hinweise bestätigt",
+    confirmNotesHint: "Bestätigen Sie die Hinweise der anderen Teammitglieder, bevor Sie freigeben.",
+    bluePilotImpact: "Compass-Wirkung",
+    teamNotesExpand: "Teamhinweise und Kommentare",
+    impactActionOverview: "Aktionsüberblick",
+    applyToProposal: "Auf Vorschlag anwenden",
+    originalProposal: "Ursprünglicher Vorschlag",
+    currentProposal: "Aktueller Vorschlag",
+    approveDisabledUntilConfirm: "Teamhinweise vor der Freigabe bestätigen.",
     ruleNote:
-      "Les attributions de 200 000 € ou moins restent dans l’autorité des achats. Au-dessus de 200 000 €, une demande d’approbation est créée dans cette action d’achat.",
-    notifyHeld: "La notification d’attribution est retenue jusqu’à l’enregistrement de l’approbation requise.",
-    none: "Aucun élément enregistré.",
+      "Zuschläge von 200.000 € oder weniger bleiben in der Einkaufskompetenz. Zuschläge über 200.000 € erzeugen eine Freigabeanfrage in dieser Beschaffungsaktion.",
+    notifyHeld: "Die Zuschlagsmitteilung wird gehalten, bis die erforderliche Freigabe erfasst ist.",
+    none: "Keine erfasst.",
   },
 } as const
 
 export function awardGovCopy(locale: DisplayLocale = "en") {
-  return AWARD_GOV_COPY[locale]
+  return locale === "de" ? AWARD_GOV_COPY.de : AWARD_GOV_COPY.en
 }
 
 export function revisionReasonLabel(category: RevisionReasonCategory, locale: DisplayLocale = "en"): string {
-  return AWARD_GOV_COPY[locale].revisionReasons[category]
+  return awardGovCopy(locale).revisionReasons[category]
 }
 
 function signedDelta(usd: number, locale: DisplayLocale): string {
   const abs = formatUsdAsEur(Math.abs(usd), locale)
-  if (usd > 0) return locale === "fr" ? `${abs} au-dessus de l’offre recommandée` : `${abs} above the recommended bid`
-  if (usd < 0) return locale === "fr" ? `${abs} en dessous de l’offre recommandée` : `${abs} below the recommended bid`
-  return locale === "fr" ? "même prix que l’offre recommandée" : "same price as the recommended bid"
+  if (usd > 0) return locale === "de" ? `${abs} über dem empfohlenen Angebot` : `${abs} above the recommended bid`
+  if (usd < 0) return locale === "de" ? `${abs} unter dem empfohlenen Angebot` : `${abs} below the recommended bid`
+  return locale === "de" ? "gleicher Preis wie das empfohlene Angebot" : "same price as the recommended bid"
 }
 
 function awardAndVarianceSentences(snapshot: AwardApprovalSnapshot, locale: DisplayLocale) {
@@ -1317,24 +1314,24 @@ function awardAndVarianceSentences(snapshot: AwardApprovalSnapshot, locale: Disp
   const overBy = formatEurFigure(Math.max(0, usdToEur(snapshot.proposedAwardUsd) - AWARD_APPROVAL_THRESHOLD_EUR), locale)
 
   const awardSentence = snapshot.requiresDirectorApproval
-    ? locale === "fr"
-      ? `L’attribution proposée est de ${awardEur} (montant source ${snapshot.proposedAwardUsd.toLocaleString("fr-FR")} USD × ${USD_TO_EUR}, ${FX_RATE_DATE}). Elle dépasse le seuil d’approbation de ${threshold} de ${overBy}.`
+    ? locale === "de"
+      ? `Der vorgeschlagene Zuschlag beträgt ${awardEur} (Quellbetrag ${snapshot.proposedAwardUsd.toLocaleString("de-DE")} USD × ${USD_TO_EUR}, ${FX_RATE_DATE}). Er überschreitet die Freigabeschwelle von ${threshold} um ${overBy}.`
       : `Proposed award value is ${awardEur} (USD seed ${snapshot.proposedAwardUsd.toLocaleString("en-GB")} × ${USD_TO_EUR}, ${FX_RATE_DATE}). This exceeds the ${threshold} approval threshold by ${overBy}.`
-    : locale === "fr"
-      ? `L’attribution proposée est de ${awardEur} (montant source ${snapshot.proposedAwardUsd.toLocaleString("fr-FR")} USD × ${USD_TO_EUR}, ${FX_RATE_DATE}). Elle est inférieure ou égale au seuil de ${threshold} et reste dans l’autorité des achats.`
+    : locale === "de"
+      ? `Der vorgeschlagene Zuschlag beträgt ${awardEur} (Quellbetrag ${snapshot.proposedAwardUsd.toLocaleString("de-DE")} USD × ${USD_TO_EUR}, ${FX_RATE_DATE}). Er liegt bei oder unter der Schwelle von ${threshold} und bleibt in der Einkaufskompetenz.`
       : `Proposed award value is ${awardEur} (USD seed ${snapshot.proposedAwardUsd.toLocaleString("en-GB")} × ${USD_TO_EUR}, ${FX_RATE_DATE}). This is at or below the ${threshold} threshold and remains within procurement authority.`
 
   const varianceSentence =
     snapshot.varianceUsd < 0
-      ? locale === "fr"
-        ? `Le budget du lot est de ${budgetEur}. L’attribution proposée est inférieure au budget de ${varianceAbs}.`
+      ? locale === "de"
+        ? `Das Losbudget beträgt ${budgetEur}. Der vorgeschlagene Zuschlag liegt ${varianceAbs} unter Budget.`
         : `Package budget is ${budgetEur}. Proposed award is ${varianceAbs} under budget.`
       : snapshot.varianceUsd > 0
-        ? locale === "fr"
-          ? `Le budget du lot est de ${budgetEur}. L’attribution proposée dépasse le budget de ${varianceAbs}.`
+        ? locale === "de"
+          ? `Das Losbudget beträgt ${budgetEur}. Der vorgeschlagene Zuschlag überschreitet das Budget um ${varianceAbs}.`
           : `Package budget is ${budgetEur}. Proposed award is ${varianceAbs} over budget.`
-        : locale === "fr"
-          ? `Le budget du lot est de ${budgetEur}. L’attribution proposée est égale au budget.`
+        : locale === "de"
+          ? `Das Losbudget beträgt ${budgetEur}. Der vorgeschlagene Zuschlag entspricht dem Budget.`
           : `Package budget is ${budgetEur}. Proposed award equals the budget.`
 
   return { awardSentence, varianceSentence }
@@ -1353,62 +1350,62 @@ export function buildAwardApprovalEmail(
 
   const otherBids =
     snapshot.otherCompliantBids.length === 0
-      ? locale === "fr"
-        ? "Aucune autre offre conforme."
+      ? locale === "de"
+        ? "Keine weiteren konformen Angebote."
         : "No other compliant bids."
       : snapshot.otherCompliantBids
           .map((row) => {
-            const r = row.rank != null ? (locale === "fr" ? `rang n°${row.rank}` : `Rank #${row.rank}`) : "—"
+            const r = row.rank != null ? (locale === "de" ? `Rang ${row.rank}` : `Rank #${row.rank}`) : "—"
             const c =
               row.compositeScore != null
-                ? locale === "fr"
+                ? locale === "de"
                   ? `composite ${formatFixed(row.compositeScore, locale)}`
                   : `composite ${formatFixed(row.compositeScore, locale)}`
                 : "—"
-            return locale === "fr"
-              ? `${row.supplier} — ${r}, ${c}, offre ${formatUsdAsEur(row.totalPriceUsd, locale)}, ${signedDelta(row.priceDeltaUsd, locale)}.`
+            return locale === "de"
+              ? `${row.supplier} — ${r}, ${c}, Angebot ${formatUsdAsEur(row.totalPriceUsd, locale)}, ${signedDelta(row.priceDeltaUsd, locale)}.`
               : `${row.supplier} — ${r}, ${c}, bid ${formatUsdAsEur(row.totalPriceUsd, locale)}, ${signedDelta(row.priceDeltaUsd, locale)}.`
           })
           .join("\n")
 
   const idBit = approvalId ? `${approvalId} — ` : ""
   const subject =
-    locale === "fr"
-      ? `Approbation d’attribution requise — ${idBit}${snapshot.packageRef} / ${snapshot.ittRef}`
+    locale === "de"
+      ? `Zuschlagsfreigabe erforderlich — ${idBit}${snapshot.packageRef} / ${snapshot.ittRef}`
       : `Award approval required — ${idBit}${snapshot.packageRef} / ${snapshot.ittRef}`
 
   const noteBlock = note
-    ? locale === "fr"
-      ? `\nNote à l’approbateur\n${note}\n`
+    ? locale === "de"
+      ? `\nHinweis an die freigebende Person\n${note}\n`
       : `\nNote to the approver\n${note}\n`
     : ""
 
   const body =
-    locale === "fr"
-      ? `Projet et référence d’offre
+    locale === "de"
+      ? `Projekt- und Angebotsreferenz
 ${snapshot.projectName} · ${snapshot.packageRef} · ${snapshot.ittRef} — ${snapshot.packageTitle}
 
-Fournisseur recommandé
+Empfohlener Anbieter
 ${snapshot.recommendedSupplier}
 
-Valeur d’attribution proposée
+Vorgeschlagener Zuschlagswert
 ${awardSentence}
 
-Budget et écart
+Budget und Abweichung
 ${varianceSentence}
 
-Classement et score composite
+Rang und Gesamtscore
 ${rankScore}.
 ${noteBlock}
-Autres offres conformes
+Weitere konforme Angebote
 ${otherBids}
 
-Approbateur requis
+Erforderliche freigebende Person
 ${snapshot.requiredApproverName}, ${snapshot.requiredApproverRole} (${snapshot.requiredApproverEmail})
 
 ${link}
 
-Actions : Approuver · Demander une clarification · Renvoyer pour révision`
+Aktionen: Freigeben · Klärung anfordern · Zur Überarbeitung zurückgeben`
       : `Project and bid reference
 ${snapshot.projectName} · ${snapshot.packageRef} · ${snapshot.ittRef} — ${snapshot.packageTitle}
 
@@ -1446,14 +1443,14 @@ function buildClarificationEmail(
   const id = record.approvalId ?? snapshot.packageRef
   const link = compassLinkForPackage(snapshot, record.approvalId)
   const subject =
-    locale === "fr"
-      ? `Clarification demandée — ${id} / ${snapshot.packageRef}`
+    locale === "de"
+      ? `Klärung angefordert — ${id} / ${snapshot.packageRef}`
       : `Clarification requested — ${id} / ${snapshot.packageRef}`
   const body =
-    locale === "fr"
-      ? `L’approbateur ${snapshot.requiredApproverName} demande une clarification sur ${snapshot.packageRef}.
+    locale === "de"
+      ? `Die freigebende Person ${snapshot.requiredApproverName} fordert eine Klärung zu ${snapshot.packageRef} an.
 
-Question
+Frage
 ${question}
 
 ${link}`
@@ -1477,23 +1474,23 @@ function buildClarificationResponseEmail(
   const docs =
     clarification.attachments.length > 0
       ? clarification.attachments.map((d) => `• ${d.label}`).join("\n")
-      : locale === "fr"
-        ? "Aucune pièce jointe."
+      : locale === "de"
+        ? "Keine Anhänge."
         : "No attachments."
   const subject =
-    locale === "fr" ? `Réponse à la clarification — ${id}` : `Clarification response — ${id}`
+    locale === "de" ? `Klärungsantwort — ${id}` : `Clarification response — ${id}`
   const body =
-    locale === "fr"
-      ? `Question
+    locale === "de"
+      ? `Frage
 ${clarification.question}
 
-Réponse
+Antwort
 ${clarification.response}
 
-Pièces jointes
+Anhänge
 ${docs}
 
-Statut : approbation resoumise.
+Status: Freigabe erneut eingereicht.
 
 ${link}`
       : `Question
@@ -1521,13 +1518,13 @@ function buildRevisionEmail(
   const link = compassLinkForPackage(snapshot, record.approvalId)
   const reason = revisionReasonLabel(revision.reasonCategory, locale)
   const due = revision.dueDate ? formatDisplayDate(revision.dueDate, locale) : ""
-  const subject = locale === "fr" ? `Révision requise — ${id}` : `Revision required — ${id}`
+  const subject = locale === "de" ? `Überarbeitung erforderlich — ${id}` : `Revision required — ${id}`
   const body =
-    locale === "fr"
-      ? `Révision requise — ${id}
-Motif : ${reason}
-Instructions de ${revision.requestedByName} : ${revision.instructions}
-${due ? `Échéance : ${due}` : ""}
+    locale === "de"
+      ? `Überarbeitung erforderlich — ${id}
+Grund: ${reason}
+Anweisung von ${revision.requestedByName}: ${revision.instructions}
+${due ? `Fällig: ${due}` : ""}
 
 ${link}`
       : `Revision required — ${id}
@@ -1551,10 +1548,10 @@ function buildResubmitEmail(
     .map((row) => `${row.field}: ${row.original} → ${row.revised}${row.change !== "—" ? ` (${row.change})` : ""}`)
     .join("\n")
   const subject =
-    locale === "fr" ? `Recommandation d’attribution resoumise — ${id}` : `Award recommendation resubmitted — ${id}`
+    locale === "de" ? `Zuschlagsempfehlung erneut eingereicht — ${id}` : `Award recommendation resubmitted — ${id}`
   const body =
-    locale === "fr"
-      ? `La recommandation pour ${snapshot.packageRef} a été resoumise.
+    locale === "de"
+      ? `Die Empfehlung zu ${snapshot.packageRef} wurde erneut eingereicht.
 
 ${table}
 

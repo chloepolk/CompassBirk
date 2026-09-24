@@ -1,0 +1,468 @@
+{
+  "Overview": {
+    "headers": [
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "rows": 15,
+    "sample": {}
+  },
+  "FE UI Mapping": {
+    "headers": [
+      "future_energy_area",
+      "treatment",
+      "synthetic_sources",
+      "logistics_change",
+      "customer_visible"
+    ],
+    "rows": 9,
+    "sample": {
+      "future_energy_area": "Action Centre",
+      "treatment": "Retain and adapt",
+      "synthetic_sources": "structured_source_data/contracts.csv; suppliers.csv; expected_generated_outputs/actions.csv",
+      "logistics_change": "Contract expiry, sourcing opportunity and supplier-performance actions",
+      "customer_visible": "Yes"
+    }
+  },
+  "Source Documents": {
+    "headers": [
+      "document_id",
+      "file_name",
+      "source_class",
+      "authoritative_for",
+      "language",
+      "input_output"
+    ],
+    "rows": 10,
+    "sample": {
+      "document_id": "SRC-001",
+      "file_name": "01_Logistics_Services_Specification.docx",
+      "source_class": "Operational specification",
+      "authoritative_for": "Service scope, operating requirements, visibility and baseline KPIs",
+      "language": "EN",
+      "input_output": "Input"
+    }
+  },
+  "Suppliers": {
+    "headers": [
+      "supplier_id",
+      "supplier_name",
+      "country",
+      "status",
+      "relationship_start",
+      "services",
+      "approved",
+      "annual_spend_eur",
+      "history_status",
+      "contact_name",
+      "contact_email"
+    ],
+    "rows": 5,
+    "sample": {
+      "supplier_id": "SUP-001",
+      "supplier_name": "RheinRoute Logistics GmbH",
+      "country": "Germany",
+      "status": "Incumbent",
+      "relationship_start": "2021-10-01",
+      "services": "FTL; LTL; cross-border road freight",
+      "approved": "Yes",
+      "annual_spend_eur": 2380000,
+      "history_status": "Available",
+      "contact_name": "Lena Vogt",
+      "contact_email": "lena.vogt@rheinroute.example"
+    }
+  },
+  "Lanes": {
+    "headers": [
+      "lane_id",
+      "origin_city",
+      "origin_country",
+      "destination_city",
+      "destination_country",
+      "distance_km",
+      "forecast_annual_shipments",
+      "target_transit_hours",
+      "temperature_control",
+      "equipment",
+      "currency"
+    ],
+    "rows": 18,
+    "sample": {
+      "lane_id": "LN-001",
+      "origin_city": "Frankfurt",
+      "origin_country": "DE",
+      "destination_city": "Paris",
+      "destination_country": "FR",
+      "distance_km": 580,
+      "forecast_annual_shipments": 168,
+      "target_transit_hours": 6,
+      "temperature_control": "No",
+      "equipment": "Curtainsider / box trailer",
+      "currency": "EUR"
+    }
+  },
+  "Contracts": {
+    "headers": [
+      "contract_id",
+      "supplier_id",
+      "contract_title",
+      "start_date",
+      "end_date",
+      "notice_days",
+      "contract_value_eur",
+      "otd_target",
+      "acceptance_target",
+      "claims_target_max",
+      "invoice_accuracy_target",
+      "status"
+    ],
+    "rows": 3,
+    "sample": {
+      "contract_id": "CON-2024-01",
+      "supplier_id": "SUP-001",
+      "contract_title": "European Road Freight Framework - Core Lanes",
+      "start_date": "2024-10-01",
+      "end_date": "2026-12-31",
+      "notice_days": 120,
+      "contract_value_eur": 4750000,
+      "otd_target": 0.98,
+      "acceptance_target": 0.97,
+      "claims_target_max": 0.005,
+      "invoice_accuracy_target": 0.99,
+      "status": "Active"
+    }
+  },
+  "Performance": {
+    "headers": [
+      "month",
+      "supplier_id",
+      "shipments",
+      "on_time_delivery_pct",
+      "tender_acceptance_pct",
+      "claims_pct",
+      "invoice_accuracy_pct",
+      "operational_score",
+      "commercial_score",
+      "sla_score",
+      "relationship_score",
+      "overall_score",
+      "trend_flag"
+    ],
+    "rows": 36,
+    "sample": {
+      "month": "2025-10-01",
+      "supplier_id": "SUP-001",
+      "shipments": 117,
+      "on_time_delivery_pct": 0.9915,
+      "tender_acceptance_pct": 0.9915,
+      "claims_pct": 0.0085,
+      "invoice_accuracy_pct": 1,
+      "operational_score": 86.3,
+      "commercial_score": 98.2,
+      "sla_score": 100,
+      "relationship_score": 86,
+      "overall_score": 92,
+      "trend_flag": "Stable"
+    }
+  },
+  "Sourcing": {
+    "headers": [
+      "event_id",
+      "event_title",
+      "event_type",
+      "category",
+      "issue_date",
+      "question_deadline",
+      "bid_deadline",
+      "award_target",
+      "service_start",
+      "contract_term_months",
+      "lanes",
+      "forecast_shipments",
+      "estimated_value_eur",
+      "status",
+      "owner",
+      "working_language"
+    ],
+    "rows": 12,
+    "sample": {
+      "event_id": "RFP-2026-001",
+      "event_title": "European Road Freight Services 2027",
+      "event_type": "RFP/ITT hybrid",
+      "category": "Logistics services - road freight",
+      "issue_date": "2026-09-28",
+      "question_deadline": "2026-10-09",
+      "bid_deadline": "2026-10-23",
+      "award_target": "2026-11-20",
+      "service_start": "2027-01-01",
+      "contract_term_months": 24,
+      "lanes": 18,
+      "forecast_shipments": 2448,
+      "estimated_value_eur": 5650000,
+      "status": "Draft",
+      "owner": "Category Manager, Logistics",
+      "working_language": "British English and German"
+    }
+  },
+  "Bids": {
+    "headers": [
+      "event_id",
+      "supplier_id",
+      "bid_status",
+      "annual_bid_value_eur",
+      "lanes_offered",
+      "capacity_score",
+      "service_score",
+      "implementation_score",
+      "sustainability_score",
+      "vendor_history_score",
+      "notes"
+    ],
+    "rows": 23,
+    "sample": {
+      "event_id": "RFP-2026-001",
+      "supplier_id": "SUP-001",
+      "bid_status": "Compliant",
+      "annual_bid_value_eur": 2065914.36,
+      "lanes_offered": 18,
+      "capacity_score": 100,
+      "service_score": 88,
+      "implementation_score": 90,
+      "sustainability_score": 78,
+      "vendor_history_score": 79,
+      "notes": "Incumbent; full network; revised rate card received."
+    }
+  },
+  "Bid Rates": {
+    "headers": [
+      "event_id",
+      "supplier_id",
+      "lane_id",
+      "rate_eur_per_shipment",
+      "fuel_surcharge_pct",
+      "committed_transit_hours",
+      "annual_forecast_cost_eur",
+      "bid_version"
+    ],
+    "rows": 72,
+    "sample": {
+      "event_id": "RFP-2026-001",
+      "supplier_id": "SUP-001",
+      "lane_id": "LN-001",
+      "rate_eur_per_shipment": 820.12,
+      "fuel_surcharge_pct": 0.082,
+      "committed_transit_hours": 6,
+      "annual_forecast_cost_eur": 137780.16,
+      "bid_version": "v2"
+    }
+  },
+  "Evaluation": {
+    "headers": [
+      "event_id",
+      "supplier_id",
+      "qualification",
+      "commercial_score",
+      "service_score",
+      "capacity_score",
+      "implementation_score",
+      "sustainability_score",
+      "vendor_history_score",
+      "weighted_score",
+      "rank",
+      "recommendation"
+    ],
+    "rows": 10,
+    "sample": {
+      "event_id": "RFP-2026-001",
+      "supplier_id": "SUP-001",
+      "qualification": "Pass",
+      "commercial_score": 93,
+      "service_score": 88,
+      "capacity_score": 100,
+      "implementation_score": 90,
+      "sustainability_score": 78,
+      "vendor_history_score": 79,
+      "weighted_score": 89.9,
+      "rank": 2,
+      "recommendation": "Include in award scenario"
+    }
+  },
+  "Actions": {
+    "headers": [
+      "action_id",
+      "stage",
+      "action_type",
+      "title",
+      "owner",
+      "due_date",
+      "status",
+      "trigger",
+      "recommended_action",
+      "related_entity"
+    ],
+    "rows": 7,
+    "sample": {
+      "action_id": "ACT-001",
+      "stage": "03 Invite",
+      "action_type": "Approval",
+      "title": "Approve bilingual RFP/ITT before issue",
+      "owner": "Category Manager",
+      "due_date": "2026-09-27",
+      "status": "Ready",
+      "trigger": "Draft sourcing event complete",
+      "recommended_action": "Review and approve release",
+      "related_entity": "RFP-2026-001"
+    }
+  },
+  "Emails": {
+    "headers": [
+      "email_id",
+      "file_name",
+      "date",
+      "from",
+      "to",
+      "subject",
+      "language",
+      "expected_classification",
+      "event_id",
+      "supplier_id",
+      "attachments"
+    ],
+    "rows": 12,
+    "sample": {
+      "email_id": "EML-001",
+      "file_name": "001_rfp_invitation_en.eml",
+      "date": "Tue, 29 Sep 2026 09:00:00 +0000",
+      "from": "sourcing@compass-demo.example",
+      "to": "daniel.foster@northbridge.example",
+      "subject": "Invitation: European Road Freight Services 2027",
+      "language": "EN",
+      "expected_classification": "Relevant",
+      "event_id": "RFP-2026-001",
+      "supplier_id": "RFP_ITT_EN.docx; Lane_Rate_Template.csv",
+      "attachments": ""
+    }
+  },
+  "Shipments": {
+    "headers": [
+      "",
+      "month",
+      "lane_id",
+      "supplier_id",
+      "pickup_date",
+      "promised_delivery",
+      "actual_delivery",
+      "on_time_delivery",
+      "tender_accepted",
+      "damage_claim",
+      "weight_kg",
+      "actual_freight_cost_eur",
+      "SHP-00001"
+    ],
+    "rows": 2448,
+    "sample": {
+      "month": "2025-10-01",
+      "lane_id": "LN-001",
+      "supplier_id": "SUP-001",
+      "pickup_date": "2025-10-03",
+      "promised_delivery": "2025-10-03",
+      "actual_delivery": "2025-10-03",
+      "on_time_delivery": 1,
+      "tender_accepted": 1,
+      "damage_claim": 0,
+      "weight_kg": 5750,
+      "actual_freight_cost_eur": 850.84,
+      "SHP-00001": "SHP-00002"
+    }
+  },
+  "Invoices": {
+    "headers": [
+      "invoice_id",
+      "month",
+      "supplier_id",
+      "lane_id",
+      "invoice_date",
+      "contracted_amount_eur",
+      "invoiced_amount_eur",
+      "rate_compliant",
+      "invoice_accurate",
+      "exception_reason",
+      "status"
+    ],
+    "rows": 216,
+    "sample": {
+      "invoice_id": "INV-00001",
+      "month": "2025-10-01",
+      "supplier_id": "SUP-001",
+      "lane_id": "LN-001",
+      "invoice_date": "2025-10-28",
+      "contracted_amount_eur": 11415.03,
+      "invoiced_amount_eur": 11415.03,
+      "rate_compliant": 1,
+      "invoice_accurate": 1,
+      "exception_reason": "Approved",
+      "status": ""
+    }
+  },
+  "Incidents": {
+    "headers": [
+      "incident_id",
+      "shipment_id",
+      "supplier_id",
+      "lane_id",
+      "incident_date",
+      "incident_type",
+      "severity",
+      "description",
+      "status",
+      "corrective_action_id"
+    ],
+    "rows": 79,
+    "sample": {
+      "incident_id": "INC-0001",
+      "shipment_id": "SHP-00058",
+      "supplier_id": "SUP-001",
+      "lane_id": "LN-005",
+      "incident_date": "2025-10-05",
+      "incident_type": "Late delivery",
+      "severity": "Medium",
+      "description": "Delivery completed 8 hours after commitment.",
+      "status": "Closed",
+      "corrective_action_id": "INC-0002"
+    }
+  },
+  "Checks": {
+    "headers": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "rows": 10,
+    "sample": {}
+  },
+  "Internal Replay": {
+    "headers": [
+      "internal_checkpoint_id",
+      "checkpoint_name",
+      "prerequisite_business_action",
+      "fixture_evidence_loaded",
+      "expected_product_response",
+      "next_fixture_precondition",
+      "customer_ui_visibility"
+    ],
+    "rows": 9,
+    "sample": {
+      "internal_checkpoint_id": 0,
+      "checkpoint_name": "Foundation",
+      "prerequisite_business_action": "Open prototype and select European road freight event",
+      "fixture_evidence_loaded": "Suppliers, lanes, contracts, 12-month baseline",
+      "expected_product_response": "Shows contract expiry, spend and sourcing opportunity",
+      "next_fixture_precondition": "User selects Create sourcing event",
+      "customer_ui_visibility": "Never"
+    }
+  }
+}

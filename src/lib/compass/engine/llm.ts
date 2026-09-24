@@ -94,33 +94,33 @@ export async function callWithRetry(
       lastError = err
       const status = (err as { status?: number })?.status
       if (RETRIABLE.has(status!) && attempt < RETRY_DELAYS.length) {
-        console.warn(`[BluePilot] ${status} from primary, retrying in ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1})`)
+        console.warn(`[Compass] ${status} from primary, retrying in ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1})`)
         await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]))
         continue
       }
-      console.warn(`[BluePilot] Primary failed (${status ?? "unknown"}) after ${attempt + 1} attempt(s)`)
+      console.warn(`[Compass] Primary failed (${status ?? "unknown"}) after ${attempt + 1} attempt(s)`)
       break
     }
   }
 
   if (fallbackClient && fallbackModel) {
     try {
-      console.warn("[BluePilot] Falling back to OpenAI")
+      console.warn("[Compass] Falling back to OpenAI")
       return await fallbackClient.chat.completions.create({ ...params, model: fallbackModel })
     } catch (err) {
       lastError = err
-      console.warn(`[BluePilot] OpenAI fallback failed (${(err as { status?: number })?.status ?? "unknown"})`)
+      console.warn(`[Compass] OpenAI fallback failed (${(err as { status?: number })?.status ?? "unknown"})`)
     }
   }
 
   const anthropic = getAnthropicClient()
   if (anthropic) {
     try {
-      console.warn("[BluePilot] Falling back to Anthropic Claude")
+      console.warn("[Compass] Falling back to Anthropic Claude")
       return await callAnthropic(anthropic, params)
     } catch (err) {
       lastError = err
-      console.warn(`[BluePilot] Anthropic fallback failed: ${err instanceof Error ? err.message : "unknown"}`)
+      console.warn(`[Compass] Anthropic fallback failed: ${err instanceof Error ? err.message : "unknown"}`)
     }
   }
 
@@ -141,7 +141,7 @@ export async function callWithFallback(
       // path of the landing-page briefing, where Pro's thinking latency dominates.
       return await gemini.chat.completions.create({ ...params, model: MODELS.geminiFlash })
     } catch (err) {
-      console.warn(`[BluePilot] Gemini failed (${(err as { status?: number })?.status ?? "unknown"}), trying OpenAI`)
+      console.warn(`[Compass] Gemini failed (${(err as { status?: number })?.status ?? "unknown"}), trying OpenAI`)
     }
   }
 
@@ -150,7 +150,7 @@ export async function callWithFallback(
     try {
       return await openai.chat.completions.create({ ...params, model: MODELS.openai })
     } catch (err) {
-      console.warn(`[BluePilot] OpenAI failed (${(err as { status?: number })?.status ?? "unknown"}), trying Anthropic`)
+      console.warn(`[Compass] OpenAI failed (${(err as { status?: number })?.status ?? "unknown"}), trying Anthropic`)
     }
   }
 
@@ -191,7 +191,7 @@ export async function createChatStream(
       })
       return openAIStreamToReadable(response, encoder)
     } catch (err) {
-      console.warn(`[BluePilot Chat] Gemini stream failed (${(err as { status?: number })?.status ?? "unknown"})`)
+      console.warn(`[Compass Chat] Gemini stream failed (${(err as { status?: number })?.status ?? "unknown"})`)
     }
   }
 
@@ -202,12 +202,12 @@ export async function createChatStream(
       })
       return openAIStreamToReadable(response, encoder)
     } catch (err) {
-      console.warn(`[BluePilot Chat] OpenAI stream failed (${(err as { status?: number })?.status ?? "unknown"})`)
+      console.warn(`[Compass Chat] OpenAI stream failed (${(err as { status?: number })?.status ?? "unknown"})`)
     }
   }
 
   if (anthropic) {
-    console.warn("[BluePilot Chat] Falling back to Anthropic stream")
+    console.warn("[Compass Chat] Falling back to Anthropic stream")
     const userMessages = messages.map(m => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -332,6 +332,6 @@ export function fallbackResponse() {
 
 export function errorResponse(err: unknown) {
   const message = err instanceof Error ? err.message : "Unknown error"
-  console.error("[BluePilot Agent Error]", message)
+  console.error("[Compass Agent Error]", message)
   return Response.json({ fallback: true, data: null, error: message })
 }

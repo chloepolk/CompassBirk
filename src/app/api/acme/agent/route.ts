@@ -1,5 +1,5 @@
 import { createChatStream, errorResponse } from "@/lib/compass/engine"
-import { AGENT_SYSTEM_PROMPT } from "@/app/prototype/prosera-compass/agents/_prompts"
+import { AGENT_SYSTEM_PROMPT } from "@/app/compass/agents/_prompts"
 
 export const runtime = "nodejs"
 export const maxDuration = 60

@@ -1,0 +1,94 @@
+{
+  "headers": [
+    "internal_checkpoint_id",
+    "checkpoint_name",
+    "prerequisite_business_action",
+    "fixture_evidence_loaded",
+    "expected_product_response",
+    "next_fixture_precondition",
+    "customer_ui_visibility"
+  ],
+  "records": [
+    {
+      "internal_checkpoint_id": 0,
+      "checkpoint_name": "Foundation",
+      "prerequisite_business_action": "Open prototype and select European road freight event",
+      "fixture_evidence_loaded": "Suppliers, lanes, contracts, 12-month baseline",
+      "expected_product_response": "Shows contract expiry, spend and sourcing opportunity",
+      "next_fixture_precondition": "User selects Create sourcing event",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 1,
+      "checkpoint_name": "Baseline review",
+      "prerequisite_business_action": "Review vendor profiles and incumbent history",
+      "fixture_evidence_loaded": "Shipments, invoices, incidents, monthly scores",
+      "expected_product_response": "Explains score components and evidence lineage",
+      "next_fixture_precondition": "User approves use of history",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 2,
+      "checkpoint_name": "Create event",
+      "prerequisite_business_action": "Generate and edit RFP/ITT",
+      "fixture_evidence_loaded": "Sourcing event, requirements, bilingual documents",
+      "expected_product_response": "Identifies missing information and creates draft",
+      "next_fixture_precondition": "User approves event",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 3,
+      "checkpoint_name": "Invite suppliers",
+      "prerequisite_business_action": "Select suppliers and send invitations",
+      "fixture_evidence_loaded": "Outgoing EN/DE invitation emails",
+      "expected_product_response": "Creates messages and logs recipients",
+      "next_fixture_precondition": "User sends invitations",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 4,
+      "checkpoint_name": "Clarifications",
+      "prerequisite_business_action": "Review classified inbox and answer a question",
+      "fixture_evidence_loaded": "Relevant, irrelevant and ambiguous emails",
+      "expected_product_response": "Filters emails; links evidence to event; drafts reply",
+      "next_fixture_precondition": "User approves clarification",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 5,
+      "checkpoint_name": "Receive bids",
+      "prerequisite_business_action": "Import bids and accept revised rate card",
+      "fixture_evidence_loaded": "Four bids, lane rates, bid attachments",
+      "expected_product_response": "Normalises rates and preserves version history",
+      "next_fixture_precondition": "User closes bidding",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 6,
+      "checkpoint_name": "Evaluate and award",
+      "prerequisite_business_action": "Review gates, scores and award scenarios",
+      "fixture_evidence_loaded": "Evaluation, qualification evidence, scenarios",
+      "expected_product_response": "Excludes failed bid and recommends dual award",
+      "next_fixture_precondition": "User approves award",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 7,
+      "checkpoint_name": "Monitor performance",
+      "prerequisite_business_action": "Advance simulated time and review alert",
+      "fixture_evidence_loaded": "Post-award KPI deterioration and incidents",
+      "expected_product_response": "Detects trend and identifies contributing lanes",
+      "next_fixture_precondition": "User opens performance action",
+      "customer_ui_visibility": "Never"
+    },
+    {
+      "internal_checkpoint_id": 8,
+      "checkpoint_name": "Corrective action",
+      "prerequisite_business_action": "Generate and send German corrective-action request",
+      "fixture_evidence_loaded": "Corrective-action evidence and outgoing email",
+      "expected_product_response": "Creates case, deadline and monitoring obligation",
+      "next_fixture_precondition": "User approves message",
+      "customer_ui_visibility": "Never"
+    }
+  ]
+}

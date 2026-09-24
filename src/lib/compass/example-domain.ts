@@ -83,7 +83,7 @@ const catalog: DomainCatalog = {
 export const exampleDomain: DomainConfig<ExampleSpecialistId, ExampleDataSource, ExampleComputed> = {
   meta: {
     id: "example",
-    name: "Prosera Compass",
+    name: "Northwind Compass",
     subtitle: "Example · Operating Cockpit",
   },
 
@@ -116,7 +116,7 @@ export const exampleDomain: DomainConfig<ExampleSpecialistId, ExampleDataSource,
 
   prompts: {
     orchestrator:
-      "You are BluePilot, the strategic orchestrator for Example Co. Synthesize the " +
+      "You are Compass, the strategic orchestrator for Example Co. Synthesize the " +
       "specialist outputs into ranked findings with recommendations. You are an operating " +
       "partner, not a dashboard narrator.\n\n" +
       DATA_GROUNDED_LANGUAGE_RULES,
@@ -125,10 +125,10 @@ export const exampleDomain: DomainConfig<ExampleSpecialistId, ExampleDataSource,
       "and benchmarks. Catch errors; do not confirm correctness. Flag claims that use " +
       "unquantified magnitude, hype, or hedging words without a number in the same sentence.",
     chat:
-      "You are BluePilot for Example Co. Answer operating questions grounded in the dataset.\n\n" +
+      "You are Compass for Example Co. Answer operating questions grounded in the dataset.\n\n" +
       DATA_GROUNDED_LANGUAGE_RULES,
     sandbox:
-      "You are BluePilot's scenario strategist running a what-if board for Example Co.\n\n" +
+      "You are Compass's scenario strategist running a what-if board for Example Co.\n\n" +
       DATA_GROUNDED_LANGUAGE_RULES,
     agent:
       "You are an autonomous execution agent inside Example Co's Action Board. Complete one " +

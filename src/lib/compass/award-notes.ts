@@ -86,8 +86,8 @@ function windowPolarity(text: string, index: number): 1 | -1 {
 
 export function formatNoteImpactSummary(impact: AwardNoteImpact, locale: DisplayLocale = "en"): string {
   if (!impact.foundNumericChange) {
-    return locale === "fr"
-      ? "Aucun changement chiffré trouvé dans ces notes."
+    return locale === "de"
+      ? "In diesen Hinweisen wurde keine zahlenmäßige Änderung gefunden."
       : "No numeric change found in these notes."
   }
   const from = formatUsdAsEur(impact.originalAwardUsd, locale)
@@ -96,30 +96,30 @@ export function formatNoteImpactSummary(impact: AwardNoteImpact, locale: Display
   const varFrom = formatUsdAsEur(Math.abs(impact.originalVarianceUsd), locale)
   const varTo = formatUsdAsEur(Math.abs(impact.revisedVarianceUsd), locale)
   const varDir = (v: number, loc: DisplayLocale) => {
-    if (v < 0) return loc === "fr" ? `${formatUsdAsEur(Math.abs(v), loc)} en dessous du budget` : `${formatUsdAsEur(Math.abs(v), loc)} under budget`
-    if (v > 0) return loc === "fr" ? `${formatUsdAsEur(Math.abs(v), loc)} au-dessus du budget` : `${formatUsdAsEur(Math.abs(v), loc)} over budget`
-    return loc === "fr" ? "égal au budget" : "equals budget"
+    if (v < 0) return loc === "de" ? `${formatUsdAsEur(Math.abs(v), loc)} en dessous du budget` : `${formatUsdAsEur(Math.abs(v), loc)} under budget`
+    if (v > 0) return loc === "de" ? `${formatUsdAsEur(Math.abs(v), loc)} au-dessus du budget` : `${formatUsdAsEur(Math.abs(v), loc)} over budget`
+    return loc === "de" ? "égal au budget" : "equals budget"
   }
   const pctBit =
     impact.discountPct != null
-      ? locale === "fr"
+      ? locale === "de"
         ? ` de ${formatFixedPct(impact.discountPct, locale)}`
         : ` by ${formatFixedPct(impact.discountPct, locale)}`
       : ""
   const priceSentence =
     impact.deltaUsd < 0
-      ? locale === "fr"
+      ? locale === "de"
         ? `L’attribution proposée baisse${pctBit} : ${from} → ${to} (−${abs}).`
         : `Proposed award falls${pctBit}: ${from} → ${to} (−${abs}).`
       : impact.deltaUsd > 0
-        ? locale === "fr"
+        ? locale === "de"
           ? `L’attribution proposée augmente${pctBit} : ${from} → ${to} (+${abs}).`
           : `Proposed award rises${pctBit}: ${from} → ${to} (+${abs}).`
-        : locale === "fr"
+        : locale === "de"
           ? `L’attribution proposée reste ${from}.`
           : `Proposed award stays ${from}.`
   const varianceSentence =
-    locale === "fr"
+    locale === "de"
       ? `L’écart budgétaire passe de ${varDir(impact.originalVarianceUsd, locale)} à ${varDir(impact.revisedVarianceUsd, locale)} (${varFrom} → ${varTo}).`
       : `Budget variance moves from ${varDir(impact.originalVarianceUsd, locale)} to ${varDir(impact.revisedVarianceUsd, locale)} (${varFrom} → ${varTo}).`
   return `${priceSentence} ${varianceSentence}`
@@ -127,9 +127,9 @@ export function formatNoteImpactSummary(impact: AwardNoteImpact, locale: Display
 
 function formatFixedPct(n: number, locale: DisplayLocale): string {
   const digits = Number.isInteger(n) ? 0 : 1
-  const tag = locale === "fr" ? "fr-FR" : "en-GB"
+  const tag = locale === "de" ? "de-DE" : "en-GB"
   const body = n.toLocaleString(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits })
-  return locale === "fr" ? `${body} %` : `${body}%`
+  return locale === "de" ? `${body} %` : `${body}%`
 }
 
 export function computeAwardNoteImpact(

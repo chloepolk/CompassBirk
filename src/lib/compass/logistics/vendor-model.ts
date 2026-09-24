@@ -1,0 +1,140 @@
+import { SUPPLIERS, type Suppliers } from "./structured/suppliers"
+import { CONTRACTS, type Contracts } from "./structured/contracts"
+import { PERFORMANCE, type Performance } from "./structured/performance"
+import { INCIDENTS, type Incidents } from "./structured/incidents"
+import { BIDS } from "./structured/bids"
+import { LANES } from "./structured/lanes"
+import type { SessionContract } from "./session"
+
+export const SCORE_WEIGHTS = {
+  operational: 0.4,
+  commercial: 0.25,
+  sla: 0.2,
+  relationship: 0.15,
+} as const
+
+export const MIN_EVIDENCE_MONTHS = 12
+
+export type HistoryStatus = "Available" | "No History"
+
+export type VendorScore = {
+  operational: number
+  commercial: number
+  sla: number
+  relationship: number
+  total: number
+  method: string
+}
+
+export type VendorProfile = {
+  supplier: Suppliers
+  historyStatus: HistoryStatus
+  contracts: Contracts[]
+  months: Performance[]
+  latest: Performance | null
+  score: VendorScore | null
+  incidents: Incidents[]
+  bid: (typeof BIDS)[number] | null
+}
+
+export function asNumber(value: string | number | null | undefined): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+export function supplierById(id: string): Suppliers | undefined {
+  return SUPPLIERS.find((s) => s.supplierId === id)
+}
+
+export function supplierIdFromName(name: string): string | undefined {
+  const lower = name.toLowerCase()
+  return SUPPLIERS.find((s) => (s.supplierName ?? "").toLowerCase().includes(lower.split(" ")[0] ?? ""))?.supplierId ?? undefined
+}
+
+export function performanceFor(supplierId: string): Performance[] {
+  return PERFORMANCE.filter((row) => row.supplierId === supplierId && row.month).sort((a, b) =>
+    (a.month ?? "").localeCompare(b.month ?? ""),
+  )
+}
+
+export function incidentsFor(supplierId: string): Incidents[] {
+  return INCIDENTS.filter((row) => row.supplierId === supplierId && row.incidentId).sort((a, b) =>
+    (b.incidentDate ?? "").localeCompare(a.incidentDate ?? ""),
+  )
+}
+
+export function contractsFor(supplierId: string, extras: SessionContract[] = []): Contracts[] {
+  const seeded = CONTRACTS.filter((c) => c.supplierId === supplierId)
+  const created: Contracts[] = extras
+    .filter((c) => c.supplierId === supplierId)
+    .map((c) => ({
+      contractId: c.contractId,
+      supplierId: c.supplierId,
+      contractTitle: c.contractTitle,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      noticeDays: c.noticeDays,
+      contractValueEur: c.contractValueEur,
+      otdTarget: c.otdTarget,
+      acceptanceTarget: c.acceptanceTarget,
+      claimsTargetMax: c.claimsTargetMax,
+      invoiceAccuracyTarget: c.invoiceAccuracyTarget,
+      status: c.status,
+    }))
+  return [...seeded, ...created]
+}
+
+export function computeScore(latest: Performance | null, monthCount: number): VendorScore | null {
+  if (!latest || monthCount < MIN_EVIDENCE_MONTHS) return null
+  const operational = latest.operationalScore ?? 0
+  const commercial = latest.commercialScore ?? 0
+  const sla = latest.slaScore ?? 0
+  const relationship = latest.relationshipScore ?? 0
+  const total =
+    operational * SCORE_WEIGHTS.operational +
+    commercial * SCORE_WEIGHTS.commercial +
+    sla * SCORE_WEIGHTS.sla +
+    relationship * SCORE_WEIGHTS.relationship
+  return {
+    operational,
+    commercial,
+    sla,
+    relationship,
+    total: Math.round(total * 10) / 10,
+    method: "Operational 40% · Commercial 25% · Contract/SLA 20% · Relationship 15%. Latest complete month. Twelve months of verified execution required.",
+  }
+}
+
+export function vendorProfile(supplierId: string, extras: SessionContract[] = []): VendorProfile | null {
+  const supplier = supplierById(supplierId)
+  if (!supplier) return null
+  const months = performanceFor(supplierId)
+  const latest = months[months.length - 1] ?? null
+  const historyStatus: HistoryStatus = supplier.historyStatus === "No History" || months.length === 0 ? "No History" : "Available"
+  return {
+    supplier,
+    historyStatus,
+    contracts: contractsFor(supplierId, extras),
+    months,
+    latest,
+    score: historyStatus === "Available" ? computeScore(latest, months.length) : null,
+    incidents: incidentsFor(supplierId),
+    bid: BIDS.find((b) => b.eventId === "RFP-2026-001" && b.supplierId === supplierId) ?? null,
+  }
+}
+
+export function allVendorProfiles(extras: SessionContract[] = []): VendorProfile[] {
+  return SUPPLIERS.filter((s) => s.supplierId).map((s) => vendorProfile(s.supplierId!, extras)!).filter(Boolean)
+}
+
+export function laneLabel(laneId: string | null): string {
+  const lane = LANES.find((l) => l.laneId === laneId)
+  if (!lane) return laneId ?? "—"
+  return `${lane.originCity} → ${lane.destinationCity}`
+}
+
+export const FORECAST_SHIPMENTS = LANES.reduce((sum, lane) => sum + (lane.forecastAnnualShipments ?? 0), 0)

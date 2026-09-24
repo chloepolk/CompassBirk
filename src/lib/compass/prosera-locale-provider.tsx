@@ -2,13 +2,11 @@
 
 import * as React from "react"
 import { LocaleProvider, useAppLocale } from "@prosera/i18n/react"
-import enFe from "@/app/prototype/future-energy/_i18n/en"
-import frFe from "@/app/prototype/future-energy/_i18n/fr"
-import pcEn from "@/messages/prosera-compass/en.json"
+import enFe from "@/app/compass/_i18n/en"
+import deFe from "@/app/compass/_i18n/de"
 import {
   FE_LOCALE_COOKIE_KEY,
   FE_LOCALE_STORAGE_KEY,
-  PC_LOCALE_STORAGE_KEY,
   fourLocaleMessages,
   htmlLangForProduct,
   type ProductId,
@@ -16,48 +14,30 @@ import {
 
 const FE_MESSAGES = fourLocaleMessages(
   enFe as unknown as Record<string, unknown>,
-  frFe as unknown as Record<string, unknown>,
+  deFe as unknown as Record<string, unknown>,
 )
-const PC_MESSAGES = fourLocaleMessages(pcEn as Record<string, unknown>)
 
-export function FutureEnergyLocaleProvider({ children }: { children: React.ReactNode }) {
+export function CompassLocaleProvider({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider
       messages={FE_MESSAGES}
       storageKey={FE_LOCALE_STORAGE_KEY}
       defaultLocale="en"
-      timeZone="Europe/Amsterdam"
+      timeZone="Europe/Berlin"
     >
       {children}
     </LocaleProvider>
   )
 }
 
-export function CompassLocaleProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <LocaleProvider
-      messages={PC_MESSAGES}
-      storageKey={PC_LOCALE_STORAGE_KEY}
-      defaultLocale="en"
-      timeZone="America/New_York"
-    >
-      {children}
-    </LocaleProvider>
-  )
-}
-
-/** Keep <html lang> and the FE cookie in sync after the kit hydrates. */
+/** Keep <html lang> and the locale cookie in sync after the kit hydrates. */
 export function ProductDocumentLang({ product }: { product: ProductId }) {
   const { locale } = useAppLocale()
 
   React.useEffect(() => {
     const lang = htmlLangForProduct(product, locale)
     document.documentElement.lang = lang
-    if (product === "future-energy") {
-      document.cookie = `${FE_LOCALE_COOKIE_KEY}=${locale}; path=/; max-age=31536000; SameSite=Lax`
-    }
-    // Kit LocaleProvider also writes document.lang ("en" / "fr") in a parent
-    // effect; re-assert the BCP-47 tag after that commit.
+    document.cookie = `${FE_LOCALE_COOKIE_KEY}=${locale === "de" ? "de" : "en"}; path=/; max-age=31536000; SameSite=Lax`
     const id = window.setTimeout(() => {
       document.documentElement.lang = lang
     }, 0)

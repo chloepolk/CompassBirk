@@ -1,0 +1,60 @@
+{
+  "headers": [
+    "contract_id",
+    "supplier_id",
+    "contract_title",
+    "start_date",
+    "end_date",
+    "notice_days",
+    "contract_value_eur",
+    "otd_target",
+    "acceptance_target",
+    "claims_target_max",
+    "invoice_accuracy_target",
+    "status"
+  ],
+  "records": [
+    {
+      "contract_id": "CON-2024-01",
+      "supplier_id": "SUP-001",
+      "contract_title": "European Road Freight Framework - Core Lanes",
+      "start_date": "2024-10-01",
+      "end_date": "2026-12-31",
+      "notice_days": 120,
+      "contract_value_eur": 4750000,
+      "otd_target": 0.98,
+      "acceptance_target": 0.97,
+      "claims_target_max": 0.005,
+      "invoice_accuracy_target": 0.99,
+      "status": "Active"
+    },
+    {
+      "contract_id": "CON-2024-02",
+      "supplier_id": "SUP-002",
+      "contract_title": "UK and Northern Europe Road Freight",
+      "start_date": "2024-10-01",
+      "end_date": "2026-12-31",
+      "notice_days": 120,
+      "contract_value_eur": 3080000,
+      "otd_target": 0.975,
+      "acceptance_target": 0.965,
+      "claims_target_max": 0.006,
+      "invoice_accuracy_target": 0.99,
+      "status": "Active"
+    },
+    {
+      "contract_id": "CON-2025-03",
+      "supplier_id": "SUP-003",
+      "contract_title": "Western Europe Overflow Freight",
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31",
+      "notice_days": 90,
+      "contract_value_eur": 1940000,
+      "otd_target": 0.97,
+      "acceptance_target": 0.96,
+      "claims_target_max": 0.007,
+      "invoice_accuracy_target": 0.985,
+      "status": "Active"
+    }
+  ]
+}

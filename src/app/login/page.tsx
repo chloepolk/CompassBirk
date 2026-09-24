@@ -1,14 +1,12 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/prosera/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/prosera/card"
 import { Input } from "@/components/ui/prosera/input"
 
-const COMPASS_ROUTE = "/prototype/prosera-compass"
-const PROSERA_LOGO = "/full%20dark%20logo.svg"
+const COMPASS_ROUTE = "/"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,20 +28,21 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px]">
         <Card className="rounded-2xl border-border/60 shadow-xl">
           <CardHeader className="items-center space-y-4 pb-2 text-center">
-            <Image
-              src={PROSERA_LOGO}
-              alt="Prosera"
-              width={160}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
+            <div className="rounded-lg bg-white px-3 py-2">
+              <img
+                src="/compass/birkenstock-logo.png"
+                alt="Birkenstock"
+                width={160}
+                height={32}
+                className="h-8 w-auto"
+              />
+            </div>
             <div className="space-y-1">
               <CardTitle className="text-[20px] font-semibold tracking-tight text-foreground">
-                Prosera Compass
+                Compass Logistics Procurement
               </CardTitle>
               <CardDescription className="text-sm text-muted-foreground">
-                Intelligence Cockpit
+                Logistics-services sourcing and vendor performance
               </CardDescription>
             </div>
           </CardHeader>
@@ -61,13 +60,12 @@ export default function LoginPage() {
                   id="email"
                   name="email"
                   type="email"
-                  defaultValue="demo@prosera.io"
+                  defaultValue="d.hoffmann@compass.example"
                   autoComplete="email"
                   autoFocus
                   className="h-11 rounded-[10px] bg-card"
                 />
               </div>
-
               <div className="space-y-2">
                 <label
                   htmlFor="password"
@@ -79,7 +77,7 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   type="password"
-                  defaultValue="prosera"
+                  defaultValue="compass"
                   autoComplete="current-password"
                   className="h-11 rounded-[10px] bg-card"
                 />
@@ -91,10 +89,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <p className="mt-6 text-center text-[11px] text-sidebar-foreground/45">
-          Powered by Prosera
-        </p>
       </div>
     </div>
   )

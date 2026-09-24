@@ -117,7 +117,7 @@ export const exampleRegistry: CompassRegistry = {
 
 export const exampleTenant: TenantConfig = {
   id: "northwind-grocery",
-  name: "Prosera Compass",
+  name: "Northwind Compass",
   subtitle: "Transportation · Operating Cockpit",
   brand: { primary: "#004F9A" },
   domainPackId: "logistics",

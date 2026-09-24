@@ -1,8 +1,6 @@
 import { getClient, getGeminiClient, callWithRetry, extractJson, MODELS, fallbackResponse, errorResponse } from "@/lib/compass/engine"
-import { ORCHESTRATOR_SCHEMA as ORCHESTRATOR_SCHEMA_COMPASS } from "@/app/prototype/prosera-compass/agents/_types"
-import { ORCHESTRATOR_SCHEMA as ORCHESTRATOR_SCHEMA_FE } from "@/app/prototype/future-energy/agents/_types"
-import { ORCHESTRATOR_PROMPT as ORCHESTRATOR_COMPASS } from "@/app/prototype/prosera-compass/agents/_prompts"
-import { ORCHESTRATOR_PROMPT as ORCHESTRATOR_FE } from "@/app/prototype/future-energy/agents/_prompts"
+import { ORCHESTRATOR_SCHEMA } from "@/app/compass/agents/_types"
+import { ORCHESTRATOR_PROMPT } from "@/app/compass/agents/_prompts"
 import { outputLanguageInstruction, sanitizeOrchestratorOutput } from "@/lib/compass/data-grounded-language"
 
 export const runtime = "nodejs"
@@ -19,10 +17,8 @@ export async function POST(req: Request) {
   const model = gemini ? MODELS.geminiFlash : MODELS.openai
 
   try {
-    const { specialistOutputs, drillState, pageContext, orchestratorContext, locale, tenant } = await req.json()
-    const ORCHESTRATOR_SCHEMA = tenant === "future-energy" ? ORCHESTRATOR_SCHEMA_FE : ORCHESTRATOR_SCHEMA_COMPASS
-    const ORCHESTRATOR_PROMPT = tenant === "future-energy" ? ORCHESTRATOR_FE : ORCHESTRATOR_COMPASS
-    const languageInstruction = `\n${outputLanguageInstruction(locale, { tenant })}\n`
+    const { specialistOutputs, drillState, pageContext, orchestratorContext, locale } = await req.json()
+    const languageInstruction = `\n${outputLanguageInstruction(locale, { tenant: "compass-logistics" })}\n`
 
     const availableSpecialists = (specialistOutputs || []).filter(Boolean)
     if (availableSpecialists.length === 0) {

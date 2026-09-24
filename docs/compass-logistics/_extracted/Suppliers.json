@@ -1,0 +1,82 @@
+{
+  "headers": [
+    "supplier_id",
+    "supplier_name",
+    "country",
+    "status",
+    "relationship_start",
+    "services",
+    "approved",
+    "annual_spend_eur",
+    "history_status",
+    "contact_name",
+    "contact_email"
+  ],
+  "records": [
+    {
+      "supplier_id": "SUP-001",
+      "supplier_name": "RheinRoute Logistics GmbH",
+      "country": "Germany",
+      "status": "Incumbent",
+      "relationship_start": "2021-10-01",
+      "services": "FTL; LTL; cross-border road freight",
+      "approved": "Yes",
+      "annual_spend_eur": 2380000,
+      "history_status": "Available",
+      "contact_name": "Lena Vogt",
+      "contact_email": "lena.vogt@rheinroute.example"
+    },
+    {
+      "supplier_id": "SUP-002",
+      "supplier_name": "NorthBridge Freight Ltd",
+      "country": "United Kingdom",
+      "status": "Incumbent",
+      "relationship_start": "2022-04-01",
+      "services": "FTL; LTL; UK/EU road freight",
+      "approved": "Yes",
+      "annual_spend_eur": 1540000,
+      "history_status": "Available",
+      "contact_name": "Daniel Foster",
+      "contact_email": "daniel.foster@northbridge.example"
+    },
+    {
+      "supplier_id": "SUP-003",
+      "supplier_name": "EuroSpan Transport SAS",
+      "country": "France",
+      "status": "Incumbent",
+      "relationship_start": "2023-01-01",
+      "services": "FTL; LTL; Western Europe",
+      "approved": "Yes",
+      "annual_spend_eur": 970000,
+      "history_status": "Available",
+      "contact_name": "Camille Laurent",
+      "contact_email": "camille.laurent@eurospan.example"
+    },
+    {
+      "supplier_id": "SUP-004",
+      "supplier_name": "AlpineLink Cargo AG",
+      "country": "Switzerland",
+      "status": "Challenger",
+      "relationship_start": "FTL; LTL; Central Europe",
+      "services": "",
+      "approved": "Conditional",
+      "annual_spend_eur": 0,
+      "history_status": "No History",
+      "contact_name": "Sofia Keller",
+      "contact_email": "sofia.keller@alpinelink.example"
+    },
+    {
+      "supplier_id": "SUP-005",
+      "supplier_name": "Veloce Transit S.r.l.",
+      "country": "Italy",
+      "status": "Challenger",
+      "relationship_start": "FTL; LTL; Southern Europe",
+      "services": "",
+      "approved": "Due diligence",
+      "annual_spend_eur": 0,
+      "history_status": "No History",
+      "contact_name": "Marco Bianchi",
+      "contact_email": "marco.bianchi@veloce.example"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { SafeIcon } from "@/components/prosera-lib/safe-icon"
 import { cn } from "@/lib/utils"
-import { ReasoningExpand } from "@/app/prototype/prosera-compass/_components/reasoning-disclosure"
-import { reasoningFromExpansionAction } from "@/app/prototype/prosera-compass/_components/reasoning-helpers"
+import { ReasoningExpand } from "@/app/compass/_components/reasoning-disclosure"
+import { reasoningFromExpansionAction } from "@/app/compass/_components/reasoning-helpers"
 
 export interface ActionCardAction {
   action: string

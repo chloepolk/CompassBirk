@@ -1,0 +1,74 @@
+{
+  "headers": [
+    "future_energy_area",
+    "treatment",
+    "synthetic_sources",
+    "logistics_change",
+    "customer_visible"
+  ],
+  "records": [
+    {
+      "future_energy_area": "Action Centre",
+      "treatment": "Retain and adapt",
+      "synthetic_sources": "structured_source_data/contracts.csv; suppliers.csv; expected_generated_outputs/actions.csv",
+      "logistics_change": "Contract expiry, sourcing opportunity and supplier-performance actions",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Sourcing workspace",
+      "treatment": "Retain and adapt",
+      "synthetic_sources": "authoritative_source_documents/*; structured_source_data/sourcing_event.csv; lanes.csv; contracts.csv",
+      "logistics_change": "Lanes, volumes, services, SLAs, rate structure and carrier capacity",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "RFP/ITT authoring",
+      "treatment": "Retain and adapt",
+      "synthetic_sources": "authoritative_source_documents/*; structured_source_data/*; expected_generated_outputs/requirement_register.csv",
+      "logistics_change": "Extract cited requirements and generate bilingual logistics RFP/ITT",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Supplier communications",
+      "treatment": "Retain and extend",
+      "synthetic_sources": "scenario_inputs/email_index.csv; scenario_inputs/emails/*.eml; supplier_submissions/*",
+      "logistics_change": "Relevance filtering, attachment versioning and governed outbound email",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Bid evaluation",
+      "treatment": "Retain and adapt",
+      "synthetic_sources": "scenario_inputs/bids.csv; bid_lane_rates.csv; expected_generated_outputs/qualification_gates.csv; evaluation_scores.csv",
+      "logistics_change": "Lane-rate normalisation, service/capacity scoring and vendor-history treatment",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Approval and award",
+      "treatment": "Retain",
+      "synthetic_sources": "expected_generated_outputs/award_scenarios.csv; actions.csv",
+      "logistics_change": "Single- and multi-carrier award scenarios",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Vendor 360",
+      "treatment": "Add",
+      "synthetic_sources": "structured_source_data/suppliers.csv; contracts.csv; performance_monthly.csv; incidents.csv",
+      "logistics_change": "Relationship, contract, sourcing and performance history",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Performance management",
+      "treatment": "Add",
+      "synthetic_sources": "structured_source_data/shipments.csv; invoices.csv; incidents.csv; performance_monthly.csv",
+      "logistics_change": "Post-award SLA monitoring, score trends and corrective action",
+      "customer_visible": "Yes"
+    },
+    {
+      "future_energy_area": "Replay fixture",
+      "treatment": "Internal only",
+      "synthetic_sources": "internal_test_controls/*",
+      "logistics_change": "Loads controlled evidence after prerequisite user actions",
+      "customer_visible": "No"
+    }
+  ]
+}

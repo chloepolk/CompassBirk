@@ -90,8 +90,8 @@ function CalendarGrid({
 
   const labels = weekdayLabels(locale)
   const cells = monthCells(view.y, view.m)
-  const prevLabel = locale === "fr" ? "Mois précédent" : "Previous month"
-  const nextLabel = locale === "fr" ? "Mois suivant" : "Next month"
+  const prevLabel = locale === "de" ? "Vorheriger Monat" : "Previous month"
+  const nextLabel = locale === "de" ? "Nächster Monat" : "Next month"
 
   return (
     <div className="w-[252px]">
@@ -203,7 +203,7 @@ export function DateInputDMY({
     setText(value ? formatDateDMY(value) : "")
   }
 
-  const chooseLabel = locale === "fr" ? "Choisir une date" : "Choose a date"
+  const chooseLabel = locale === "de" ? "Datum wählen" : "Choose a date"
 
   return (
     <div className="relative w-full">

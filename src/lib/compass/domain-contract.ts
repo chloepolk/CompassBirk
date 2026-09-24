@@ -404,7 +404,7 @@ export interface PageDef {
 export interface DomainMeta {
   /** Route slug + registry id, e.g. "transportation". */
   id: string
-  /** Display name, e.g. "Prosera Compass". */
+  /** Display name, e.g. "Northwind Compass". */
   name: string
   /** Cockpit subtitle, e.g. "Transportation · Operating Cockpit". */
   subtitle: string

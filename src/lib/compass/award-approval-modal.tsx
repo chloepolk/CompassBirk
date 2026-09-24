@@ -100,12 +100,12 @@ function buildImpactOverview(record: AwardApprovalRecord | undefined, locale: Di
   if (revision?.instructions) {
     const reason = revisionReasonLabel(revision.reasonCategory, locale)
     const head =
-      locale === "fr"
-        ? `Révision demandée (${reason}) : ${revision.instructions}`
+      locale === "de"
+        ? `Überarbeitung angefordert (${reason}): ${revision.instructions}`
         : `Revision requested (${reason}): ${revision.instructions}`
     if (latest && latest.body !== revision.instructions) {
-      return locale === "fr"
-        ? `${head} Dernière note — ${latest.actorName}: ${latest.body}`
+      return locale === "de"
+        ? `${head} Letzter Hinweis — ${latest.actorName}: ${latest.body}`
         : `${head} Latest note — ${latest.actorName}: ${latest.body}`
     }
     return head
@@ -113,24 +113,24 @@ function buildImpactOverview(record: AwardApprovalRecord | undefined, locale: Di
 
   if (clarification?.question) {
     const head =
-      locale === "fr"
-        ? `Clarification : ${clarification.question}`
+      locale === "de"
+        ? `Klärung: ${clarification.question}`
         : `Clarification: ${clarification.question}`
     if (clarification.response) {
-      return locale === "fr"
-        ? `${head} Réponse — ${clarification.response}`
+      return locale === "de"
+        ? `${head} Antwort — ${clarification.response}`
         : `${head} Response — ${clarification.response}`
     }
     if (latest && latest.body !== clarification.question) {
-      return locale === "fr"
-        ? `${head} Dernière note — ${latest.actorName}: ${latest.body}`
+      return locale === "de"
+        ? `${head} Letzter Hinweis — ${latest.actorName}: ${latest.body}`
         : `${head} Latest note — ${latest.actorName}: ${latest.body}`
     }
     return head
   }
 
   if (latest) {
-    return locale === "fr"
+    return locale === "de"
       ? `${latest.actorName} (${latest.actorRole}) : ${latest.body}`
       : `${latest.actorName} (${latest.actorRole}): ${latest.body}`
   }
@@ -394,7 +394,7 @@ export function AwardRecommendPanel({
             onClick={onClose}
             className={BTN_CANCEL}
           >
-            {locale === "fr" ? "Fermer" : "Close"}
+            {locale === "de" ? "Schließen" : "Close"}
           </button>
           <button
             type="button"
@@ -510,7 +510,7 @@ function ReturnForRevisionForm({
           onClick={onCancel}
           className={BTN_CANCEL}
         >
-          {locale === "fr" ? "Annuler" : "Cancel"}
+          {locale === "de" ? "Abbrechen" : "Cancel"}
         </button>
         <button
           type="button"
@@ -621,7 +621,7 @@ function RevisionCard({
         ) : null}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setConfirming(false)} className={BTN_CANCEL}>
-            {locale === "fr" ? "Retour" : "Back"}
+            {locale === "de" ? "Zurück" : "Back"}
           </button>
           <button
             type="button"
@@ -943,7 +943,7 @@ export function AwardGovernanceCardBlock({
             />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setShowClarify(false)} className={BTN_CANCEL}>
-                {locale === "fr" ? "Annuler" : "Cancel"}
+                {locale === "de" ? "Abbrechen" : "Cancel"}
               </button>
               <button
                 type="button"
@@ -977,7 +977,7 @@ export function AwardGovernanceCardBlock({
                 type="button"
                 disabled={mustConfirmNotes}
                 title={mustConfirmNotes ? copy.approveDisabledUntilConfirm : undefined}
-                onClick={() => onApprove(comments || (locale === "fr" ? "Attribution approuvée." : "Award approved."))}
+                onClick={() => onApprove(comments || (locale === "de" ? "Zuschlag freigegeben." : "Award approved."))}
                 className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-accent-positive-text)] px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <SafeIcon name="Check" className="h-3.5 w-3.5" />

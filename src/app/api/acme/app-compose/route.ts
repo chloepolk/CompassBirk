@@ -1,8 +1,6 @@
 import { getClient, getGeminiClient, callWithRetry, extractJson, MODELS, fallbackResponse, errorResponse } from "@/lib/compass/engine"
-import { APP_COMPOSER_PROMPT as COMPOSER_COMPASS } from "@/app/prototype/prosera-compass/agents/_prompts"
-import { APP_COMPOSER_PROMPT as COMPOSER_FE } from "@/app/prototype/future-energy/agents/_prompts"
-import { buildCatalogPromptContext as catalogCompass } from "@/app/prototype/prosera-compass/_modules/catalog"
-import { buildCatalogPromptContext as catalogFE } from "@/app/prototype/future-energy/_modules/catalog"
+import { APP_COMPOSER_PROMPT } from "@/app/compass/agents/_prompts"
+import { buildCatalogPromptContext } from "@/app/compass/_modules/catalog"
 import { outputLanguageInstruction } from "@/lib/compass/data-grounded-language"
 
 export const runtime = "nodejs"
@@ -17,9 +15,7 @@ export async function POST(req: Request) {
   const model = gemini ? MODELS.gemini : MODELS.openai
 
   try {
-    const { idea, features, locale, tenant } = await req.json()
-    const APP_COMPOSER_PROMPT = tenant === "future-energy" ? COMPOSER_FE : COMPOSER_COMPASS
-    const buildCatalogPromptContext = tenant === "future-energy" ? catalogFE : catalogCompass
+    const { idea, features, locale } = await req.json()
     if (!idea) return errorResponse(new Error("No idea provided to composer"))
 
     const userContent = [
@@ -27,7 +23,7 @@ export async function POST(req: Request) {
       `\nEnabled features: ${JSON.stringify(features ?? {})}`,
       `\n${buildCatalogPromptContext()}`,
       `\nCompose the AppSpec JSON now. Output ONLY the JSON object.`,
-      `\n${outputLanguageInstruction(locale, { tenant })} Write every user-visible title, label, narrative, recommendation, chart legend, table heading, tooltip and empty state in that language. Preserve IDs, selectors, source names, standards and brands.`,
+      `\n${outputLanguageInstruction(locale, { tenant: "compass-logistics" })} Write every user-visible title, label, narrative, recommendation, chart legend, table heading, tooltip and empty state in that language. Preserve IDs, selectors, source names, standards and brands.`,
     ].join("\n")
 
     const response = await callWithRetry(

@@ -5,8 +5,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 SCAN_DIRS=(
-  "src/app/prototype/silver-state"
-  "src/app/prototype/prosera-compass"
   "src/app/prototype/future-energy"
   "src/app/login"
 )
