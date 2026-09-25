@@ -17,6 +17,7 @@ import {
   evaluateBids,
   sortEvaluationForDisplay,
   PRICE_MAX,
+  SUSTAINABILITY_MAX,
   TECH_MAX,
   QA_MAX,
   LEGAL_MAX,
@@ -42,6 +43,7 @@ import {
 } from "@/lib/compass/award-governance"
 import { AwardGovernanceChip, AwardRecommendPanel, AwardNotificationToast } from "@/lib/compass/award-approval-modal"
 import { LaneSlaPanel, RateNormalisationPanel } from "../_components/lane-sla-panel"
+import { LogisticsEvaluationPanel } from "./logistics-evaluation"
 import { quarantinedBidEvidence } from "@/lib/compass/logistics/inbox-model"
 
 type EvalStatus = "ready" | "awaiting_returns" | "not_issued" | "awarded"
@@ -153,7 +155,7 @@ function BidBaseballCard({
 }) {
   const t = useT()
   const motion = listItemMotion(index)
-  const failed = result.gatingStatus === "Fail"
+  const failed = result.gatingStatus !== "Pass"
   const allGates: GateId[] = ["iso9001", "knockForKnock", "ddpRotterdam"]
 
   return (
@@ -220,6 +222,7 @@ function BidBaseballCard({
               <ScoreBar label={t("bidEval.technical")} value={result.techScore} max={TECH_MAX} />
               <ScoreBar label={t("bidEval.qaHseq")} value={result.qaScore} max={QA_MAX} />
               <ScoreBar label={t("bidEval.legal")} value={result.legalScore} max={LEGAL_MAX} />
+              <ScoreBar label={t("bidEval.sustainability")} value={result.sustainabilityScore} max={SUSTAINABILITY_MAX} />
             </div>
           )}
 
@@ -348,10 +351,19 @@ export function BidEvaluationPage() {
 
   const activeRow = rows.find((r) => r.pkg.id === activePackageId) ?? rows[0]
   const pkg = activeRow?.pkg ?? tenderById(activePackageId)
-  const bids = React.useMemo(
-    () => (activePackageId && session.bidsReleased ? bidsForPackage(activePackageId, locale) : []),
-    [activePackageId, locale, session.bidsReleased],
-  )
+  const bids = React.useMemo(() => {
+    if (!activePackageId || !session.bidsReleased) return []
+    const evidence: Record<string, string> = {
+      "bid-alpinelink": "EML-007",
+      "bid-rheinroute": "EML-008",
+      "bid-veloce": "EML-009",
+    }
+    return bidsForPackage(activePackageId, locale).filter((bid) => {
+      const emailId = evidence[bid.id]
+      if (!emailId) return true
+      return session.emailClassifications[emailId] === "confirmed"
+    })
+  }, [activePackageId, locale, session.bidsReleased, session.emailClassifications])
   const results = React.useMemo(
     () => (bids.length > 0 ? sortEvaluationForDisplay(evaluateBids(bids, locale)) : []),
     [bids, locale],
@@ -374,7 +386,7 @@ export function BidEvaluationPage() {
   const awardBlocked = false
 
   const recommendSelected = () => {
-    if (!pkg || !selectedResult || selectedResult.gatingStatus === "Fail") return
+    if (!pkg || !selectedResult || selectedResult.gatingStatus !== "Pass") return
     if (awardRecord && awardRecord.status !== "procurement_review") return
     if (awardBlocked) return
     const approver = personForRole(pkg.sponsorRole, locale)
@@ -389,8 +401,8 @@ export function BidEvaluationPage() {
       evidence: [
         ...pkg.evidence,
       ],
-      selected: selectedResult,
-      allResults: results,
+      selected: { ...selectedResult, gatingStatus: selectedResult.gatingStatus === "Pass" ? "Pass" : "Fail" },
+      allResults: results.map((row) => ({ ...row, gatingStatus: row.gatingStatus === "Pass" ? "Pass" as const : "Fail" as const })),
       gateLabel: (id) => labels[id as GateId] ?? id,
       approver: {
         name: approver.name,
@@ -415,10 +427,11 @@ export function BidEvaluationPage() {
     { label: t("bidEval.tech"), max: TECH_MAX },
     { label: t("bidEval.qaHseq"), max: QA_MAX },
     { label: t("bidEval.legal"), max: LEGAL_MAX },
+    { label: t("bidEval.sustainability"), max: SUSTAINABILITY_MAX },
   ]
 
   const pageMotion = enterMotion(0)
-  const ittRef = bids[0]?.ittRef ?? (pkg ? `ITT-${pkg.packageRef}` : "—")
+  const ittRef = bids[0]?.ittRef ?? (pkg ? pkg.packageRef : "RFP-2026-001")
 
   return (
     <div className={cn("space-y-5", pageMotion.className)} style={pageMotion.style}>
@@ -575,6 +588,7 @@ export function BidEvaluationPage() {
             <div className="space-y-3">
               <LaneSlaPanel compact />
               {session.bidsReleased && <RateNormalisationPanel />}
+              {session.bidsReleased && <LogisticsEvaluationPanel />}
             </div>
           )}
 
@@ -597,7 +611,7 @@ export function BidEvaluationPage() {
                       <button
                         type="button"
                         onClick={recommendSelected}
-                        disabled={!selectedResult || selectedResult.gatingStatus === "Fail" || awardBlocked || (awardRecord != null && awardRecord.status !== "procurement_review")}
+                        disabled={!selectedResult || selectedResult.gatingStatus !== "Pass" || awardBlocked || (awardRecord != null && awardRecord.status !== "procurement_review")}
                         className="inline-flex shrink-0 items-center gap-1.5 rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90 disabled:opacity-50"
                       >
                         <SafeIcon name="BadgeCheck" className="size-3.5" />
@@ -626,6 +640,7 @@ export function BidEvaluationPage() {
                         <th className="px-3 py-2.5">{t("bidEval.technical")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.qaHseq")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.legal")}</th>
+                        <th className="px-3 py-2.5">{t("bidEval.sustainability")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.gating")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.composite")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.rank")}</th>
@@ -652,6 +667,7 @@ export function BidEvaluationPage() {
                             <MatrixCell>{r.techScore != null ? formatFixed(r.techScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>{r.qaScore != null ? formatFixed(r.qaScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>{r.legalScore != null ? formatFixed(r.legalScore, locale) : "—"}</MatrixCell>
+                            <MatrixCell>{r.sustainabilityScore != null ? formatFixed(r.sustainabilityScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>
                               <span
                                 className={cn(
@@ -661,14 +677,14 @@ export function BidEvaluationPage() {
                                     : "bg-[var(--color-tint-critical)] text-[var(--color-accent-critical-text)]",
                                 )}
                               >
-                                {r.gatingStatus === "Pass" ? t("common.pass") : t("common.fail")}
+                                {r.gatingStatus === "Pass" ? t("common.pass") : r.gatingStatus === "Evidence missing" ? (locale === "de" ? "Nachweis fehlt" : "Evidence missing") : t("common.fail")}
                               </span>
                             </MatrixCell>
                             <MatrixCell className="font-semibold">
                               {r.compositeScore != null ? formatFixed(r.compositeScore, locale) : "—"}
                             </MatrixCell>
                             <MatrixCell className="font-semibold">
-                              {r.finalRank != null ? `#${r.finalRank}` : "DQ"}
+                              {r.finalRank != null ? `#${r.finalRank}` : r.gatingStatus === "Evidence missing" ? (locale === "de" ? "Offen" : "Open") : "DQ"}
                             </MatrixCell>
                             <MatrixCell>
                               {r.highCommercialRisk ? (

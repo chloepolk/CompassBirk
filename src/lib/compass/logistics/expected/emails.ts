@@ -25,7 +25,7 @@ export const EMAILS: Emails[] = [
     language: "EN",
     expectedClassification: "Relevant",
     eventId: "RFP-2026-001",
-    supplierId: "RFP_ITT_EN.docx; Lane_Rate_Template.csv",
+    supplierId: "RFP_EN.docx; Lane_Rate_Template.csv",
     attachments: null,
   },
   {
@@ -38,7 +38,7 @@ export const EMAILS: Emails[] = [
     language: "DE",
     expectedClassification: "Relevant",
     eventId: "RFP-2026-001",
-    supplierId: "RFP_ITT_DE.docx; Lane_Rate_Template.csv",
+    supplierId: "RFP_DE.docx; Lane_Rate_Template.csv",
     attachments: null,
   },
   {

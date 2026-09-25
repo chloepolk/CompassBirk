@@ -18,7 +18,7 @@ export const ACTIONS: Actions[] = [
     actionId: "ACT-001",
     stage: "03 Invite",
     actionType: "Approval",
-    title: "Approve bilingual RFP/ITT before issue",
+    title: "Approve bilingual RFP before issue",
     owner: "Category Manager",
     dueDate: "2026-09-27",
     status: "Ready",

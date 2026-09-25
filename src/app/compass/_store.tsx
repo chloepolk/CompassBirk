@@ -25,8 +25,11 @@ import {
   loadSession,
   persistSession,
   applyReplayCheckpoint,
+  advanceTo,
+  retreatTo,
   type LogisticsSession,
   type EmailClass,
+  type JourneyStep,
 } from "@/lib/compass/logistics/session"
 import { defaultAwardContracts } from "@/lib/compass/logistics/award-contracts"
 import type {
@@ -75,7 +78,7 @@ import { useAppLocale } from "@/lib/compass/prosera-locale-provider"
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-export type Page = "operating-loop" | "tender-studio" | "bid-evaluation" | "vendor-360" | "performance" | "inbox"
+export type Page = "operating-loop" | "tender-studio" | "bid-evaluation" | "vendor-360" | "performance" | "inbox" | "award"
 export type DrillLevel = "macro" | "region" | "city" | "customer" | "job"
 export type IntelRailSection = "findings" | "reasoning" | "context" | "ask"
 export type { Locale }
@@ -233,12 +236,15 @@ export interface AcmeDemoStore {
     args: { snapshot: AwardApprovalSnapshot; actionTaken: string; explanation: string; attachments: AwardSupportingDocument[] },
     actor: AwardActor,
   ) => void
-  confirmAward: (packageId: string, actor: AwardActor) => void
+  confirmAward: (packageId: string, actor: AwardActor, notes?: { comment?: string; overrideReason?: string | null }) => void
   confirmAwardNotes: (packageId: string, actor: AwardActor) => void
 
   session: LogisticsSession
   patchSession: (partial: Partial<LogisticsSession>) => void
+  advanceJourney: (step: JourneyStep) => void
+  retreatJourney: (step: JourneyStep) => void
   resetSession: () => void
+  openAward: () => void
   applyOperatorCheckpoint: (checkpoint: number) => void
   focusSupplierId: string | null
   openVendor360: (supplierId?: string | null) => void
@@ -365,7 +371,7 @@ function getPageContext(page: Page, locale: Locale): string {
   if (locale === "de") {
     switch (page) {
       case "operating-loop": return "Aktionszentrum — live Ausschreibungspipeline für europäische Straßengüterverkehre, in der Pakete fünf Tore durchlaufen (Scoped → Specified → Approved → Issued → Awarded)"
-      case "tender-studio": return "Ausschreibungsmanagement — Entwurf von ITT aus kontrollierten Logistikdokumenten"
+      case "tender-studio": return "Ausschreibungsmanagement — Entwurf aus kontrollierten Logistikdokumenten"
       case "bid-evaluation": return "Angebotsbewertung — Trägerangebote mit Qualifikationstoren und gewichteter Bewertung"
       case "vendor-360": return "Lieferanten 360 — Beziehung, Ausgaben, Verträge und transparenter Score"
       case "performance": return "Leistung — Ist gegen vertragliche Baseline, Vorfälle und Korrekturmaßnahmen"
@@ -375,7 +381,7 @@ function getPageContext(page: Page, locale: Locale): string {
   }
   switch (page) {
     case "operating-loop": return "Action Centre — the live tender pipeline for European road-freight sourcing, where packages move through 5 gates (Scoped → Specified → Approved → Issued → Awarded), each with an accountable owner, bid deadline and value target"
-    case "tender-studio": return "Tender Management — the ITT drafting workspace: controlled logistics specifications, SLA, qualification and contract terms, plus the multi-agent pipeline that assembles, audits and renders an Invitation to Tender"
+    case "tender-studio": return "Tender Management — the RFP drafting workspace: controlled logistics specifications, SLA, qualification and contract terms, plus the pipeline that assembles, reviews and renders a request for proposal"
     case "bid-evaluation": return "Bid Evaluation — tabulated carrier returns with qualification gates (insurance, due diligence, data integration) and weighted scoring, including matrix, cards and award recommendations"
     case "vendor-360": return "Vendor 360 — relationship, spend, contracts and a transparent score shown only when twelve months of verified execution exist"
     case "performance": return "Performance — actual versus contractual baseline, trends, incidents and corrective actions"
@@ -1234,7 +1240,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
   }, [locale])
 
-  const confirmAward = React.useCallback((packageId: string, actor: AwardActor) => {
+  const confirmAward = React.useCallback((packageId: string, actor: AwardActor, notes?: { comment?: string; overrideReason?: string | null }) => {
     setAwardApprovals(prev => {
       const current = prev[packageId]
       if (!current || current.status !== "approved_for_award") return prev
@@ -1242,12 +1248,27 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
     advanceTenderStage(packageId, "outcome_roi")
     setSession(prev => {
-      if (prev.awardApproved && prev.createdContracts.length > 0) return prev
+      const advanced = advanceTo(prev, "s7")
+      if (advanced.journeyStep !== "s7") return prev
+      const createdContracts = prev.createdContracts.length > 0
+        ? prev.createdContracts
+        : defaultAwardContracts(packageId, prev.selectedScenarioId ?? "AWD-02")
       const next = {
-        ...prev,
-        awardApproved: true,
-        createdContracts: prev.createdContracts.length > 0 ? prev.createdContracts : defaultAwardContracts(packageId),
-        replayCheckpoint: Math.max(prev.replayCheckpoint, 6),
+        ...advanced,
+        createdContracts,
+        approvalTrace: {
+          requirementSetVersion: advanced.requirementSetVersion,
+          evaluationMethodVersion: advanced.evaluationMethodVersion,
+          rfpVersion: advanced.rfpVersion,
+          scenarioId: advanced.selectedScenarioId,
+          bidVersion: "confirmed current version",
+          approverName: actor.name,
+          approverRole: actor.role,
+          approvedAt: new Date().toISOString(),
+          comment: notes?.comment?.trim() || prev.evaluationOverrides.at(-1)?.rationale || "",
+          overrideReason: notes?.overrideReason?.trim() || null,
+          contractIds: createdContracts.map((c) => c.contractId),
+        },
       }
       persistSession(next)
       return next
@@ -1270,6 +1291,35 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
   }, [])
 
+  const advanceJourney = React.useCallback((step: JourneyStep) => {
+    setSession(prev => {
+      const next = advanceTo(prev, step)
+      persistSession(next)
+      return next
+    })
+  }, [])
+
+  const retreatJourney = React.useCallback((step: JourneyStep) => {
+    setSession(prev => {
+      const next = retreatTo(prev, step)
+      persistSession(next)
+      return next
+    })
+  }, [])
+
+  const openAward = React.useCallback(() => {
+    setState(s => ({
+      ...s,
+      activePage: "award" as Page,
+      drillLevel: "macro" as DrillLevel,
+      selectedRegion: null,
+      selectedCity: null,
+      selectedCustomer: null,
+      selectedJobType: null,
+      selectedJob: null,
+    }))
+  }, [])
+
   const classifyEmail = React.useCallback((emailId: string) => {
     setSession(prev => {
       const next = {
@@ -1284,10 +1334,17 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
 
   const classifyInbox = React.useCallback((emailId: string, classification: EmailClass) => {
     setSession(prev => {
-      const next = {
+      const emailClassifications = { ...prev.emailClassifications, [emailId]: classification }
+      const bidIds = ["EML-007", "EML-008", "EML-009"]
+      const confirmedBids = bidIds.filter((id) => emailClassifications[id] === "confirmed")
+      let next: LogisticsSession = {
         ...prev,
         classifiedEmailIds: prev.classifiedEmailIds.includes(emailId) ? prev.classifiedEmailIds : [...prev.classifiedEmailIds, emailId],
-        emailClassifications: { ...prev.emailClassifications, [emailId]: classification },
+        emailClassifications,
+        confirmedEvidenceIds: confirmedBids,
+      }
+      if (confirmedBids.length === bidIds.length) {
+        next = advanceTo(next, "s5")
       }
       persistSession(next)
       return next
@@ -1297,10 +1354,16 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const sendOutboundDraft = React.useCallback((emailId: string) => {
     setSession(prev => {
       if (prev.sentDraftIds.includes(emailId)) return prev
-      const next = {
+      const invitation = emailId === "EML-001" || emailId === "EML-002"
+      if (invitation && (!prev.rfpApproved || !prev.packageLocked)) return prev
+      let next: LogisticsSession = {
         ...prev,
         sentDraftIds: [...prev.sentDraftIds, emailId],
-        acceptedNeed: true,
+      }
+      const invitesSent = ["EML-001", "EML-002"].every((id) => next.sentDraftIds.includes(id))
+      if (invitation && invitesSent) next = advanceTo(next, "s4")
+      if (emailId === "EML-011" && prev.journeyStep === "s8") {
+        next = advanceTo({ ...next, correctiveDraftApproved: true }, "s9")
       }
       persistSession(next)
       return next
@@ -1349,13 +1412,6 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   }, [])
 
   const openTenderStudio = React.useCallback((packageId: string | null) => {
-    if (packageId === "PKG-RFP-001" || packageId === "PKG-CON-001" || packageId === "PKG-REN-001") {
-      setSession(prev => {
-        const next = { ...prev, acceptedNeed: true }
-        persistSession(next)
-        return next
-      })
-    }
     setFocusTenderId(packageId)
     setState(s => ({
       ...s,
@@ -1383,13 +1439,23 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     }))
   }, [])
 
+  const resetExtrasRef = React.useRef<() => void>(() => {})
+
   const resetSession = React.useCallback(() => {
     const next = { ...DEFAULT_SESSION }
     persistSession(next)
     setSession(next)
     setTenderStages({})
     setAwardApprovals({})
-    try { localStorage.removeItem("clp-award-approvals-v1") } catch { /* ignore */ }
+    setMissionPriorityState([])
+    clearAgentCache()
+    try {
+      localStorage.removeItem("clp-award-approvals-v1")
+      localStorage.removeItem("fe-drafted-tenders")
+      localStorage.removeItem("bp-mission-priority")
+      localStorage.removeItem(BRIEFING_STORE_KEY)
+    } catch { /* ignore */ }
+    resetExtrasRef.current()
     setFocusSupplierId(null)
     setFocusTenderId(null)
     setFocusEvalPackageId(null)
@@ -1469,11 +1535,10 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       try { localStorage.setItem("fe-drafted-tenders", JSON.stringify(next)) } catch {}
       return next
     })
-    setSession(prev => {
-      const next = { ...prev, packageLocked: true, acceptedNeed: true }
-      persistSession(next)
-      return next
-    })
+  }, [])
+
+  React.useEffect(() => {
+    resetExtrasRef.current = () => setDraftedTenders([])
   }, [])
 
   const deleteDraftedTender = React.useCallback((id: string) => {
@@ -1520,8 +1585,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       actor,
       timestamp: new Date().toISOString(),
       detail: locale === "de"
-        ? `Restbeschaffungsmenge ${nextQty} in die vorgeschlagene ITT übernommen (angefragt ${formatTenderQty(req.requestedQty, req.uom, "de")}).`
-        : `Wrote residual procurement quantity ${storedQty} into the proposed ITT (requested ${formatTenderQty(req.requestedQty, req.uom, "en")}).`,
+        ? `Restbeschaffungsmenge ${nextQty} in die vorgeschlagene Ausschreibung übernommen (angefragt ${formatTenderQty(req.requestedQty, req.uom, "de")}).`
+        : `Wrote residual procurement quantity ${storedQty} into the proposed RFP (requested ${formatTenderQty(req.requestedQty, req.uom, "en")}).`,
       source: packageId,
     }
     setInventoryAudit(prev => [...prev, event])
@@ -1602,6 +1667,9 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       confirmAwardNotes: confirmAwardNotesFn,
       session,
       patchSession,
+      advanceJourney,
+      retreatJourney,
+      openAward,
       resetSession,
       applyOperatorCheckpoint,
       focusSupplierId,
@@ -1625,7 +1693,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       appliedTenderQtyByPackage,
       applyResidualToTender,
     }),
-    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, classifyEmail, classifyInbox, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
+    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, advanceJourney, retreatJourney, openAward, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, classifyEmail, classifyInbox, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
   )
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

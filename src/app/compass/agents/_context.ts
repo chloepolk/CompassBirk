@@ -28,12 +28,6 @@ import {
   LEGAL_MAX,
   GATE_LABELS,
   gateLabels,
-  STANDARD_WARRANTY_MONTHS,
-  WARRANTY_RISK_THRESHOLD_MONTHS,
-  FAT_STANDARD_DAYS,
-  FAT_DELAY_BLOCK_DAYS,
-  FAT_DELAY_PENALTY,
-  WARRANTY_SHORTFALL_PENALTY,
   type BidEvaluationResult,
 } from "../data/_bid-scoring"
 import type { Locale } from "../_i18n"
@@ -101,31 +95,33 @@ function ledgerSummary() {
 export function scoringModelSummary() {
   return {
     compositeMax: 100,
-    weights: { price: PRICE_MAX, tech: TECH_MAX, qaHseq: QA_MAX, legal: LEGAL_MAX },
+    weights: { cost: PRICE_MAX, service: TECH_MAX, capacity: QA_MAX, visibility: LEGAL_MAX, sustainability: 10 },
     hardGates: [
       "Cargo insurance of at least EUR 5 million",
       "Financial due diligence complete",
       "Data integration (API, EDI or agreed daily file)",
     ],
-    priceFormula: `${PRICE_MAX} × (P_min / P_bid) among gate-passing bids only`,
-    techRule: `Full compliance = ${TECH_MAX}; partial / unapproved material substitutions = 0–20`,
-    qaRule: `ISO/materials traceability up to 10 + FAT/ITP notice alignment up to 10 (standard ${FAT_STANDARD_DAYS} days; −${FAT_DELAY_PENALTY} per each additional ${FAT_DELAY_BLOCK_DAYS} days)`,
-    legalRule: `SRC-004 liability and insurance acceptance 10 + SRC-002 SLA acceptance 10; shortfall below the published SLA → −${WARRANTY_SHORTFALL_PENALTY} (floored at 0)`,
-    commercialRiskFlag: `High commercial risk if warranty < ${WARRANTY_RISK_THRESHOLD_MONTHS} months (>25% cut from ${STANDARD_WARRANTY_MONTHS}-month standard) — flag only, not an extra point deduction`,
+    priceFormula: `EVAL-LOG-v1 cost ${PRICE_MAX} × (P_min / P_bid) among gate-passing bids only`,
+    techRule: `Service / SLA up to ${TECH_MAX} against SRC-002. Not a parts-conformity score.`,
+    qaRule: `Capacity / coverage up to ${QA_MAX} = lanes offered / 18.`,
+    legalRule: `Implementation / visibility up to ${LEGAL_MAX} (API, EDI or daily file) plus sustainability up to 10. No History is not a score component.`,
+    commercialRiskFlag: "No History is not zero and is not an automatic penalty. Evidence-missing bids are not ranked.",
     deferred: "Operational deviation penalty P not applied in v1",
   }
 }
 
 function explainBidCalculation(bid: BidInput, result: BidEvaluationResult, pMin: number | null): string {
-  if (result.gatingStatus === "Fail") {
+  if (result.gatingStatus !== "Pass") {
     const fails = result.gateFailures.map((g) => GATE_LABELS[g]).join("; ")
-    return `Disqualified — failed hard gate(s): ${fails}. No composite score.`
+    return result.gatingStatus === "Evidence missing"
+      ? `Evidence missing. Not ranked. ${result.insight}`
+      : `Disqualified — failed hard gate(s): ${fails}. No composite score.`
   }
   if (pMin == null || result.priceScore == null) return result.recommendation
-  const priceStep = `Price ${result.priceScore} = ${PRICE_MAX} × (${eur(pMin).toLocaleString("en-GB")} / ${eur(bid.totalPrice).toLocaleString("en-GB")})`
-  const techStep = `Tech ${result.techScore} (conformity input ${bid.techCompliancePts})`
-  const qaStep = `QA/HSEQ ${result.qaScore} (traceability ${bid.isoTraceabilityPts}/10; FAT notice ${bid.fatNoticeDays} days vs ${FAT_STANDARD_DAYS}-day standard)`
-  const legalStep = `Legal ${result.legalScore} (warranty ${bid.warrantyMonths} months vs ${STANDARD_WARRANTY_MONTHS}-month standard${bid.warrantyMonths < STANDARD_WARRANTY_MONTHS ? `; −${WARRANTY_SHORTFALL_PENALTY} shortfall applied` : ""})`
+  const priceStep = `Cost ${result.priceScore} = ${PRICE_MAX} × (${eur(pMin).toLocaleString("en-GB")} / ${eur(bid.totalPrice).toLocaleString("en-GB")})`
+  const techStep = `Service ${result.techScore}/${TECH_MAX}`
+  const qaStep = `Capacity ${result.qaScore}/${QA_MAX}`
+  const legalStep = `Visibility ${result.legalScore}/${LEGAL_MAX}; sustainability ${result.sustainabilityScore ?? 0}/10`
   const risk = result.highCommercialRisk ? "; HIGH COMMERCIAL RISK flag on warranty cut" : ""
   return `${priceStep}; ${techStep}; ${qaStep}; ${legalStep}; Composite ${result.compositeScore}; Rank #${result.finalRank}${risk}. ${result.recommendation}`
 }
@@ -185,7 +181,7 @@ export function buildBidEvaluationContext(locale: Locale = "en"): Record<string,
       stage: p.stage,
       status:
         p.stage === "execute"
-          ? (locale === "de" ? "ITT ausgegeben — tabellierte Rückläufe ausstehend" : "ITT issued — awaiting tabulated returns")
+          ? (locale === "de" ? "Ausschreibung ausgegeben — tabellierte Rückläufe ausstehend" : "RFP issued — awaiting tabulated returns")
           : (locale === "de" ? "Noch nicht ausgegeben — keine Bewertung verfügbar" : "Not yet issued — no bid evaluation available"),
     }))
 
@@ -225,10 +221,10 @@ function formatBidEvaluationBriefing(): string {
 
   const blocks = packages.map((p) => {
     const lines = p.evaluations.map((e) => {
-      if (e.gatingStatus === "Fail") {
-        return `  - ${e.supplier}: DISQUALIFIED (${e.gateFailures.join("; ")}); bid ${formatEurFigure(e.totalPriceEur)}. ${e.calculation}`
+      if (e.gatingStatus !== "Pass") {
+        return `  - ${e.supplier}: ${e.gatingStatus} (${e.gateFailures.join("; ")}); bid ${formatEurFigure(e.totalPriceEur)}. ${e.calculation}`
       }
-      return `  - ${e.supplier}: Rank #${e.finalRank}, composite ${e.compositeScore}/100 (Price ${e.priceScore}/${PRICE_MAX}, Tech ${e.techScore}/${TECH_MAX}, QA ${e.qaScore}/${QA_MAX}, Legal ${e.legalScore}/${LEGAL_MAX}); bid ${formatEurFigure(e.totalPriceEur)}${e.highCommercialRisk ? "; HIGH COMMERCIAL RISK" : ""}. Calculation: ${e.calculation}`
+      return `  - ${e.supplier}: Rank #${e.finalRank}, composite ${e.compositeScore}/100 (Cost ${e.priceScore}/${PRICE_MAX}, Service ${e.techScore}/${TECH_MAX}, Capacity ${e.qaScore}/${QA_MAX}, Visibility ${e.legalScore}/${LEGAL_MAX}); bid ${formatEurFigure(e.totalPriceEur)}. Calculation: ${e.calculation}`
     })
     return `${p.packageId} ${p.title} (${p.ittRef}): P_min eligible ${formatEurFigure(p.lowestEligiblePriceEur ?? 0)}\n${lines.join("\n")}`
   })
@@ -239,15 +235,15 @@ function formatBidEvaluationBriefing(): string {
 
   return `BID EVALUATION SCORING MODEL (0–100):
 - Hard gates before scoring: ${model.hardGates.join("; ")}. Fail any → disqualified, no composite.
-- Weights: Price ${model.weights.price}, Tech ${model.weights.tech}, QA/HSEQ ${model.weights.qaHseq}, Legal ${model.weights.legal}.
-- Price: ${model.priceFormula}.
-- Tech: ${model.techRule}.
-- QA/HSEQ: ${model.qaRule}.
-- Legal: ${model.legalRule}.
+- Weights: cost ${model.weights.cost}, service ${model.weights.service}, capacity ${model.weights.capacity}, visibility ${model.weights.visibility}, sustainability ${model.weights.sustainability}.
+- Cost: ${model.priceFormula}.
+- Service: ${model.techRule}.
+- Capacity: ${model.qaRule}.
+- Visibility and sustainability: ${model.legalRule}.
 - Risk flag: ${model.commercialRiskFlag}.
 - ${model.deferred}.
 
-SCORED RETURNS (${ctx.totalReturnsTabulated} tabulated across ${packages.length} ITTs):
+SCORED RETURNS (${ctx.totalReturnsTabulated} tabulated across ${packages.length} RFPs):
 ${blocks.join("\n\n")}
 
 PACKAGES WITHOUT TABULATED RETURNS:
@@ -266,8 +262,8 @@ export function buildPortfolioContext(drill: DrillState): Record<string, unknown
     view: drill.page,
     workspaceSurfaces: [
       "Action Centre — live tender pipeline and savings ledger",
-      "Tender Management — ITT drafting from controlled documents",
-      "Bid Evaluation — multi-ITT gated scoring of supplier returns",
+      "Tender Management — RFP drafting from controlled documents",
+      "Bid Evaluation — gated scoring of supplier returns",
     ],
     tenderPipeline: serializePipeline(),
     bidEvaluation: buildBidEvaluationContext(),
@@ -276,7 +272,7 @@ export function buildPortfolioContext(drill: DrillState): Record<string, unknown
       tenderWindowDays: 21,
       clarificationCutoffDays: 7,
       submissionChannel: "Compass Logistics Procurement SCM Portal — late submissions are not evaluated",
-      approvalAuthority: "SCM Director approval required before ITT issue; deviations from SRC-004 need written SCM Director agreement",
+      approvalAuthority: "SCM Director approval required before RFP issue; deviations from SRC-004 need written SCM Director agreement",
     },
   }
 }
@@ -350,7 +346,7 @@ export function buildOrchestratorContext(
         gates: "Scoped → Specified → Approved → Issued → Awarded",
         tenderWindowDays: 21,
         clarificationCutoffDays: 7,
-        approvalAuthority: "SCM Director approves ITT issue; deviations from SRC-004 need written agreement",
+        approvalAuthority: "SCM Director approves RFP issue; deviations from SRC-004 need written agreement",
       },
       governingTerms: PROCUREMENT_CLAUSES.map(c => `§${c.ref} ${c.heading}: ${c.text}`),
       standardsMatrix: STANDARDS_MATRIX.map(s => `${s.authority} ${s.ref} — ${s.scope}`),
@@ -410,13 +406,13 @@ export function buildChatBriefing(): string {
 
 WORKSPACE SURFACES:
 - Action Centre: live tender pipeline, 5-gate flight path, owners, deadlines, savings ledger.
-- Tender Management: draft ITTs from controlled documents (SRC-001 to SRC-008) with multi-agent assemble/audit.
-- Bid Evaluation: multi-ITT portfolio of tabulated returns with hard gates + 100-point composite scoring (see BID EVALUATION below).
+- Tender Management: draft RFPs from controlled documents (SRC-001 to SRC-008) with multi-agent assemble and quality review.
+- Bid Evaluation: portfolio of tabulated returns with hard gates and the logistics score (see BID EVALUATION below).
 
 TENDER PIPELINE:
 ${pipeline}
 
-SAVINGS LEDGER: ${ledger.closedPackages} packages awarded to date, ${formatEurFigure(ledger.realisedSavingsEur)} realised savings against ${formatEurFigure(ledger.tenderCostsEur)} of tender costs (${ledger.blendedReturn}× blended return).
+SAVINGS LEDGER: ${ledger.closedPackages} packages awarded to date, ${formatEurFigure(ledger.realisedSavingsEur)} illustrative closed-package amount against ${formatEurFigure(ledger.tenderCostsEur)} of tender costs (${ledger.blendedReturn}× blended return). Do not call this realised savings.
 
 CONTROLLED DOCUMENT REGISTER:
 ${docs}

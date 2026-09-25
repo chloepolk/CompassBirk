@@ -42,7 +42,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
   return [
     {
       id: `${record.id}-approve`,
-      label: de ? "Ausgabe der Ausschreibung und Bewertungskriterien freigegeben" : "Approved ITT release and evaluation criteria",
+      label: de ? "Ausgabe der Ausschreibung und Bewertungskriterien freigegeben" : "Approved RFP release and evaluation criteria",
       assignee: decisionMaker.name,
       assigneeRole: decisionMaker.role,
       status: "done",
@@ -51,7 +51,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
       agentSteps: [
         doneAgent(
           `${record.id}-agent-audit`,
-          de ? `Ausschreibungsentwurf für ${record.name} gegen verbindliche Dokumente geprüft` : `Audited draft ITT for ${record.name} against controlled documents`,
+          de ? `Ausschreibungsentwurf für ${record.name} gegen verbindliche Dokumente geprüft` : `Quality review of the draft RFP for ${record.name} against controlled documents`,
           auditAgent,
           addDays(closed, -35),
         ),
@@ -82,7 +82,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
     },
     {
       id: `${record.id}-verify`,
-      label: de ? "Verhandelte Einsparungen gegen die Budgetbasis bestätigt" : "Confirmed negotiated savings against budget baseline",
+      label: de ? "Illustrativen Betrag gegen die Budgetbasis gekennzeichnet" : "Labelled the illustrative amount against the budget baseline",
       assignee: analyst.name,
       assigneeRole: analyst.role,
       status: "done",
@@ -99,7 +99,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
     },
     {
       id: `${record.id}-book`,
-      label: de ? "Bestellung erteilt und Einsparungen im Projektregister gebucht" : "Purchase order issued and savings booked to the project ledger",
+      label: de ? "Zuschlag erfasst. Angezeigte Beträge bleiben illustrativ." : "Award recorded. Displayed amounts stay illustrative.",
       assignee: decisionMaker.name,
       assigneeRole: decisionMaker.role,
       status: "done",
@@ -134,9 +134,9 @@ export function closedRecordToCardData(record: ClosedRecord, locale: Locale = "e
     id: record.id,
     title: record.name,
     narrative: de
-      ? `Los vergeben. ${formatCurrency(record.realizedValue, locale)} verhandelte Einsparungen gegenüber der Budgetbasis bei ${formatCurrency(record.cost, locale)} Verfahrensaufwand.`
-      : `Awarded package. Delivered ${formatCurrency(record.realizedValue, locale)} in negotiated savings against the budget baseline for ${formatCurrency(record.cost, locale)} of tender process cost.`,
-    valueChip: formatCurrency(record.realizedValue, locale),
+      ? `Historisches Los. Illustrativer Betrag ${formatCurrency(record.realizedValue, locale)} gegenüber der Budgetbasis, nicht als realisierte Einsparung ausgewiesen.`
+      : `Historical package. Illustrative amount ${formatCurrency(record.realizedValue, locale)} against the budget baseline. Not labelled as realised savings.`,
+    valueChip: `${de ? "Illustrativ " : "Illustrative "}${formatCurrency(record.realizedValue, locale)}`,
     valueType,
     owner: decisionMaker.name,
     ownerRole: decisionMaker.role,

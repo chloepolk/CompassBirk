@@ -53,7 +53,7 @@ function attachmentsFor(id: string, rawSupplier: string | null, rawAttach: strin
   const names = blob
     .split(";")
     .map((s) => s.trim())
-    .filter((s) => /\.(docx|csv|txt|pdf)$/i.test(s) || s.includes("Rate") || s.includes("Insurance") || s.includes("Corrective") || s.includes("RFP_ITT"))
+    .filter((s) => /\.(docx|csv|txt|pdf)$/i.test(s) || s.includes("Rate") || s.includes("Insurance") || s.includes("Corrective") || s.includes("RFP_"))
   if (id === "EML-008") {
     return [
       { name: "RheinRoute_Rate_Card_v1.csv", version: "v1", supersedes: undefined },

@@ -49,16 +49,16 @@ export const STANDARDS_MATRIX: StandardRow[] = [
 ]
 
 export const BASELINE_STANDARDS: StandardRow[] = [
-  { authority: "ISO", ref: "ISO 9001:2015", scope: "Quality management systems — required for all structural suppliers." },
-  { authority: "ISO", ref: "ISO/TS 29001", scope: "Sector-specific QMS for petroleum, petrochemical and natural gas industries — applicable to subsea tooling." },
-  { authority: "ISO", ref: "ISO 14001:2015", scope: "Environmental management systems." },
+  { authority: "ISO", ref: "ISO 9001:2015", scope: "Quality management systems — required for approved carriers." },
+  { authority: "ISO", ref: "ISO 14001:2015", scope: "Environmental management systems — emissions reporting under SRC-007." },
   { authority: "ISO", ref: "ISO 45001:2018", scope: "Occupational health and safety management systems." },
+  { authority: "SRC", ref: "SRC-002", scope: "Carrier performance and SLA." },
 ]
 
 export const FAT_TRACEABILITY_CLAUSES = [
   "Carriers shall submit qualification evidence (insurance, due diligence and data-integration method) at least 30 days before the intended service start.",
-  "Complete material traceability (EN 10204 Type 3.1 or 3.2 certificates) is required for all primary steel and load-bearing components; uncertified materials will be rejected at the mobilisation port.",
-  "Welding and fabrication quality shall be verified via NDT (radiographic, ultrasonic, magnetic particle or dye penetrant) in accordance with DNV-CG-0051; all NDT operators certified to ISO 9712 Level II minimum.",
+  "Cargo liability insurance of at least EUR 5 million is mandatory before a bid can pass the qualification gate.",
+  "Shipment visibility shall be provided by API, EDI or an agreed daily file, as specified in SRC-006.",
 ]
 
 /* ------------------------------------------------------------------ */

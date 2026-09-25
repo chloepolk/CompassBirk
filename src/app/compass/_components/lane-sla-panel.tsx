@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useT } from "../_i18n/use-t"
 import { useStore } from "../_store"
@@ -68,6 +69,8 @@ export function LaneSlaPanel({ compact = false }: { compact?: boolean }) {
 export function RateNormalisationPanel() {
   const t = useT()
   const { locale } = useStore()
+  const [openSupplier, setOpenSupplier] = React.useState<string | null>(null)
+  const [openLane, setOpenLane] = React.useState<string | null>(null)
   const latest = BID_RATES.filter((r) => r.eventId === "RFP-2026-001" && r.laneId && r.supplierId)
   const bySupplier = new Map<string, { cost: number; lanes: number }>()
   for (const row of latest) {
@@ -97,16 +100,43 @@ export function RateNormalisationPanel() {
             </tr>
           </thead>
           <tbody>
-            {ranked.map(([id, row]) => (
-              <tr key={id} className="border-t border-[var(--color-border-default)]">
-                <td className="px-2 py-1.5 text-[var(--color-text-primary)]">{supplierName(id)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatEur(row.cost, locale)}</td>
-                <td className="px-2 py-1.5 tabular-nums text-[var(--color-text-secondary)]">{row.lanes}</td>
-                <td className="px-2 py-1.5 tabular-nums text-[var(--color-text-secondary)]">
-                  {floor > 0 ? `${formatFixed((row.cost / floor) * 100, locale)}%` : "—"}
-                </td>
-              </tr>
-            ))}
+            {ranked.map(([id, row]) => {
+              const lanes = latest.filter((r) => r.supplierId === id)
+              return (
+                <React.Fragment key={id}>
+                  <tr className="border-t border-[var(--color-border-default)]">
+                    <td className="px-2 py-1.5 text-[var(--color-text-primary)]">
+                      <button type="button" className="font-medium hover:underline" onClick={() => setOpenSupplier(openSupplier === id ? null : id)}>
+                        {supplierName(id)}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1.5 tabular-nums">{formatEur(row.cost, locale)}</td>
+                    <td className="px-2 py-1.5 tabular-nums text-[var(--color-text-secondary)]">{row.lanes}</td>
+                    <td className="px-2 py-1.5 tabular-nums text-[var(--color-text-secondary)]">
+                      {floor > 0 ? `${formatFixed((row.cost / floor) * 100, locale)}%` : "—"}
+                    </td>
+                  </tr>
+                  {openSupplier === id && lanes.map((sample) => {
+                    const normalised = (sample.rateEurPerShipment ?? 0) * (1 + (sample.fuelSurchargePct ?? 0))
+                    const key = `${id}:${sample.laneId}`
+                    return (
+                      <tr key={key} className="border-t border-[var(--color-border-default)] bg-[var(--color-bg-subtle)]">
+                        <td colSpan={4} className="px-2 py-2 text-[11px] text-[var(--color-text-secondary)]">
+                          <button type="button" className="font-medium hover:underline" onClick={() => setOpenLane(openLane === key ? null : key)}>
+                            {sample.laneId} · {formatEur(normalised, locale)}
+                          </button>
+                          {openLane === key && (
+                            <p className="mt-1">
+                              Original {formatEur(sample.rateEurPerShipment ?? 0, locale)} per shipment. Unit EUR/shipment. Fuel surcharge {(sample.fuelSurchargePct ?? 0) * 100}%. Coverage: this lane on the confirmed rate card. Exclusions stay off the rate. Version {sample.bidVersion}. Formula: normalised = quoted × (1 + surcharge) = {formatEur(normalised, locale)}. Source: confirmed rate-card attachment.
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </React.Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>

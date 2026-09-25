@@ -83,7 +83,7 @@ function VendorCard({
 export function Vendor360Page() {
   const t = useT()
   const { locale, focusSupplierId, session } = useStore()
-  const profiles = React.useMemo(() => allVendorProfiles(session.createdContracts), [session.createdContracts])
+  const profiles = React.useMemo(() => allVendorProfiles(session.createdContracts, session.asOfMonth), [session.createdContracts, session.asOfMonth])
   const [activeId, setActiveId] = React.useState(focusSupplierId ?? profiles[0]?.supplier.supplierId ?? "SUP-001")
 
   React.useEffect(() => {
@@ -93,7 +93,15 @@ export function Vendor360Page() {
   }, [focusSupplierId, profiles])
 
   const profile = profiles.find((p) => p.supplier.supplierId === activeId) ?? profiles[0]
+  const [openScore, setOpenScore] = React.useState<string | null>(null)
   const hero = enterMotion(0)
+  const scoreDetail = (key: string) => {
+    const month = profile?.latest?.month ?? "—"
+    const target = key === "sla" ? "OTD 98%" : key === "operational" ? "shipment records" : key === "commercial" ? "invoice accuracy" : "relationship history"
+    return locale === "de"
+      ? `Quelle: Monatsleistung ${month}. Ziel ${target}. Formelanteil im gewichteten Gesamtwert. Ausgewählter Zeitraum ${profile?.months.length ?? 0} Monate. Nachweis ${profile?.evidenceMonths ?? 0}/${MIN_EVIDENCE_MONTHS}.`
+      : `Source: monthly performance ${month}. Target ${target}. Weight is the share of the total. Selected period ${profile?.months.length ?? 0} months. Evidence on record ${profile?.evidenceMonths ?? 0}/${MIN_EVIDENCE_MONTHS}.`
+  }
 
   return (
     <div className="space-y-6">
@@ -155,11 +163,29 @@ export function Vendor360Page() {
                   <p className="text-[28px] font-semibold tabular-nums text-[var(--color-text-primary)]">
                     {formatFixed(profile.score.total, locale)}
                   </p>
-                  <ScoreBar label={t("vendor.operational")} value={profile.score.operational} weight={SCORE_WEIGHTS.operational} />
-                  <ScoreBar label={t("vendor.commercial")} value={profile.score.commercial} weight={SCORE_WEIGHTS.commercial} />
-                  <ScoreBar label={t("vendor.sla")} value={profile.score.sla} weight={SCORE_WEIGHTS.sla} />
-                  <ScoreBar label={t("vendor.relationshipDim")} value={profile.score.relationship} weight={SCORE_WEIGHTS.relationship} />
+                  {([
+                    ["operational", t("vendor.operational"), profile.score.operational, SCORE_WEIGHTS.operational],
+                    ["commercial", t("vendor.commercial"), profile.score.commercial, SCORE_WEIGHTS.commercial],
+                    ["sla", t("vendor.sla"), profile.score.sla, SCORE_WEIGHTS.sla],
+                    ["relationship", t("vendor.relationshipDim"), profile.score.relationship, SCORE_WEIGHTS.relationship],
+                  ] as const).map(([key, label, value, weight]) => (
+                    <button key={key} type="button" className="block w-full text-left" onClick={() => setOpenScore(openScore === key ? null : key)}>
+                      <ScoreBar label={label} value={value} weight={weight} />
+                      {openScore === key && <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{scoreDetail(key)}</p>}
+                    </button>
+                  ))}
                   <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{profile.score.method}</p>
+                  <p className="text-[11px] text-[var(--color-text-secondary)]">
+                    {locale === "de"
+                      ? `Formel: 0,40×Betrieb + 0,25×Kommerziell + 0,20×SLA + 0,15×Beziehung = ${formatFixed(profile.score.total, locale)}. Zeitraum ${profile.latest?.month ?? "—"}. Nachweis ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS} Monate. Verarbeitungszeit: sofort auf dem bestätigten Monatsauszug.`
+                      : `Formula: 0.40×operational + 0.25×commercial + 0.20×SLA + 0.15×relationship = ${formatFixed(profile.score.total, locale)}. Period ${profile.latest?.month ?? "—"}. Evidence ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS} months. Processing time: immediate on the confirmed monthly extract.`}
+                  </p>
+                  {session.confirmedEvidenceIds.length > 0 && (
+                    <p className="text-[11px] text-[var(--color-text-secondary)]">
+                      {locale === "de" ? "Bestätigte Kommunikation" : "Confirmed communications"}: {session.confirmedEvidenceIds.join(", ")}
+                      {session.caAssigned ? (locale === "de" ? " · Korrekturmaßnahme geschlossen" : " · corrective action recorded") : ""}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
@@ -208,6 +234,19 @@ export function Vendor360Page() {
                 </div>
               </section>
             )}
+
+            <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
+              <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{locale === "de" ? "Beziehungsakte" : "Relationship record"}</h3>
+              <ul className="space-y-1 text-[12px] text-[var(--color-text-secondary)]">
+                <li>{locale === "de" ? "Beschaffung" : "Sourcing"}: {profile.bid ? `${profile.bid.eventId} · ${profile.bid.bidStatus ?? "submitted"}` : (locale === "de" ? "Kein Angebot in RFP-2026-001" : "No bid on RFP-2026-001")}</li>
+                <li>{locale === "de" ? "Vertrag" : "Contract"}: {profile.contracts.map((c) => c.contractId).join(", ") || (locale === "de" ? "Keiner" : "None")}</li>
+                <li>{locale === "de" ? "Ausführung" : "Execution"}: {profile.latest ? `${formatDateDMY(profile.latest.month)} · ${profile.latest.shipments} ${locale === "de" ? "Sendungen" : "shipments"}` : "—"}</li>
+                <li>{locale === "de" ? "Score" : "Score"}: {profile.score ? formatFixed(profile.score.total, locale) : t("vendor.noHistory")}</li>
+                <li>{locale === "de" ? "Vorfall" : "Incident"}: {profile.incidents[0] ? `${profile.incidents[0].incidentId} · ${formatDateDMY(profile.incidents[0].incidentDate)}` : (locale === "de" ? "Keiner im Zeitraum" : "None in the selected period")}</li>
+                <li>{locale === "de" ? "Kommunikation" : "Communication"}: {session.confirmedEvidenceIds.length > 0 ? session.confirmedEvidenceIds.join(", ") : (locale === "de" ? "Noch keine bestätigte Nachricht" : "No confirmed message yet")}</li>
+                <li>{locale === "de" ? "Korrekturmaßnahme" : "Corrective action"}: {session.correctiveDraftApproved ? (locale === "de" ? "Deutscher Entwurf freigegeben" : "German draft approved") : session.caAssigned ? (locale === "de" ? "Zugeordnet" : "Assigned") : (locale === "de" ? "Noch nicht zugeordnet" : "Not yet assigned")}</li>
+              </ul>
+            </section>
 
             {profile.incidents.length > 0 && (
               <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>

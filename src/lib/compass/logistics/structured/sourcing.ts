@@ -23,7 +23,7 @@ export const SOURCING: Sourcing[] = [
   {
     eventId: "RFP-2026-001",
     eventTitle: "European Road Freight Services 2027",
-    eventType: "RFP/ITT hybrid",
+    eventType: "RFP",
     category: "Logistics services - road freight",
     issueDate: "2026-09-28",
     questionDeadline: "2026-10-09",

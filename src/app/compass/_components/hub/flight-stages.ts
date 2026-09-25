@@ -1,40 +1,43 @@
 import type { FlightPathStep } from "@/components/ui/prosera/flight-path"
-import type { MissionStage } from "../../_diamond/stages"
-import { stageIndex } from "../../_diamond/stages"
 import type { TranslateFn } from "../../_i18n"
+import { JOURNEY_ORDER, statusForStep, type JourneyStatus, type JourneyStep } from "@/lib/compass/logistics/session"
 
-const FLIGHT_IDS = ["scoped", "specified", "approved", "issued", "awarded"] as const
-
-export function translatedFlightPathSteps(t: TranslateFn): FlightPathStep[] {
-  return FLIGHT_IDS.map((id) => ({ id, label: t(`flight.${id}`) }))
-}
-
-/** @deprecated Prefer translatedFlightPathSteps(t) so labels follow locale. */
-export const FLIGHT_PATH_STEPS: FlightPathStep[] = [
-  { id: "scoped", label: "Scoped" },
-  { id: "specified", label: "Specified" },
-  { id: "approved", label: "Approved" },
-  { id: "issued", label: "Issued" },
-  { id: "awarded", label: "Awarded" },
+/** Named journey statuses. Percentages are not shown. */
+export const STATUS_IDS: JourneyStatus[] = [
+  "need-identified",
+  "requirements-approved",
+  "rfp-issued",
+  "responses-validated",
+  "evaluation-complete",
+  "award-approved",
+  "monitoring-active",
 ]
 
-const STAGE_TO_FLIGHT_ID: Record<MissionStage, string> = {
-  mission_created: "scoped",
-  understand: "specified",
-  decide: "approved",
-  execute: "issued",
-  outcome_roi: "awarded",
+export function translatedFlightPathSteps(t: TranslateFn): FlightPathStep[] {
+  return STATUS_IDS.map((id) => ({ id, label: t(`flight.${id}`) }))
 }
 
-export function flightStepIdForStage(stage: MissionStage): string {
-  return STAGE_TO_FLIGHT_ID[stage]
+export const FLIGHT_PATH_STEPS: FlightPathStep[] = STATUS_IDS.map((id) => ({
+  id,
+  label: id,
+}))
+
+export function flightStepIdForJourney(step: JourneyStep): JourneyStatus {
+  return statusForStep(step)
 }
 
-export function flightProgressLabel(stage: MissionStage, t?: TranslateFn): string {
-  const idx = stageIndex(stage)
-  const pct = Math.round((idx / 4) * 100)
-  const id = FLIGHT_IDS[idx] ?? "scoped"
-  const label = t ? t(`flight.${id}`) : (FLIGHT_PATH_STEPS[idx]?.label ?? "Scoped")
-  if (t) return t("flight.progress", { label, pct })
-  return `${label} · ${pct}%`
+/** @deprecated Journey status replaces stage percentages. */
+export function flightStepIdForStage(stage: string): string {
+  if (stage === "outcome_roi") return "award-approved"
+  if (stage === "execute") return "rfp-issued"
+  if (stage === "decide") return "requirements-approved"
+  return "need-identified"
+}
+
+export function flightProgressLabel(stageOrStep: string, t?: TranslateFn): string {
+  const id = JOURNEY_ORDER.includes(stageOrStep as JourneyStep)
+    ? statusForStep(stageOrStep as JourneyStep)
+    : flightStepIdForStage(stageOrStep)
+  if (t) return t(`flight.${id}`)
+  return id
 }

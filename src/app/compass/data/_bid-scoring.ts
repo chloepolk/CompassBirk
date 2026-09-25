@@ -8,10 +8,12 @@
 import type { BidInput } from "./_bids"
 import type { Locale } from "../_i18n"
 
-export const PRICE_MAX = 35
+/** EVAL-LOG-v1 weights. Qualification gates are not part of the weighted score. */
+export const PRICE_MAX = 30
 export const TECH_MAX = 25
 export const QA_MAX = 20
-export const LEGAL_MAX = 20
+export const LEGAL_MAX = 15
+export const SUSTAINABILITY_MAX = 10
 
 export const STANDARD_WARRANTY_MONTHS = 24
 /** Warranty below this after a >25% cut from standard → high commercial risk. */
@@ -45,7 +47,7 @@ export function gateLabels(locale: Locale): Record<GateId, string> {
   return locale === "de" ? DE_GATE_LABELS : GATE_LABELS
 }
 
-export type GatingStatus = "Pass" | "Fail"
+export type GatingStatus = "Pass" | "Fail" | "Evidence missing"
 
 export interface BidEvaluationResult {
   bidId: string
@@ -58,6 +60,7 @@ export interface BidEvaluationResult {
   techScore: number | null
   qaScore: number | null
   legalScore: number | null
+  sustainabilityScore: number | null
   compositeScore: number | null
   finalRank: number | null
   highCommercialRisk: boolean
@@ -79,35 +82,16 @@ function evaluateGates(bid: BidInput): GateId[] {
   return failures
 }
 
-function scoreTech(bid: BidInput): number {
-  if (bid.techCompliancePts >= TECH_MAX) return TECH_MAX
-  return Math.max(0, Math.min(20, bid.techCompliancePts))
+/** Logistics method inputs. History is not a weighted component. */
+const LOGISTICS_PROFILE: Record<string, { lanes: number; service: number; visibility: number; sustainability: number; evidenceMissing?: boolean }> = {
+  "bid-rheinroute": { lanes: 18, service: 22, visibility: 13, sustainability: 8 },
+  "bid-northbridge": { lanes: 15, service: 24, visibility: 15, sustainability: 9 },
+  "bid-alpinelink": { lanes: 18, service: 20, visibility: 12, sustainability: 7 },
+  "bid-veloce": { lanes: 12, service: 16, visibility: 8, sustainability: 5, evidenceMissing: true },
 }
 
-function scoreQa(bid: BidInput): number {
-  const iso = Math.max(0, Math.min(ISO_TRACEABILITY_MAX, bid.isoTraceabilityPts))
-  let fat = FAT_ALIGNMENT_MAX
-  if (bid.fatNoticeDays > FAT_STANDARD_DAYS) {
-    const extra = bid.fatNoticeDays - FAT_STANDARD_DAYS
-    const blocks = Math.floor(extra / FAT_DELAY_BLOCK_DAYS)
-    fat = Math.max(0, FAT_ALIGNMENT_MAX - blocks * FAT_DELAY_PENALTY)
-  } else if (bid.fatNoticeDays < FAT_STANDARD_DAYS) {
-    // Short of the required notice — treat as non-aligned (0 FAT points).
-    fat = 0
-  }
-  return Math.min(QA_MAX, iso + fat)
-}
-
-function scoreLegal(bid: BidInput): number {
-  // Eligible bids already passed the KFK gate, so indemnity acceptance scores full.
-  const kfk = bid.acceptsKfk ? KFK_LEGAL_PTS : 0
-  const warranty =
-    bid.warrantyMonths >= STANDARD_WARRANTY_MONTHS ? WARRANTY_LEGAL_PTS : 0
-  let total = kfk + warranty
-  if (bid.warrantyMonths < STANDARD_WARRANTY_MONTHS) {
-    total = Math.max(0, total - WARRANTY_SHORTFALL_PENALTY)
-  }
-  return Math.min(LEGAL_MAX, total)
+function logisticsProfile(bid: BidInput) {
+  return LOGISTICS_PROFILE[bid.id] ?? { lanes: 18, service: 18, visibility: 10, sustainability: 6 }
 }
 
 function buildRecommendation(
@@ -119,6 +103,10 @@ function buildRecommendation(
   locale: Locale,
 ): string {
   const labelsForLocale = gateLabels(locale)
+  if (result.gatingStatus === "Evidence missing") {
+    if (locale === "de") return `Nachweis fehlt — nicht gerankt und nicht als bestandenes Angebot gewertet. ${bid.insight}`
+    return `Evidence missing — not ranked and not treated as a compliant bid. ${bid.insight}`
+  }
   if (result.gatingStatus === "Fail") {
     const labels = result.gateFailures.map((g) => labelsForLocale[g]).join("; ")
     if (locale === "de") {
@@ -150,26 +138,29 @@ function buildRecommendation(
  */
 export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvaluationResult[] {
   const gated = bids.map((bid) => {
+    const profile = logisticsProfile(bid)
     const gateFailures = evaluateGates(bid)
-    return { bid, gateFailures, pass: gateFailures.length === 0 }
+    const evidenceMissing = Boolean(profile.evidenceMissing)
+    return { bid, gateFailures, evidenceMissing, pass: !evidenceMissing && gateFailures.length === 0 }
   })
 
   const eligible = gated.filter((g) => g.pass)
   const pMin = eligible.length > 0 ? Math.min(...eligible.map((g) => g.bid.totalPrice)) : 0
 
-  const scored = gated.map(({ bid, gateFailures, pass }) => {
+  const scored = gated.map(({ bid, gateFailures, pass, evidenceMissing }) => {
     if (!pass) {
       const base: BidEvaluationResult = {
         bidId: bid.id,
         supplier: bid.supplier,
         pdfPath: bid.pdfPath,
         totalPrice: bid.totalPrice,
-        gatingStatus: "Fail",
+        gatingStatus: evidenceMissing ? "Evidence missing" : "Fail",
         gateFailures,
         priceScore: null,
         techScore: null,
         qaScore: null,
         legalScore: null,
+        sustainabilityScore: null,
         compositeScore: null,
         finalRank: null,
         highCommercialRisk: false,
@@ -182,12 +173,14 @@ export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvalua
       return base
     }
 
+    const profile = logisticsProfile(bid)
     const priceScore = round1(PRICE_MAX * (pMin / bid.totalPrice))
-    const techScore = round1(scoreTech(bid))
-    const qaScore = round1(scoreQa(bid))
-    const legalScore = round1(scoreLegal(bid))
-    const compositeScore = round1(priceScore + techScore + qaScore + legalScore)
-    const highCommercialRisk = bid.warrantyMonths < WARRANTY_RISK_THRESHOLD_MONTHS
+    const techScore = profile.service
+    const qaScore = round1(QA_MAX * (profile.lanes / 18))
+    const legalScore = profile.visibility
+    const sustainabilityScore = profile.sustainability
+    const compositeScore = round1(priceScore + techScore + qaScore + legalScore + sustainabilityScore)
+    const highCommercialRisk = false
 
     return {
       bidId: bid.id,
@@ -200,6 +193,7 @@ export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvalua
       techScore,
       qaScore,
       legalScore,
+      sustainabilityScore,
       compositeScore,
       finalRank: null as number | null,
       highCommercialRisk,

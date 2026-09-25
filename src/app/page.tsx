@@ -9,6 +9,7 @@ import { BidEvaluationPage } from "@/app/compass/_pages/bid-evaluation"
 import { Vendor360Page } from "@/app/compass/_pages/vendor-360"
 import { PerformancePage } from "@/app/compass/_pages/performance"
 import { InboxPage } from "@/app/compass/_pages/inbox"
+import { AwardPage } from "@/app/compass/_pages/award"
 
 function CompassPage() {
   const { activePage } = useStore()
@@ -39,6 +40,8 @@ function CompassPage() {
       return <PerformancePage />
     case "inbox":
       return <InboxPage />
+    case "award":
+      return <AwardPage />
     default:
       return <OperatingLoopPage />
   }

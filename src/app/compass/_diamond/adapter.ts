@@ -79,7 +79,7 @@ function humanInstructions(stage: MissionStage, theme: MissionTheme, subject: st
       ]
     }
     if (stage === "decide") return [
-      "Prüfen Sie den ITT-Entwurf und das Prüfzertifikat gegen die Quelldokumente.",
+      "Prüfen Sie den Ausschreibungsentwurf und das Qualitätszertifikat gegen die Quelldokumente.",
       "Klären Sie gekennzeichnete Abweichungen von den Standardbedingungen.",
       "Erfassen Sie die Freigabe und genehmigen Sie die Ausgabe über das SCM-Portal.",
     ]
@@ -118,7 +118,7 @@ function humanInstructions(stage: MissionStage, theme: MissionTheme, subject: st
     ]
   }
   if (stage === "decide") return [
-    "Review the draft ITT and the audit certificate against source documents.",
+    "Review the draft RFP and the quality certificate against source documents.",
     "Resolve any flagged deviations from standard terms.",
     "Record approval and authorise issue via the SCM Portal.",
   ]
@@ -135,7 +135,7 @@ function humanInstructions(stage: MissionStage, theme: MissionTheme, subject: st
     ]
   }
   if (stage === "outcome_roi") return [
-    `Confirm the savings booked for ${subject} with the Commercial Manager.`,
+    `Confirm the recorded award for ${subject} with the Commercial Manager.`,
     "Brief the SCM Director and close the package.",
   ]
   // mission_created
@@ -165,13 +165,13 @@ function agentInstructions(stage: MissionStage, theme: MissionTheme, subject: st
           "Einkaufsbedingungen mit Zitaten zusammenstellen.",
         ]
     if (stage === "decide") return [
-      "Den vollständigen ITT-Entwurf aus den extrahierten Anforderungen zusammenstellen.",
-      "Die Gegenprüfung gegen jedes Quelldokument ausführen.",
+      "Den vollständigen Ausschreibungsentwurf aus den extrahierten Anforderungen zusammenstellen.",
+      "Die Qualitäts- und Compliance-Prüfung gegen jedes Quelldokument ausführen.",
       "Den geprüften Entwurf zur Freigabe einreihen.",
     ]
     if (stage === "execute") return theme === "charter"
       ? ["Anzeige und Nachtrag vorbereiten.", "Eingangsbestätigung der Gegenseite verfolgen.", "Unterzeichnete Dokumente in der Vertragsakte ablegen."]
-      : ["Das ITT-Paket über das SCM-Portal ausgeben und Bestätigungen erfassen.", "Klärungen gegen die Sieben-Tage-Frist verfolgen.", "Eingegangene Angebote in das Tabellenmodell normalisieren."]
+      : ["Die Ausschreibung ausgeben und Bestätigungen erfassen.", "Klärungen gegen die Sieben-Tage-Frist verfolgen.", "Eingegangene Angebote in das Tabellenmodell normalisieren."]
     return [
       `Den Zuschlagswert gegen die Budgetbasis von ${subject} abstimmen.`,
       "Die Einsparungen diesem Los zuordnen.",
@@ -190,15 +190,15 @@ function agentInstructions(stage: MissionStage, theme: MissionTheme, subject: st
       "Assemble the commercial case with cited clauses.",
     ]
     return [
-      "Retrieve the controlled engineering specification.",
-      "Map the applicable DNV / NORSOK / ISO standards from the QA manual.",
-      "Assemble commercial terms and any charter flow-downs, with citations.",
+      "Retrieve the controlled logistics specification.",
+      "Map SLA and qualification duties from SRC-002 and SRC-008.",
+      "Assemble commercial terms with citations.",
     ]
   }
   if (stage === "decide") return [
-    "Assemble the full ITT draft from the extracted requirements.",
-    "Run the adversarial audit pass against every source document.",
-    "Queue the audited draft for approval.",
+    "Assemble the full RFP draft from the extracted requirements.",
+    "Run the quality and compliance review against every source document.",
+    "Queue the reviewed draft for approval.",
   ]
   if (stage === "execute") {
     if (theme === "charter") return [
@@ -207,7 +207,7 @@ function agentInstructions(stage: MissionStage, theme: MissionTheme, subject: st
       "Queue the executed documents for the charter file.",
     ]
     return [
-      "Issue the ITT pack via the SCM Portal and log acknowledgements.",
+      "Issue the RFP and log acknowledgements.",
       "Track clarification requests against the 7-day deadline.",
       "Normalise returned bids into the tabulation model.",
     ]
@@ -215,8 +215,8 @@ function agentInstructions(stage: MissionStage, theme: MissionTheme, subject: st
   // outcome_roi
   return [
     `Reconcile awarded value against the ${subject} budget baseline.`,
-    "Attribute the savings to this package.",
-    "Post the result to the savings ledger.",
+    "Keep the awarded amount labelled as illustrative.",
+    "Record the contract baseline for this package.",
   ]
 }
 
@@ -243,7 +243,7 @@ function buildTasksForMission(opts: {
     : (de ? `Parameter, Normen und Konditionen für ${subject} extrahieren` : `Extract spec parameters, standards & terms for ${subject}`)
   const executeLabel = theme === "charter"
     ? (de ? `Optionsanzeige und Nachtrag für ${subject} vorbereiten` : `Prepare option notice and amendment for ${subject}`)
-    : (de ? `Ausschreibung über das SCM-Portal ausgeben und Angebote für ${subject} tabellieren` : `Issue ITT via SCM Portal and tabulate bids for ${subject}`)
+    : (de ? `Ausschreibung ausgeben und Angebote für ${subject} tabellieren` : `Issue the RFP and tabulate bids for ${subject}`)
 
   for (let i = 0; i < STAGE_ORDER.length; i++) {
     const s = STAGE_ORDER[i]
@@ -291,19 +291,19 @@ function buildTasksForMission(opts: {
     } else if (s === "understand") {
       tasks.push(agentTask(
         understandLabel,
-        de ? "Jede Anforderung muss vor der Aufnahme in die Ausschreibung auf ein verbindliches Dokument verweisen." : "Every requirement must trace to a controlled document before it enters the ITT.",
+        de ? "Jede Anforderung muss vor der Aufnahme in die Ausschreibung auf ein verbindliches Dokument verweisen." : "Every requirement must trace to a controlled document before it enters the RFP.",
         de ? "Anforderungen mit Dokumentzitaten extrahiert." : "Requirements extracted with document citations.",
         de ? `Vollständige Anforderungsbasis für ${subject} extrahieren und jede Quelle und Revision zitieren.` : `Extract the complete requirements baseline for ${subject}, citing every source document and revision.`,
       ))
       tasks.push(humanTask(human, de ? "Anforderungsbasis bestätigen" : "Validate the requirements baseline", de ? "Die Extraktion ist quellenbezogen, die Umfangsentscheidung bleibt menschlich." : "Extraction is grounded, but scope judgement stays human.", de ? "Der Verantwortliche bestätigt die Anforderungsbasis." : "Owner signs off the requirements baseline."))
     } else if (s === "decide") {
       tasks.push(agentTask(
-        de ? "Ausschreibungsentwurf zusammenstellen und prüfen" : "Assemble the draft ITT and run the audit pass",
-        de ? "Der Entwurf muss die Gegenprüfung bestehen, bevor er zur Freigabe geht." : "The draft must survive adversarial verification before it reaches an approver.",
-        de ? "Geprüfter Entwurf mit sauberem Zertifikat in der Warteschlange." : "Audited draft queued with a clean certificate.",
-        de ? `Vollständige Ausschreibung für ${subject} zusammenstellen und jede Klausel gegen die Quelldokumente prüfen.` : `Assemble the full ITT for ${subject} and verify every clause against the source documents.`,
+        de ? "Ausschreibungsentwurf zusammenstellen und prüfen" : "Assemble the draft RFP and run the quality review",
+        de ? "Der Entwurf muss die Qualitätsprüfung bestehen, bevor er zur Freigabe geht." : "The draft must pass the quality and compliance review before it reaches an approver.",
+        de ? "Geprüfter Entwurf mit sauberem Zertifikat in der Warteschlange." : "Reviewed draft queued with a clean certificate.",
+        de ? `Vollständige Ausschreibung für ${subject} zusammenstellen und jede Klausel gegen die Quelldokumente prüfen.` : `Assemble the full RFP for ${subject} and verify every clause against the source documents.`,
       ))
-      tasks.push(humanTask(sponsor, de ? "Ausschreibung freigeben und Ausgabe genehmigen" : "Approve the ITT and authorise issue", de ? "Freigabe und Abweichungsakzeptanz bleiben menschlich." : "Approval authority and deviation acceptance stay human.", de ? "Freigabe erfasst; Ausgabe genehmigt." : "Approval recorded; issue authorised."))
+      tasks.push(humanTask(sponsor, de ? "Ausschreibung freigeben und Ausgabe genehmigen" : "Approve the RFP and authorise issue", de ? "Freigabe und Abweichungsakzeptanz bleiben menschlich." : "Approval authority and deviation acceptance stay human.", de ? "Freigabe erfasst; Ausgabe genehmigt." : "Approval recorded; issue authorised."))
     } else if (s === "execute") {
       tasks.push(agentTask(
         executeLabel,
@@ -400,14 +400,14 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
           `Retrieved the controlled specification ${spec?.docRef ?? "SRC-001"} and locked the parameter baseline`,
           "Mapped applicable standards from SRC-002 and SRC-008",
           "Attached governing procurement terms (SRC-004) and qualification gates",
-          "Sized the savings target from the budget baseline and bidder competition",
+          "Sized the illustrative amount from the budget baseline and bidder competition",
         ],
     equations: [
       de ? `Budgetbasis = ${money(pkg.budget)} (${pkg.quantity})` : `Budget baseline = ${money(pkg.budget)} (${pkg.quantity})`,
       realizedValue
-        ? (de ? `Gebuchte Einsparungen = ${money(realizedValue)} gegenüber Ziel ${money(pkg.targetSavings)}` : `Savings booked = ${money(realizedValue)} vs. target ${money(pkg.targetSavings)}`)
-        : (de ? `Einsparziel = ${money(pkg.targetSavings)} (${pct((pkg.targetSavings / pkg.budget) * 100)} % des Budgets, ${pkg.bidders} Bieter)` : `Savings target = ${money(pkg.targetSavings)} (${pct((pkg.targetSavings / pkg.budget) * 100)}% of budget across ${pkg.bidders} bidders)`),
-      de ? `Ausschreibungskosten = ${money(pkg.tenderCost)} — Rendite ${pct(projectedValue / pkg.tenderCost)}× bei Zielerreichung` : `Tender cost = ${money(pkg.tenderCost)} — return ${pct(projectedValue / pkg.tenderCost)}× if target holds`,
+        ? (de ? `Illustrativer Abschluss = ${money(realizedValue)} gegenüber angezeigtem Betrag ${money(pkg.targetSavings)}. Nicht realisiert.` : `Illustrative closed amount = ${money(realizedValue)} against displayed ${money(pkg.targetSavings)}. Not realised.`)
+        : (de ? `Illustrativer Betrag = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"} % des Budgets, ${pkg.bidders} Bieter). Nicht realisiert.` : `Illustrative amount = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"}% of budget across ${pkg.bidders} bidders). Not realised.`),
+      de ? `Ausschreibungskosten = ${money(pkg.tenderCost)} — illustratives Verhältnis ${pct(projectedValue / pkg.tenderCost)}×, falls der Betrag hält. Nicht realisiert.` : `Tender cost = ${money(pkg.tenderCost)} — illustrative ratio ${pct(projectedValue / pkg.tenderCost)}× if the amount holds. Not realised.`,
       de ? `Fenster: Eröffnung ${date(pkg.openedAt)}, Angebotsende ${date(pkg.submissionDeadline)} (${remaining > 0 ? `${remaining} Tage verbleibend` : "geschlossen"})` : `Window: opened ${date(pkg.openedAt)}, submissions close ${date(pkg.submissionDeadline)} (${remaining > 0 ? `${remaining} days remaining` : "closed"})`,
     ],
     sources: [
@@ -431,8 +431,8 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
     id: pkg.id,
     name: `${pkg.title} · ${pkg.quantity}`,
     objective: de
-      ? `${pkg.packageRef} vom Umfang bis zum Zuschlag für ${PROJECT.shortName} führen — ${pkg.quantity}, Budget ${money(pkg.budget)}, Ziel ${money(pkg.targetSavings)} verhandelte Einsparungen.`
-      : `Take ${pkg.packageRef} from scope to award for ${PROJECT.shortName} — ${pkg.quantity} against a ${formatCompactEur(pkg.budget, locale)} budget, targeting ${formatCompactEur(pkg.targetSavings, locale)} in negotiated savings.`,
+      ? `${pkg.packageRef} vom Umfang bis zum Zuschlag für ${PROJECT.shortName} führen — ${pkg.quantity}, Budget ${money(pkg.budget)}. Angezeigter Betrag ${money(pkg.targetSavings)} ist illustrativ.`
+      : `Take ${pkg.packageRef} from scope to award for ${PROJECT.shortName} — ${pkg.quantity} against a ${formatCompactEur(pkg.budget, locale)} budget. The displayed ${formatCompactEur(pkg.targetSavings, locale)} is illustrative.`,
     source: { page: "tender-studio", label: de ? "In Ausschreibungsmanagement öffnen" : "Open in Tender Management" },
     stage,
     status: statusForStage[stage],
@@ -448,7 +448,7 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
     risk: pkg.risk,
     evidence: pkg.evidence,
     successMetric: {
-      label: theme === "charter" ? (de ? "Vertragsrisiko vermieden" : "Charter exposure avoided") : (de ? "Verhandelte Einsparungen gegenüber Budget" : "Negotiated savings vs. budget"),
+      label: theme === "charter" ? (de ? "Vertragsrisiko vermieden" : "Charter exposure avoided") : (de ? "Illustrativer Betrag" : "Illustrative amount"),
       baseline: 0,
       target: projectedValue,
       current: currentMetric,

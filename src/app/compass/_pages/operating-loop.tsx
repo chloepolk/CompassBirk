@@ -10,7 +10,7 @@ import { AgenticFocusHero } from "../_components/agentic-hero"
 import { PortfolioLedger } from "../_components/hub/portfolio-ledger"
 import { ActionFilterBar, type AssigneeKey, type HorizonKey } from "../_components/hub/action-filter-bar"
 import { MissionActionCard } from "../_components/hub/mission-action-card"
-import { translatedFlightPathSteps, flightProgressLabel, flightStepIdForStage } from "../_components/hub/flight-stages"
+import { translatedFlightPathSteps, flightProgressLabel, flightStepIdForStage, flightStepIdForJourney } from "../_components/hub/flight-stages"
 import { useT } from "../_i18n/use-t"
 import type { AuditEntry, StatusKey } from "../_components/hub/hub-types"
 import { EditActionModal } from "../_components/hub/edit-action-modal"
@@ -118,8 +118,10 @@ export function OperatingLoopPage() {
     openVendor360,
     openPerformance,
     openInbox,
+    openAward,
     classifyEmail,
     patchSession,
+    advanceJourney,
   } = useStore()
   const flightPathSteps = translatedFlightPathSteps(t)
 
@@ -168,8 +170,12 @@ export function OperatingLoopPage() {
     [derivedStages, locale, appliedTenderQtyByPackage],
   )
   const visibleMissions = React.useMemo(
-    () => missions.filter((m) => (m.id === "PKG-REN-001" ? session.awardApproved : true)),
-    [missions, session.awardApproved],
+    () => missions.filter((m) => {
+      if (m.id === "PKG-REN-001") return session.awardApproved
+      if (m.id === "PKG-RFP-001") return session.acceptedNeed
+      return true
+    }),
+    [missions, session.awardApproved, session.acceptedNeed],
   )
   const orderedMissions = React.useMemo(() => orderMissions(visibleMissions, missionPriority), [visibleMissions, missionPriority])
   const saveEdit = React.useCallback((missionId: string, oldValue: string, newValue: string) => {
@@ -319,7 +325,9 @@ export function OperatingLoopPage() {
     const reconciling = reconcilingId === mission.id
     const assignedToYou = isMissionOwnedByActiveUser({ ...mission, owner: fields.ownerRole })
     // Packages ahead of the approval gate can be drafted in Tender Management.
-    const canDraft = fields.stage === "mission_created" || fields.stage === "understand"
+    const isLiveEvent = mission.id === "PKG-RFP-001"
+    const step = session.journeyStep
+    const canDraft = !isLiveEvent && (fields.stage === "mission_created" || fields.stage === "understand")
     const canEvaluate = fields.stage === "execute" && session.bidsReleased
     const isPerf = mission.id === "PKG-PERF-001" || mission.id === "PKG-CA-001"
     const isVendor = mission.id === "PKG-CON-001" || mission.id === "PKG-CON-002"
@@ -327,36 +335,62 @@ export function OperatingLoopPage() {
     const govCopy = awardGovCopy(locale)
     const awardRecord = awardApprovals[mission.id]
     const govStatus = awardGovernanceStatusFor(fields.stage, awardRecord)
-    const inAwardFlow =
-      govStatus === "awaiting_approver" ||
-      govStatus === "clarification_requested" ||
-      govStatus === "revision_required" ||
-      govStatus === "approved_for_award"
-    const primaryActionLabel = inAwardFlow
-      ? undefined
-      : isPerf
-        ? t("actionCentre.reviewPerformance")
-        : isVendor
-          ? t("actionCentre.openVendor")
-          : isRenewal
-            ? t("actionCentre.reuseHistory")
-            : canEvaluate
-              ? t("actionCentre.evaluateBids")
-              : canDraft
-                ? t("actionCentre.draftItt")
-                : undefined
-    const onPrimaryAction = inAwardFlow
-      ? undefined
-      : isPerf
-        ? () => openPerformance("SUP-001")
-        : isVendor
-          ? () => openVendor360(mission.id === "PKG-CON-002" ? "SUP-002" : "SUP-001")
-          : isRenewal
-            ? () => openTenderStudio(mission.id)
-            : canEvaluate
-              ? () => openBidEvaluation(mission.id)
-              : canDraft
-                ? () => openTenderStudio(mission.id)
+    const inAwardFlow = isLiveEvent
+      ? step === "s6"
+      : govStatus === "awaiting_approver" ||
+        govStatus === "clarification_requested" ||
+        govStatus === "revision_required" ||
+        govStatus === "approved_for_award"
+    const liveCta = isLiveEvent
+      ? step === "s1"
+        ? { label: locale === "de" ? "Ausschreibung entwerfen" : "Draft RFP", run: () => openTenderStudio(mission.id) }
+        : step === "s2"
+          ? { label: locale === "de" ? "Ausnahmen schließen" : "Resolve requirements", run: () => openTenderStudio(mission.id) }
+          : step === "s3" && !session.rfpApproved
+            ? { label: locale === "de" ? "Ausschreibung freigeben" : "Approve RFP", run: () => openTenderStudio(mission.id) }
+            : step === "s3"
+              ? { label: locale === "de" ? "Einladung prüfen und senden" : "Approve and send invitation", run: () => openInbox() }
+              : step === "s4"
+              ? { label: locale === "de" ? "Posteingang prüfen" : "Review supplier inbox", run: () => openInbox() }
+              : step === "s5"
+                ? { label: locale === "de" ? "Angebote vergleichen" : "Compare bids", run: () => openBidEvaluation(mission.id) }
+                : step === "s6"
+                  ? { label: locale === "de" ? "Zuschlag freigeben" : "Approve award", run: () => openAward() }
+                  : step === "s7"
+                    ? { label: locale === "de" ? "Betriebszeitraum fortschreiben" : "Advance operating period", run: () => { advanceJourney("s8"); openPerformance("SUP-001") } }
+                    : step === "s8" || step === "s9"
+                      ? { label: locale === "de" ? "Korrekturmaßnahme freigeben" : "Approve corrective action", run: () => openPerformance("SUP-001") }
+                      : { label: locale === "de" ? "Verlängerung öffnen" : "Open renewal", run: () => openPerformance("SUP-001") }
+      : null
+    const primaryActionLabel = liveCta
+      ? liveCta.label
+      : inAwardFlow
+        ? undefined
+        : isPerf
+          ? t("actionCentre.reviewPerformance")
+          : isVendor
+            ? t("actionCentre.openVendor")
+            : isRenewal
+              ? t("actionCentre.reuseHistory")
+              : canEvaluate
+                ? t("actionCentre.evaluateBids")
+                : canDraft
+                  ? (locale === "de" ? "Ausschreibung entwerfen" : "Draft RFP")
+                  : undefined
+    const onPrimaryAction = liveCta
+      ? liveCta.run
+      : inAwardFlow
+        ? undefined
+        : isPerf
+          ? () => openPerformance("SUP-001")
+          : isVendor
+            ? () => openVendor360(mission.id === "PKG-CON-002" ? "SUP-002" : "SUP-001")
+            : isRenewal
+              ? () => openTenderStudio(mission.id)
+              : canEvaluate
+                ? () => openBidEvaluation(mission.id)
+                : canDraft
+                  ? () => openTenderStudio(mission.id)
                 : undefined
     const assignedName = awardRecord?.assignedToName ?? person.name
     const assignedRole = awardRecord?.assignedToRole ?? person.role
@@ -389,13 +423,13 @@ export function OperatingLoopPage() {
           rank={i + 1}
           title={mission.name}
           narrative={fields.narrative}
-          valueChip={formatCurrency(mission.projectedValue, locale)}
+          valueChip={`${locale === "de" ? "Illustrativ " : "Illustrative "}${formatCurrency(mission.projectedValue, locale)}`}
           valueType={mission.valueType}
           statusLabel={t(`health.${mission.health}`).toUpperCase()}
           statusTone={mission.health}
-          stageLabel={flightProgressLabel(fields.stage, t)}
+          stageLabel={isLiveEvent ? flightProgressLabel(session.journeyStep, t) : flightProgressLabel(fields.stage, t)}
           flightPathSteps={flightPathSteps}
-          currentFlightStepId={flightStepIdForStage(fields.stage)}
+          currentFlightStepId={isLiveEvent ? flightStepIdForJourney(session.journeyStep) : flightStepIdForStage(fields.stage)}
           owner={assignedName}
           ownerRole={assignedRole}
           isAssignedToYou={assignedToYouNow}
@@ -460,6 +494,15 @@ export function OperatingLoopPage() {
           evaluateBidsLabel={canEvaluate && inAwardFlow ? t("actionCentre.evaluateBids") : undefined}
           onEvaluateBids={canEvaluate && inAwardFlow ? () => openBidEvaluation(mission.id) : undefined}
         />
+        <dl className="mt-2 grid gap-2 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{isLiveEvent ? "RFP-2026-001" : mission.id}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>{assignedName} · {assignedRole}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>{isLiveEvent ? "23 October 2026" : mission.targetCompletionAt.slice(0, 10)}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{isLiveEvent ? flightProgressLabel(session.journeyStep, t) : t(`health.${mission.health}`)}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{isLiveEvent ? (locale === "de" ? "Vertragsablauf am 31. Dezember 2026 und Leistungsstand lösen die Beschaffung aus." : "Contract expiry on 31 December 2026 and current performance trigger sourcing.") : fields.narrative}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>{(mission.evidence.length > 0 ? mission.evidence : ["SRC-001"]).join(", ")}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ" : "Illustrative"} {formatCurrency(isLiveEvent ? 5650000 : mission.projectedValue, locale)}. {locale === "de" ? "Formel: angezeigter Betrag aus der Ereignisquelle. Status illustrativ, nicht realisiert." : "Formula: displayed amount from the event source. Status illustrative, not realised."}</dd></div>
+        </dl>
       </div>
     )
   }
@@ -476,11 +519,11 @@ export function OperatingLoopPage() {
           rank={i + 1}
           title={mission.name}
           narrative={fields.narrative}
-          valueChip={formatCurrency(mission.realizedValue ?? mission.projectedValue, locale)}
+          valueChip={`${locale === "de" ? "Illustrativ " : "Illustrative "}${formatCurrency(mission.realizedValue ?? mission.projectedValue, locale)}`}
           valueType={mission.valueType}
           statusLabel={t("actionCentre.landed")}
           statusTone="on_track"
-          stageLabel={t("actionCentre.landedStage")}
+          stageLabel={t("actionCentre.landed")}
           flightPathSteps={flightPathSteps}
           currentFlightStepId="landed"
           owner={person.name}
@@ -515,7 +558,7 @@ export function OperatingLoopPage() {
           valueType={card.valueType}
           statusLabel={t("actionCentre.landed")}
           statusTone="on_track"
-          stageLabel={t("actionCentre.landedStage")}
+          stageLabel={t("actionCentre.landed")}
           flightPathSteps={flightPathSteps}
           currentFlightStepId="landed"
           owner={card.owner}
@@ -570,18 +613,44 @@ export function OperatingLoopPage() {
           <EmptyState />
         ) : showSections ? (
           <div className="space-y-6">
-            {showOpen && openMissions.length > 0 && (
+            {showOpen && (!session.acceptedNeed || openMissions.length > 0) && (
               <div className="space-y-3">
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
                   {t("actionCentre.openSection")}
                 </h3>
+                {!session.acceptedNeed && (
+                  <div className="rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      {locale === "de" ? "Bedarf erkannt" : "Need identified"}
+                    </p>
+                    <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text-primary)]">
+                      {locale === "de" ? "Rahmenverträge laufen am 31. Dezember 2026 aus" : "Frameworks expire on 31 December 2026"}
+                    </h3>
+                    <dl className="mt-2 grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{locale === "de" ? "Beschaffungsbedarf" : "Sourcing need"}</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>Category Manager, Logistics</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>31 December 2026</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{locale === "de" ? "Bedarf erkannt" : "Need identified"}</dd></div>
+                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{locale === "de" ? "Vertragsablauf und Leistungsstand. Noch kein neues Beschaffungsereignis." : "Contract expiry and performance. No new sourcing event exists yet."}</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>SRC-001</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ €5,65 Mio. Jahreswert. Formel: Ereigniswert aus SRC-001. Status illustrativ, nicht realisiert." : "Illustrative €5.65m annual value. Formula: event value from SRC-001. Status illustrative, not realised."}</dd></div>
+                    </dl>
+                    <button
+                      type="button"
+                      className="mt-3 rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
+                      onClick={() => advanceJourney("s1")}
+                    >
+                      {locale === "de" ? "Bedarf bestätigen" : "Validate sourcing need"}
+                    </button>
+                  </div>
+                )}
                 {openMissions.map((mission, i) => renderOpenMission(mission, i))}
               </div>
             )}
             {showCompleted && (completedLiveMissions.length > 0 || closedCards.length > 0) && (
               <div className="space-y-3">
                 <h3 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--color-accent-positive-text)]">
-                  {t("actionCentre.completedSection")}
+                  {locale === "de" ? "Historische abgeschlossene Ereignisse" : "Historical completed events"}
                 </h3>
                 {completedLiveMissions.map((mission, i) => renderCompletedMission(mission, i))}
                 {closedCards.map((card, i) => renderClosedCard(card, completedLiveMissions.length + i))}

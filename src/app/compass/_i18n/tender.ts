@@ -17,8 +17,8 @@ import type { Locale } from "./types"
 
 export const TENDER_SUGGESTIONS: Record<Locale, string[]> = {
   en: [
-    "Draft the ITT for European road-freight services across 18 lanes",
-    "Prepare an invitation to tender for FTL and LTL capacity from January 2027",
+    "Draft the RFP for European road-freight services across 18 lanes",
+    "Prepare a request for proposal for FTL and LTL capacity from January 2027",
   ],
   de: [
     "Entwurf der Ausschreibung für europäische Straßengüterverkehre über 18 Relationen",

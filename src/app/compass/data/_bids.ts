@@ -96,7 +96,7 @@ export const BIDS_RFP_2026_001: BidInput[] = [
     acceptsStandardWarranty: true,
     pdfPath: null,
     insight:
-      "Disqualified: cargo insurance certificate is below the mandatory €5 million threshold. Not ranked. Challenger remains No History.",
+      "Evidence missing: the cargo insurance certificate is not on the return. Not ranked, and not treated as a scored fail. Challenger remains No History.",
   },
 ]
 

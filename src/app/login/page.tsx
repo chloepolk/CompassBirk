@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/prosera/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/prosera/card"
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/prosera/card"
 import { Input } from "@/components/ui/prosera/input"
 
 const COMPASS_ROUTE = "/"
@@ -28,23 +28,18 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px]">
         <Card className="rounded-2xl border-border/60 shadow-xl">
           <CardHeader className="items-center space-y-4 pb-2 text-center">
-            <div className="rounded-lg bg-white px-3 py-2">
+            <div className="rounded-lg bg-white px-4 py-3">
               <img
                 src="/compass/birkenstock-logo.png"
                 alt="Birkenstock"
-                width={160}
-                height={32}
-                className="h-8 w-auto"
+                width={220}
+                height={36}
+                className="h-9 w-auto"
               />
             </div>
-            <div className="space-y-1">
-              <CardTitle className="text-[20px] font-semibold tracking-tight text-foreground">
-                Compass Logistics Procurement
-              </CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
-                Logistics-services sourcing and vendor performance
-              </CardDescription>
-            </div>
+            <CardDescription className="text-sm text-muted-foreground">
+              Logistics-services sourcing and vendor performance
+            </CardDescription>
           </CardHeader>
 
           <CardContent>

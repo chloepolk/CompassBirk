@@ -24,7 +24,7 @@ export const AGENTS: Record<string, DiamondAgent> = {
   quality: { id: "agt-quality", name: "Quality & Standards Agent", capability: "Maps DNV / NORSOK / ISO obligations from the QA manual", icon: "ShieldCheck" },
   legal: { id: "agt-legal", name: "Contracts & Maritime Agent", capability: "Assembles liability, indemnity and charter flow-down clauses", icon: "Scale" },
   commercial: { id: "agt-commercial", name: "Commercial Agent", capability: "Builds pricing schedules and normalises bid tabulations", icon: "Coins" },
-  audit: { id: "agt-audit", name: "Audit Agent", capability: "Adversarial verification of every clause against source documents", icon: "SearchCheck" },
+  audit: { id: "agt-audit", name: "Quality and compliance review", capability: "Citation coverage, conflicts, unsupported clauses and terminology", icon: "SearchCheck" },
   award: { id: "agt-award", name: "Award & Savings Agent", capability: "Reconciles awarded value against budget and books savings", icon: "BadgeCheck" },
 }
 

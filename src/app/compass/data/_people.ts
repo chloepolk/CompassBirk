@@ -174,25 +174,25 @@ export interface AssignRecommendation {
 
 const PRIMARY_REASONS: Record<string, string> = {
   "Senior Project SCM Manager":
-    "Daniel owns the European road-freight tender pipeline — event sequencing, ITT issue and award recommendations route through him.",
+    "Daniel owns the European road-freight tender pipeline — event sequencing, RFP issue and award recommendations route through him.",
   "SCM Director":
-    "Approval authority sits with Claire — ITT issue, deviations from standard terms, and award decisions above delegated limits need her sign-off.",
+    "Approval authority sits with Claire — RFP issue, deviations from standard terms, and award decisions above delegated limits need her sign-off.",
   "Package Manager — Cables":
-    "Cable-scope packages route to Anaya — she owns supplier engagement, clarifications and bid tabulation for array cable and cable accessories.",
+    "Lane packages route to Anaya — she owns supplier engagement, clarifications and bid tabulation for European road freight.",
   "Package Manager — Structures":
-    "Fabrication packages route to Lucas — he manages yard slots, fabrication surveillance and structural package delivery.",
+    "Network packages route to Lucas — he manages capacity, lane coverage and mobilisation planning.",
   "Lead Quality Engineer":
-    "Hanne maps QA-MAN-2026-EPCI obligations onto each package — standards applicability, ITP review and FAT witness planning are hers.",
+    "Hanne maps SRC-002 and SRC-008 obligations onto each event — SLA applicability, qualification evidence and insurance gates are hers.",
   "Senior Contracts Counsel":
-    "Julian owns liability and indemnity language — knock-for-knock terms, charter flow-downs and any deviation from S7-SCM-TC-2026.",
+    "Julian owns liability and insurance language — cargo liability, confidentiality and any deviation from SRC-004.",
   "Commercial Manager":
     "Idris runs the commercial evaluation — pricing schedules, bid normalisation and savings attribution against package budgets.",
   "Vessel & Marine Assurance Lead":
-    "Sofia covers everything vessel-side — charter interfaces, marine warranty surveyor requirements and DP assurance for installation scopes.",
+    "Sofia covers carrier assurance — insurance evidence, operating licences and mobilisation readiness.",
   "Cost & Estimating Analyst":
     "Mei holds the should-cost models — budget baselines and bid-versus-estimate variance analysis come from her desk.",
   "Expediting & Logistics Lead":
-    "Owen tracks supplier milestones after award — expediting, shipping documentation and DDP delivery into the mobilisation port.",
+    "Owen tracks carrier milestones after award — visibility setup, shipment evidence and invoice accuracy.",
   "Project Director":
     "Vanessa is the programme-level escalation point when a package threatens the installation schedule.",
   "Cable Engineering Lead":
@@ -219,7 +219,7 @@ const RELATED_ASSIGN: Record<string, { role: string; reason: string }> = {
   "Senior Project SCM Manager": {
     role: "SCM Director",
     reason:
-      "Claire's approval is needed before the ITT can issue — routing to her early keeps the 21-day tender window intact.",
+      "Claire's approval is needed before the RFP can issue — routing to her early keeps the tender window intact.",
   },
   "Package Manager — Cables": {
     role: "Lead Quality Engineer",
@@ -229,7 +229,7 @@ const RELATED_ASSIGN: Record<string, { role: string; reason: string }> = {
   "Package Manager — Structures": {
     role: "Lead Quality Engineer",
     reason:
-      "Structural packages need Hanne's EN 10204 traceability and NORSOK coating requirements confirmed before the ITT issues.",
+      "Lane packages need Hanne's SRC-008 qualification evidence confirmed before the RFP issues.",
   },
   "Vessel & Marine Assurance Lead": {
     role: "Senior Contracts Counsel",

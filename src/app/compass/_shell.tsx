@@ -56,18 +56,20 @@ const SHELL_CONTENT_CLASS =
 
 type TopNavTab = {
   id: string
-  labelKey: "nav.actionCentre" | "nav.tenderStudio" | "nav.bidEvaluation" | "nav.vendor360" | "nav.performance" | "nav.inbox"
+  labelKey: "nav.actionCentre" | "nav.tenderStudio" | "nav.bidEvaluation" | "nav.vendor360" | "nav.performance" | "nav.inbox" | "nav.award"
   pages: Page[]
   defaultPage: Page
+  whenPending?: boolean
 }
 
 const TOP_NAV_TABS: TopNavTab[] = [
   { id: "action-board", labelKey: "nav.actionCentre", pages: ["operating-loop"], defaultPage: "operating-loop" },
   { id: "tender-studio", labelKey: "nav.tenderStudio", pages: ["tender-studio"], defaultPage: "tender-studio" },
+  { id: "inbox", labelKey: "nav.inbox", pages: ["inbox"], defaultPage: "inbox" },
   { id: "bid-evaluation", labelKey: "nav.bidEvaluation", pages: ["bid-evaluation"], defaultPage: "bid-evaluation" },
+  { id: "award", labelKey: "nav.award", pages: ["award"], defaultPage: "award", whenPending: true },
   { id: "vendor-360", labelKey: "nav.vendor360", pages: ["vendor-360"], defaultPage: "vendor-360" },
   { id: "performance", labelKey: "nav.performance", pages: ["performance"], defaultPage: "performance" },
-  { id: "inbox", labelKey: "nav.inbox", pages: ["inbox"], defaultPage: "inbox" },
 ]
 
 function activeTabForPage(page: Page): TopNavTab {
@@ -289,6 +291,7 @@ function TopNavBar() {
   const {
     activePage,
     setPage,
+    session,
     intelPanelOpen,
     setIntelPanelOpen,
     setIntelRailSection,
@@ -309,16 +312,15 @@ function TopNavBar() {
         style={{ height: TOP_NAV_HEIGHT }}
       >
       <div className="flex min-w-0 items-center gap-7">
-        <div className={cn("flex shrink-0 items-center rounded-md px-2 py-1", isDark && "bg-white")}>
+        <div className="flex shrink-0 items-center px-1">
           <img
-            src={CLIENT_LOGO}
+            src="/compass/birkenstock-logo.png"
             alt="Birkenstock"
-            className="h-7 w-auto"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+            className="h-[22px] w-auto"
           />
         </div>
         <nav className="flex items-center gap-1.5 overflow-x-auto">
-          {TOP_NAV_TABS.map((tab) => {
+          {TOP_NAV_TABS.filter((tab) => !tab.whenPending || session.awardPending || session.journeyStep === "s6" || activePage === "award").map((tab) => {
             const isActive = tab.id === activeTab.id
             return (
               <button
@@ -611,7 +613,7 @@ function ReasoningPanel() {
           "Resolved the package to its controlled technical specification and quantity",
           "Retrieved applicable SLA and qualification obligations from SRC-002 and SRC-008",
           "Assembled commercial and legal terms from SRC-004 and SRC-005",
-          "Composed the ITT sections and queued the adversarial audit against every cited source",
+          "Composed the RFP sections and queued the quality and compliance review against every cited source",
         ],
         sources: [
           `${DOCUMENTS.length} controlled documents in the project register`,
@@ -661,8 +663,8 @@ function ReasoningPanel() {
       chain: [
         "Loaded the tender register and applied session progress for each package",
         "Computed days remaining against each 21-day tender window",
-        "Mapped packages to controlled documents, standards and charter interfaces",
-        "Ranked by submission deadline, savings target and installation critical path",
+        "Mapped packages to controlled documents, SLA and qualification gates",
+        "Ranked by submission deadline, illustrative exposure and operating path",
       ],
       sources: [
         `${TENDER_PACKAGES.length} live packages on the ${PROJECT.shortName} pipeline`,
@@ -870,23 +872,17 @@ function ContextPanel() {
         </div>
         <div className="rounded-lg border bg-background p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="shrink-0 text-muted-foreground">{t("intel.vessel")}</span>
-            <span className="min-w-0 truncate font-medium">{PROJECT.scope}</span>
-          </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{t("intel.form")}</span>
+            <span className="shrink-0 text-muted-foreground">{t("intel.form")}</span>
             <span className="font-medium">RFP-2026-001</span>
           </div>
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{t("intel.hireRate")}</span>
+            <span className="text-muted-foreground">{locale === "de" ? "Illustrative Exposition" : "Illustrative exposure"}</span>
             <span className="font-mono font-medium">{formatEur(5_650_000, locale)}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{t("intel.period")}</span>
-            <span className="font-medium">{locale === "de" ? "24 Monate ab 1. Januar 2027" : "24 months from 1 January 2027"}</span>
-          </div>
           <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-            {t("intel.charterFlowdown")}
+            {locale === "de"
+              ? "Prognostizierter Auftragswert, nicht realisiert. Formel: 18 Relationen × geplante Rate × 24 Monate. Quelle: SRC-005."
+              : "Forecast contract exposure, not realised. Formula: 18 lanes × planned rate × 24 months. Source: SRC-005."}
           </p>
         </div>
       </div>
@@ -901,7 +897,9 @@ function ContextPanel() {
             {t("intel.awardedPackages", { count: localizedClosed.length, project: PROJECT.shortName })}
           </p>
           <p className="text-[11px] text-muted-foreground">
-            {t("intel.savingsBooked", { amount: formatCompactEur(realisedTotal, locale) })}
+            {locale === "de"
+              ? `${formatCompactEur(realisedTotal, locale)} sind illustrativ und nicht als realisierte Einsparung gebucht.`
+              : `${formatCompactEur(realisedTotal, locale)} is illustrative and is not booked as realised savings.`}
           </p>
           <p className="text-[11px] text-muted-foreground">
             {t("intel.livePackagesLoop", { count: localizedPackages.length })}
@@ -1405,13 +1403,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       </div>
       <div className="relative z-10 w-full max-w-[420px] px-6">
         <div className="mb-8 flex flex-col items-center gap-5">
-          <div className="rounded-xl bg-white px-5 py-3 shadow-sm">
-            <img src={CLIENT_LOGO} alt="Birkenstock" className="h-10 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+          <div className="rounded-lg bg-white px-4 py-3">
+            <img
+              src="/compass/birkenstock-logo.png"
+              alt="Birkenstock"
+              className="h-8 w-auto"
+            />
           </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Compass Logistics Procurement</h1>
-            <p className="mt-1.5 text-[13px] text-white/60">{t("login.subtitle")}</p>
-          </div>
+          <p className="text-[13px] text-white/60">{t("login.subtitle")}</p>
         </div>
         <form onSubmit={handleSubmit} className="rounded-2xl border border-white/10 bg-white/[0.06] p-8 shadow-2xl backdrop-blur-xl">
           <div className="space-y-5">

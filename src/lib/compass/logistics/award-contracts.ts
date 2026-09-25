@@ -1,6 +1,7 @@
 import { CONTRACTS } from "./structured/contracts"
 import { SUPPLIERS } from "./structured/suppliers"
 import type { SessionContract } from "./session"
+import { scenarioById } from "./award-scenarios"
 
 const SLA_TEMPLATE = CONTRACTS[0]
 
@@ -15,14 +16,15 @@ function slaFrom(supplierId: string) {
   }
 }
 
-/** Dual-award split from the evaluation fixture — copied, not re-keyed. */
+/** Dual-award split from the selected scenario — copied, not re-keyed. */
 export const AWARD_SPLIT = [
   { supplierId: "SUP-004", share: 0.65, valueEur: 3_672_500 },
   { supplierId: "SUP-002", share: 0.35, valueEur: 1_977_500 },
 ] as const
 
-export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001"): SessionContract[] {
-  return AWARD_SPLIT.map(({ supplierId, valueEur }) => {
+export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001", scenarioId = "AWD-02"): SessionContract[] {
+  const scenario = scenarioById(scenarioId)
+  return scenario.suppliers.map(({ supplierId, valueEur }) => {
     const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
     const sla = slaFrom(supplierId)
     return {
@@ -38,6 +40,11 @@ export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001"): SessionC
       claimsTargetMax: sla.claimsTargetMax,
       invoiceAccuracyTarget: sla.invoiceAccuracyTarget,
       status: "Awarded",
+      lanes: ["18 European lanes"],
+      rateBasis: "Confirmed current rate-card version, EUR, SRC-005 fuel formula",
+      capacityNote: scenario.capacity,
+      renewalTerms: "120-day notice; renewal uses verified execution only",
+      scenarioId: scenario.id,
       sourcePackageId,
     }
   })

@@ -396,7 +396,7 @@ export function buildAwardSnapshot(args: {
   }
   if (selected.fatNoticeDays !== STANDARD_FAT_NOTICE_DAYS) {
     deviations.push(
-      `FAT notice offered ${selected.fatNoticeDays} days vs the ${STANDARD_FAT_NOTICE_DAYS}-day standard.`,
+      `Service-start evidence offered ${selected.fatNoticeDays} days vs the ${STANDARD_FAT_NOTICE_DAYS}-day standard.`,
     )
   }
 

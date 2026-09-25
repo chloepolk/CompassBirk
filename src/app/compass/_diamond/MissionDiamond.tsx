@@ -129,8 +129,14 @@ export function MissionDiamond({
             {getInitials(owner)}
           </text>
 
-          <text x={200} y={206} textAnchor="middle" className="fill-foreground text-[20px] font-bold tabular-nums">
-            {Math.round(pct * 100)}%
+          <text x={200} y={206} textAnchor="middle" className="fill-foreground text-[9px] font-semibold">
+            {mission.stage === "outcome_roi"
+              ? t("flight.award-approved")
+              : mission.stage === "execute"
+                ? t("flight.rfp-issued")
+                : mission.stage === "decide"
+                  ? t("flight.requirements-approved")
+                  : t("flight.need-identified")}
           </text>
           <text x={200} y={219} textAnchor="middle" className="fill-muted-foreground text-[8px] font-medium uppercase tracking-[0.15em]">
             {mission.completedAt ? t("diamond.loopClosed") : `${mission.elapsedDays}/${mission.totalDays}${t("diamond.dayShort")}`}
