@@ -29,6 +29,7 @@ import { OperatorReplayBar } from "./_pages/operator-replay"
 import { useT } from "./_i18n/use-t"
 import { localeTag, type Locale } from "./_i18n"
 import { localizedClosedPackages, localizedTenderPackages } from "./_i18n/domain"
+import { localizedProject } from "./_i18n/tender"
 import { localizeLegacyCopy } from "./_i18n/legacy"
 import { formatCompactEur, formatEur } from "./_i18n/currency"
 import { DOCUMENTS, CATEGORY_LABELS, type DocumentCategory } from "./data/_documents"
@@ -163,6 +164,8 @@ function LanguageToggle() {
 
 function DataScopeBadge() {
   const t = useT()
+  const { locale } = useStore()
+  const project = localizedProject(locale)
   const categoryCounts = React.useMemo(() => {
     const counts = new Map<string, number>()
     for (const d of DOCUMENTS) counts.set(d.category, (counts.get(d.category) ?? 0) + 1)
@@ -176,12 +179,12 @@ function DataScopeBadge() {
           type="button"
           className={cn(pcmButton, "flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-canvas)] px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)]")}
         >
-          <span className="tabular-nums">{PROJECT.shortName}</span>
+          <span className="tabular-nums">{project.shortName}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="px-4 pt-3 pb-2 border-b">
-          <p className="text-sm font-semibold">{PROJECT.name}</p>
+          <p className="text-sm font-semibold">{project.name}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{t("scope.projectDescription")}</p>
         </div>
         <div className="px-4 py-3 space-y-2.5 text-xs">
@@ -287,6 +290,51 @@ function DrillBreadcrumbBar() {
 /*  Top horizontal nav (replaces left sidebar)                         */
 /* ------------------------------------------------------------------ */
 
+function DemoControls() {
+  const { resetSession, locale } = useStore()
+  const [open, setOpen] = React.useState(false)
+  const de = locale === "de"
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto px-2 py-2 text-[12px] font-medium text-[var(--color-text-muted)]"
+        >
+          {de ? "Demo" : "Demo"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 space-y-3 p-4">
+        <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+          {de ? "Demo-Steuerung" : "Demo controls"}
+        </p>
+        <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+          {de
+            ? "Demo zurücksetzen löscht das Beschaffungsereignis, die Freigaben, die Ausschreibung, Nachrichten, freigegebene Antworten, Bewertung, Empfehlung, Zuschlag, Leistungsmaßnahmen und den Prüfpfad. Sprache, Design und Referenzdaten bleiben."
+            : "Reset demo clears the sourcing event, resolutions, RFP, messages, released responses, evaluation, recommendation, award, performance actions and audit history. Language, theme and reference data stay."}
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            {de ? "Abbrechen" : "Cancel"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              resetSession()
+              setOpen(false)
+            }}
+          >
+            {de ? "Demo zurücksetzen" : "Reset demo"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function TopNavBar() {
   const {
     activePage,
@@ -364,6 +412,7 @@ function TopNavBar() {
           <SafeIcon name="BrainCircuit" className="h-3.5 w-3.5" />
           {t("nav.intelligencePanel")}
         </Button>
+        <DemoControls />
         <LanguageToggle />
         <ThemeToggle />
         <Avatar className="h-9 w-9 border border-[var(--color-border-default)]">
@@ -592,9 +641,31 @@ function ReasoningPanel() {
             "Qualifikationstore (Versicherung, Due Diligence, Datenanbindung) getrennt von den Gewichtungen anwenden",
             "Zulässige Jahreskosten gegen das günstigste konforme Angebot normalisieren",
             "Preis 35, Technik 25, QA/HSEQ 20 und Recht 20 nur unter tor-passenden Carriern bewerten",
-            "Incumbent-Historie nur über zwölf geprüfte Monate zeigen; Challenger bleiben No History",
+            "Incumbent-Historie aus der veröffentlichten Monatssumme bis zum Stichtag zeigen; Challenger bleiben No History",
           ],
           sources: ["RFP-2026-001 Relationenraten und Angebotsanhänge", "SRC-002 Leistungs- und SLA-Standard", "SRC-008 Lieferantenqualifikation — No History"],
+        }
+      }
+      if (activePage === "vendor-360") {
+        return {
+          chain: [
+            "Beziehung, Ausgaben und Vertragsdaten aus dem Register laden",
+            "Operativ 40 / Kommerziell 25 / Vertrag-SLA 20 / Beziehung 15 berechnen",
+            "Einen Gesamtscore nur zeigen, wenn geprüfte Ausführung bis zum Stichtag vorliegt",
+            "Challenger als No History belassen, nicht als Null",
+          ],
+          sources: ["Lieferanten, Verträge, Leistung bis zum Stichtag, Vorfälle", "Angebote zu RFP-2026-001"],
+        }
+      }
+      if (activePage === "performance") {
+        return {
+          chain: [
+            "Istwerte des letzten Monats mit der Vertragsbaseline vergleichen",
+            "Pünktlichkeit, Sendungen und Score für die Monate bis zum Stichtag zeigen",
+            "Offene Vorfälle mit Korrekturmaßnahmen verknüpfen",
+            "Zuschlagsbaselines zeigen, die ohne erneute Erfassung entstanden sind",
+          ],
+          sources: ["Sendungen, Rechnungen, Vorfälle", "ACT-006 / ACT-007", "Vergebene Sitzungsverträge"],
         }
       }
       return {
@@ -628,7 +699,7 @@ function ReasoningPanel() {
           "Applied qualification gates (insurance, due diligence, data integration) separately from weights",
           "Normalised eligible annual costs against the lowest compliant bid",
           "Scored Price 35, Tech 25, QA/HSEQ 20 and Legal 20 among gate-passing carriers only",
-          "Showed incumbent history only via the twelve-month verified method; challengers stay No History",
+          "Showed incumbent history from the published monthly total through the reporting date; challengers stay No History",
         ],
         sources: [
           "RFP-2026-001 lane rates and bid attachments",
@@ -642,17 +713,17 @@ function ReasoningPanel() {
         chain: [
           "Loaded relationship, spend and contract records from the structured register",
           "Computed Operational 40 / Commercial 25 / Contract-SLA 20 / Relationship 15",
-          "Suppressed a total score unless twelve months of verified execution exist",
+          "Showed a total score only where verified execution exists through the reporting date",
           "Left challengers as No History rather than a zero",
         ],
-        sources: ["Suppliers, contracts, 12-month performance, incidents", "Sourcing bids for RFP-2026-001"],
+        sources: ["Suppliers, contracts, performance through the reporting date, incidents", "Sourcing bids for RFP-2026-001"],
       }
     }
     if (activePage === "performance") {
       return {
         chain: [
           "Compared latest month actuals with the contractual baseline",
-          "Trended twelve months of OTD, shipments and score",
+          "Trended OTD, shipments and score for the months through the reporting date",
           "Linked open incidents to corrective actions",
           "Surfaced awarded contract baselines created without re-keying",
         ],

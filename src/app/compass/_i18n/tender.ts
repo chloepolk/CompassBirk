@@ -26,8 +26,27 @@ export const TENDER_SUGGESTIONS: Record<Locale, string[]> = {
   ],
 }
 
-export function localizeComponentSpec(spec: ComponentSpec, _locale: Locale): ComponentSpec {
-  return spec
+export function localizeComponentSpec(spec: ComponentSpec, locale: Locale): ComponentSpec {
+  if (locale !== "de" || spec.id !== "road-freight") return spec
+  return {
+    ...spec,
+    name: "Europäische Straßentransporte",
+    shortName: "Straßentransporte",
+    overview: "FTL- und LTL-Kapazität auf 18 europäischen Relationen, mit Anforderungen an Sichtbarkeit, SLA und EUR-Ratenkarte.",
+    unit: "Relationen",
+    parameters: [
+      { parameter: "Relationen", requirement: "18 europäische Abgangs- und Zielpaare" },
+      { parameter: "Prognosemenge", requirement: "2.448 Sendungen pro Jahr (Entscheidungsgrundlage, keine garantierte Abnahme)" },
+      { parameter: "Equipment", requirement: "Curtainsider / Koffer; ausgewählte Relationen temperaturgeführt" },
+      { parameter: "OTD-Ziel", requirement: "98,0 % pünktliche Zustellung" },
+      { parameter: "Annahmequote", requirement: "97,0 %" },
+      { parameter: "Schadensobergrenze", requirement: "0,5 % der Sendungen" },
+      { parameter: "Rechnungsgenauigkeit", requirement: "99,0 %" },
+      { parameter: "Währung", requirement: "EUR, feste Relationenraten zuzüglich offengelegtem Kraftstoffzuschlag" },
+      { parameter: "Sichtbarkeit", requirement: "API, EDI oder vereinbarte Tagesdatei" },
+      { parameter: "Versicherung", requirement: "Frachtversicherung von mindestens 5 Mio. EUR" },
+    ],
+  }
 }
 
 export function localizedComponentSpecs(locale: Locale): ComponentSpec[] {
@@ -66,12 +85,53 @@ export function localizedStandards(_locale: Locale, baseline = false): StandardR
   return baseline ? BASELINE_STANDARDS : STANDARDS_MATRIX
 }
 
-export function localizedFatRequirements(_locale: Locale): string[] {
-  return [...FAT_TRACEABILITY_CLAUSES]
+const FAT_DE = [
+  "Frachtführer reichen Qualifikationsnachweise (Versicherung, Due Diligence und Datenanbindung) mindestens 30 Tage vor dem geplanten Leistungsbeginn ein.",
+  "Eine Frachtversicherung von mindestens 5 Mio. EUR ist verpflichtend, bevor ein Angebot das Qualifikationstor bestehen kann.",
+  "Die Sendungssichtbarkeit erfolgt über API, EDI oder eine vereinbarte Tagesdatei gemäß SRC-006.",
+]
+
+export function localizedFatRequirements(locale: Locale): string[] {
+  return locale === "de" ? [...FAT_DE] : [...FAT_TRACEABILITY_CLAUSES]
 }
 
-export function localizedProcurementClauses(_locale: Locale): TermsClause[] {
-  return PROCUREMENT_CLAUSES
+const CLAUSE_DE: Record<string, { heading: string; text: string }> = {
+  "4.1": {
+    heading: "Leistungserbringung",
+    text: "Sofern die Bestellung nichts anderes vorsieht, werden die Leistungen auf den vereinbarten Abgangs- und Zielrelationen mit dem benannten Equipment erbracht.",
+  },
+  "4.3": {
+    heading: "Sichtbarkeit und Nachweis",
+    text: "Der Lieferant stellt die vereinbarte Sichtbarkeit (API, EDI oder Tagesdatei) und den POD-Nachweis spätestens in der in SRC-002 genannten Frist bereit.",
+  },
+  "5.1–5.3": {
+    heading: "Haftung und Versicherung",
+    text: "Der Lieferant hält eine Frachtversicherung von mindestens 5 Mio. EUR und bleibt für Verlust oder Beschädigung der Güter in seiner Obhut verantwortlich.",
+  },
+  "6.2": {
+    heading: "Leistungsgarantie",
+    text: "Die Leistung folgt der SLA in SRC-002 über die Vertragslaufzeit. Abweichungen werden nach dem Prüfrhythmus dieses Standards eskaliert.",
+  },
+  "7.1": {
+    heading: "Festpreise",
+    text: "Relationenraten sind in EUR fest und bindend. Ein nach SRC-005 offengelegter Kraftstoffzuschlag ist das einzige zulässige variable Element, sofern kein Index schriftlich vereinbart ist.",
+  },
+  "7.2": {
+    heading: "Zahlungsbedingungen",
+    text: "Die Zahlung erfolgt sechzig (60) Tage nach Ende des Monats, in dem eine richtige und vollständig belegte Rechnung eingeht.",
+  },
+  "9.1–9.2": {
+    heading: "Anwendbares Recht und Streitigkeiten",
+    text: "Dieser Vertrag unterliegt dem Recht von England und Wales. Streitigkeiten werden abschließend nach den LCIA-Regeln geschlichtet; der Schiedsort ist London, England.",
+  },
+}
+
+export function localizedProcurementClauses(locale: Locale): TermsClause[] {
+  if (locale !== "de") return PROCUREMENT_CLAUSES
+  return PROCUREMENT_CLAUSES.map((clause) => {
+    const translated = CLAUSE_DE[clause.ref]
+    return translated ? { ...clause, ...translated } : clause
+  })
 }
 
 export function localizedDocuments(_locale: Locale): S7Document[] {
@@ -86,7 +146,9 @@ export function localizedProject(locale: Locale) {
   return locale === "de"
     ? {
         ...PROJECT,
-        scope: "europäische Straßengüterverkehre — 18 Relationen, Basis 12 Monate",
+        name: "Europäische Straßentransporte 2027",
+        shortName: "Straßentransporte",
+        scope: "europäische Straßengüterverkehre — 18 Relationen, 2.448 prognostizierte Sendungen",
         mobilisationPort: "Europäisches Straßennetz",
       }
     : PROJECT

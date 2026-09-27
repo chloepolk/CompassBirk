@@ -37,7 +37,7 @@ function procurementFindings(): BPFinding[] {
       severity: "critical",
       title: "RFP-2026-001 bid deadline is 23 October 2026",
       narrative:
-        "European Road Freight Services 2027 is the active sourcing event. Carrier responses have not yet been received. Contract expiry, the sourcing need, a performance exception and a corrective action remain open. Award target 20 November 2026.",
+        "European Road Freight Services 2027 is the active sourcing event. Carrier responses have not yet been received. Later evidence stays held until the matching action. Award target 20 November 2026.",
       evidence: [
         "Bid deadline 23 October 2026; award target 20 November 2026; service start 1 January 2027.",
         "Estimated annual value €5.65m across 18 lanes and 2,448 forecast shipments.",

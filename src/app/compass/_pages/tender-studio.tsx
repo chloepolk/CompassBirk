@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils"
 import { useStore, type DraftedTender } from "../_store"
 import { useT } from "../_i18n/use-t"
 import { createT, localeTag, type Locale } from "../_i18n"
-import { formatDateDMY } from "@/lib/compass/locale-display"
+import { formatDateDMY, formatEurFigure } from "@/lib/compass/locale-display"
+import { vendorProfile } from "@/lib/compass/logistics/vendor-model"
 import { localizeRole } from "../_i18n/domain"
 import {
   TENDER_SUGGESTIONS,
@@ -26,8 +27,8 @@ import {
 import { enterMotion, listItemMotion, pcmButton, pcmCard } from "../_components/motion"
 import { LaneSlaPanel } from "../_components/lane-sla-panel"
 import { RequirementGovernance } from "./requirement-governance"
-import { ANALYSIS_STEPS } from "@/lib/compass/logistics/requirements"
-import { materialExceptionsResolved } from "@/lib/compass/logistics/session"
+import { REQUIREMENTS } from "@/lib/compass/logistics/requirements"
+import { materialExceptionsResolved, type RequirementDecision } from "@/lib/compass/logistics/session"
 import { ACTIVE_USER } from "../_components/hub/active-user"
 import {
   COMPONENT_SPECS,
@@ -93,12 +94,12 @@ function fallbackScope(baseSpec: ComponentSpec, quantity: string, locale: Locale
     retrievalPlan,
     considerations: locale === "de"
       ? [
-          "Challenger bleiben No History, bis zwölf Monate geprüfter Ausführung vorliegen (SRC-008).",
+          "Challenger bleiben No History, bis geprüfte Ausführung im Monatsauszug vorliegt (SRC-008).",
           "Kraftstoffzuschlag nach SRC-005 offenlegen; Relationenraten in EUR.",
           "Qualifikationstore (Versicherung, Due Diligence, Datenanbindung) gehen nicht in die Gewichtungen ein.",
         ]
       : [
-          "Challengers remain No History until twelve months of verified execution exist (SRC-008).",
+          "Challengers remain No History until verified execution exists in the monthly extract (SRC-008).",
           "Disclose fuel surcharge under SRC-005; price lane rates in EUR.",
           "Qualification gates (insurance, due diligence, data integration) are excluded from the weighted score.",
         ],
@@ -219,13 +220,34 @@ function formatDate(iso: string, _locale: Locale): string {
   return formatDateDMY(iso + "T00:00:00")
 }
 
-function withCitation(doc: IttDocument, locale: Locale, requirementSetVersion: string | null, evaluationMethodVersion: string | null): IttDocument {
-  const requirement = requirementSetVersion ?? "REQ-2026-001-v1"
-  const method = evaluationMethodVersion ?? "EVAL-LOG-v1"
+function withCitation(
+  doc: IttDocument,
+  locale: Locale,
+  requirementSetVersion: string | null,
+  evaluationMethodVersion: string | null,
+  decisions: RequirementDecision[] = [],
+): IttDocument {
+  if (!requirementSetVersion || !evaluationMethodVersion) return doc
   const line = locale === "de"
-    ? `Gekennzeichnete Übersetzung. Zitiert gegen ${requirement} und ${method}. Beträge, Relations-IDs, Einheiten, Daten und Zitate entsprechen dem britischen Original.`
-    : `British English original. Cited against ${requirement} and ${method}. German is the linked translation; amounts, lane IDs, units, dates and citations are unchanged.`
-  return { ...doc, projectSummary: [line, ...doc.projectSummary] }
+    ? `Britisches Original, zitiert gegen ${requirementSetVersion} und ${evaluationMethodVersion}. Die deutsche Fassung ist die verknüpfte Übersetzung. Beträge, Relations-IDs, Einheiten, Daten und Zitate bleiben unverändert.`
+    : `British English original. Cited against ${requirementSetVersion} and ${evaluationMethodVersion}. German is the linked translation; amounts, lane IDs, units, dates and citations are unchanged.`
+  const requirementDe: Record<string, string> = {
+    "REQ-01": "18 europäische Abgangs- und Zielrelationen abdecken.",
+    "REQ-02": "Prognostizierte Menge von 2.448 Sendungen ist eine Entscheidungsgrundlage, keine Abnahmeverpflichtung.",
+    "REQ-03": "Ziel für pünktliche Zustellung 98,0 %.",
+    "REQ-04": "Frachtversicherung von mindestens 5 Mio. EUR.",
+    "REQ-05": "Sichtbarkeit über API, EDI oder eine vereinbarte Tagesdatei.",
+    "REQ-06": "Emissionsbericht und einen Verbesserungsplan.",
+  }
+  const clauses = REQUIREMENTS.map((row) => {
+    const decision = decisions.find((item) => item.id === row.id)
+    const text = locale === "de" ? (requirementDe[row.id] ?? row.requirement) : row.requirement
+    const resolution = decision
+      ? (locale === "de" ? `Entscheidung ${decision.decision}. ${decision.rationale}` : `Decision ${decision.decision}. ${decision.rationale}`)
+      : (locale === "de" ? "Keine Ausnahme." : "No exception.")
+    return `${row.id} · ${text} · ${row.source} ${row.sourceVersion} §${row.section} · ${resolution}`
+  })
+  return { ...doc, projectSummary: [line, ...clauses, ...doc.projectSummary] }
 }
 
 function composeItt(
@@ -254,9 +276,9 @@ function composeItt(
           "Bieter bestätigen die Einhaltung jedes Abschnitts dieser Ausschreibung oder legen Abweichungen ausdrücklich in den Rückgaben dar.",
         ]
       : [
-          "Tenders must be submitted electronically via the Compass Logistics Procurement portal no later than the submission deadline stated above. Late submissions will not be evaluated.",
+          "Suppliers must submit responses electronically via the Compass Logistics Procurement portal no later than the submission deadline stated above. Late responses will not be evaluated.",
           "Requests for clarification must be raised through the SCM Portal at least 7 days prior to the submission deadline.",
-          "Tenderers shall confirm compliance with each section of this request for proposal or table deviations explicitly in their returnables.",
+          "Suppliers shall confirm compliance with each section of this request for proposal or table deviations explicitly in their returnables.",
         ],
     technical,
     quality,
@@ -489,11 +511,8 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
               {docs.map(doc => {
                 const active = activeDocRefs.has(doc.docRef)
                 return (
-                  <a
+                  <div
                     key={doc.id}
-                    href={doc.fileName}
-                    target="_blank"
-                    rel="noreferrer"
                     className={cn(
                       "flex items-center gap-2 rounded-[9px] border px-2.5 py-2 transition-colors",
                       active
@@ -507,7 +526,7 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
                       <span className="block truncate text-[10px] text-[var(--color-text-muted)]">{doc.title} · {doc.revision}</span>
                     </span>
                     {active && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-text-secondary)] animate-pulse" />}
-                  </a>
+                  </div>
                 )
               })}
             </div>
@@ -524,7 +543,7 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
 
 export function TenderStudioPage() {
   const t = useT()
-  const { locale, focusTenderId, openTenderStudio, openBidEvaluation, advanceTenderStage, setPage, draftedTenders, saveDraftedTender, deleteDraftedTender, appliedTenderQtyByPackage, advanceJourney, session } = useStore()
+  const { locale, focusTenderId, openTenderStudio, openInbox, draftedTenders, saveDraftedTender, deleteDraftedTender, appliedTenderQtyByPackage, advanceJourney, patchSession, session } = useStore()
 
   const [prompt, setPrompt] = React.useState("")
   const [phase, setPhase] = React.useState<Phase>("idle")
@@ -544,6 +563,10 @@ export function TenderStudioPage() {
   const [pipelineOpen, setPipelineOpen] = React.useState(false)
   const runningRef = React.useRef(false)
 
+  React.useEffect(() => {
+    if (session.journeyStep === "s1" && session.acceptedNeed) advanceJourney("s2")
+  }, [session.journeyStep, session.acceptedNeed, advanceJourney])
+
   // Restore a catalogued draft into the working area without re-running the pipeline.
   const loadDraft = React.useCallback((d: DraftedTender) => {
     const baseSpec = COMPONENT_SPECS.find(c => c.id === d.componentId)
@@ -561,7 +584,7 @@ export function TenderStudioPage() {
       fallbackQuality(baseSpec, locale),
       fallbackLegal(baseSpec, locale),
       locale,
-    ), locale, session.requirementSetVersion, session.evaluationMethodVersion)
+    ), locale, session.requirementSetVersion, session.evaluationMethodVersion, session.requirementDecisions)
     setSpec(localizedSpec)
     setQuantity(localizedQuantity)
     setPkg(loadedPkg)
@@ -576,17 +599,20 @@ export function TenderStudioPage() {
     setAuditOpen(false)
     setPipelineOpen(false)
     setPhase("complete")
-  }, [locale, session.requirementSetVersion, session.evaluationMethodVersion])
+  }, [locale, session.requirementSetVersion, session.evaluationMethodVersion, session.requirementDecisions])
 
   // Preload the composer when the board's Draft ITT action opened this page.
   // If that package already has a catalogued draft, restore it instead of regenerating.
   React.useEffect(() => {
-    if (!focusTenderId) return
+    if (!focusTenderId || focusTenderId === "PKG-REN-001") return
     const t = tenderById(focusTenderId)
     if (t?.componentId) {
       const existing = draftedTenders.find(d => d.packageId === t.id)
-      if (existing) {
+      if (existing && session.rfpGenerated) {
         loadDraft(existing)
+      } else if (!session.rfpGenerated) {
+        setItt(null)
+        setPhase("idle")
       } else {
         const s = COMPONENT_SPECS.find(c => c.id === t.componentId)
         if (s) {
@@ -611,7 +637,7 @@ export function TenderStudioPage() {
   React.useEffect(() => {
     if (restoredRef.current) return
     restoredRef.current = true
-    if (focusTenderId || draftedTenders.length === 0) return
+    if (!session.rfpGenerated || focusTenderId || draftedTenders.length === 0) return
     loadDraft(draftedTenders[0])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -720,6 +746,7 @@ export function TenderStudioPage() {
       locale,
       session.requirementSetVersion,
       session.evaluationMethodVersion,
+      session.requirementDecisions,
     )
     setItt(doc)
 
@@ -747,29 +774,32 @@ export function TenderStudioPage() {
       audit: auditOut,
       submitted: false,
     })
-  }, [locale, saveDraftedTender, session.journeyStep, session.acceptedNeed, session.requirementDecisions, session.packageLocked, session.requirementSetVersion, session.evaluationMethodVersion, advanceJourney])
+    const rfpVersion = (session.requirementSetVersion ?? "REQ-2026-001-v1").replace(/^REQ-/, "RFP-")
+    patchSession({ rfpGenerated: true, rfpVersion, rfpApproved: false })
+  }, [locale, saveDraftedTender, patchSession, session.journeyStep, session.acceptedNeed, session.requirementDecisions, session.packageLocked, session.requirementSetVersion, session.evaluationMethodVersion, advanceJourney])
 
-  const submitForApproval = React.useCallback(() => {
-    if (!pkg || !session.packageLocked || !session.rfpApproved) return
-    advanceTenderStage(pkg.id, "decide")
-    setSubmitted(true)
-    if (itt) {
-      const existing = draftedTenders.find(d => d.id === itt.ittRef)
-      if (existing) saveDraftedTender({ ...existing, submitted: true })
+  const wasGenerated = React.useRef(session.rfpGenerated)
+  React.useEffect(() => {
+    const previous = wasGenerated.current
+    wasGenerated.current = session.rfpGenerated
+    if (previous && !session.rfpGenerated) {
+      setItt(null)
+      setAudit(null)
+      setPhase("idle")
     }
-    setTimeout(() => setPage("operating-loop"), 900)
-  }, [pkg, advanceTenderStage, setPage, itt, draftedTenders, saveDraftedTender, session.packageLocked, session.rfpApproved])
+  }, [session.rfpGenerated])
 
   const isRunning = phase === "scoping" || phase === "specialists" || phase === "composing" || phase === "auditing"
   const otherLocale = locale === "de" ? "en" : "de"
+  const linkedQuantity = localizeQuantity(quantity, otherLocale)
   const linkedTranslation = showTranslation && spec
     ? withCitation(
         composeItt(
           spec,
-          quantity,
+          linkedQuantity,
           pkg,
-          scope ?? fallbackScope(spec, quantity, otherLocale),
-          fallbackTechnical(spec, quantity, otherLocale),
+          fallbackScope(spec, linkedQuantity, otherLocale),
+          fallbackTechnical(spec, linkedQuantity, otherLocale),
           fallbackQuality(spec, otherLocale),
           fallbackLegal(spec, otherLocale),
           otherLocale,
@@ -777,6 +807,7 @@ export function TenderStudioPage() {
         otherLocale,
         session.requirementSetVersion,
         session.evaluationMethodVersion,
+        session.requirementDecisions,
       )
     : null
   const heroMotion = enterMotion(0)
@@ -798,21 +829,33 @@ export function TenderStudioPage() {
           </h2>
           <p className="mt-1">
             {locale === "de"
-              ? `Vorherige Anforderungen ${session.requirementSetVersion ?? "REQ-2026-001-v1"}. Geprüfte Historie aus der Zuschlagsbaseline. Lehre: die Prognose von 2.448 Sendungen ist keine Abnahmeverpflichtung; No History ist kein Abzug.`
-              : `Prior requirements ${session.requirementSetVersion ?? "REQ-2026-001-v1"}. Verified history from the awarded baseline. Lesson: the 2,448-shipment forecast is not a volume commitment, and No History is not a penalty.`}
+              ? `Vorherige Anforderungen ${session.requirementSetVersion ?? "—"}. Bewertung ${session.evaluationMethodVersion ?? "—"}. Ausschreibung ${session.rfpVersion ?? "—"}. Die Prognose von 2.448 Sendungen ist keine Abnahmeverpflichtung. No History ist kein Abzug. Das kaufmännische Ergebnis ist nicht entschieden.`
+              : `Prior requirements ${session.requirementSetVersion ?? "—"}. Method ${session.evaluationMethodVersion ?? "—"}. RFP ${session.rfpVersion ?? "—"}. The 2,448-shipment forecast is not a volume commitment. No History is not a penalty. The commercial outcome is not decided.`}
           </p>
+          {session.createdContracts.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {session.createdContracts.map((c) => (
+                <li key={c.contractId}>
+                  {c.contractId} · {c.contractTitle} · {formatEurFigure(c.contractValueEur, locale === "de" ? "de" : "en")} · OTD {((c.otdTarget ?? 0) * 100).toFixed(1)}% · {c.startDate} – {c.endDate}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(() => {
+            const history = vendorProfile("SUP-001", session.createdContracts, session.asOfMonth)
+            if (!history?.latest) return null
+            return (
+              <p className="mt-2">
+                {locale === "de"
+                  ? `RheinRoute ${session.asOfMonth}: Score ${history.score?.total ?? "—"}, OTD ${((history.latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}%, ${history.months.length} Monate, ${history.incidents.length} Vorfälle.`
+                  : `RheinRoute ${session.asOfMonth}: score ${history.score?.total ?? "—"}, OTD ${((history.latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}%, ${history.months.length} months, ${history.incidents.length} incidents.`}
+              </p>
+            )
+          })()}
         </section>
       )}
       <LaneSlaPanel compact />
       <RequirementGovernance />
-      <ol className="grid gap-2 sm:grid-cols-2">
-        {ANALYSIS_STEPS.map((step, i) => (
-          <li key={step.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-[12px]">
-            <span className="font-medium">{i + 1}. {step.label}</span>
-            <span className="mt-0.5 block text-[var(--color-text-muted)]">{step.count}</span>
-          </li>
-        ))}
-      </ol>
       {generationBlocked && (
         <p className="text-[12px] text-[var(--color-accent-warning-text)]">
           {generationBlocked === "lock"
@@ -841,56 +884,49 @@ export function TenderStudioPage() {
               <SafeIcon name="PenLine" className="h-4 w-4 text-[var(--color-text-muted)]" />
               <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("tenderStudio.draftTender")}</h2>
             </div>
-            <form
-              onSubmit={(e) => { e.preventDefault(); void run(prompt) }}
-              className="space-y-2.5"
-            >
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={3}
-                disabled={isRunning}
-                placeholder={t("tenderStudio.placeholder")}
-                className="w-full resize-none rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-canvas)] px-3 py-2.5 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-brand-primary)] disabled:opacity-60"
-              />
-              <Button
-                type="submit"
-                disabled={isRunning || !prompt.trim()}
-                className={cn(pcmButton, "w-full gap-1.5 rounded-[10px] bg-[var(--color-bg-inverse)] text-[13px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90")}
-              >
-                {isRunning ? (
-                  <>
-                    <SafeIcon name="Loader2" className="h-3.5 w-3.5 animate-spin" />
-                    {t("tenderStudio.drafting")}
-                  </>
-                ) : (
-                  <>
-                    <SafeIcon name="FileSignature" className="h-3.5 w-3.5" />
-                    {t("tenderStudio.draft")}
-                  </>
-                )}
-              </Button>
-            </form>
-            {phase === "idle" && (
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[1px] text-[var(--color-text-muted)]">{t("tenderStudio.suggestions")}</p>
-                {TENDER_SUGGESTIONS[locale].map(p => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => { setPrompt(p); void run(p) }}
-                    className="w-full rounded-[9px] border border-[var(--color-border-default)] px-2.5 py-2 text-left text-[11px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]"
-                  >
-                    {p}
-                  </button>
-                ))}
+            {session.packageLocked ? (
+              <div className="space-y-2">
+                <p className="text-[12px] font-medium text-[var(--color-text-primary)]">RFP-2026-001</p>
+                <p className="text-[12px] text-[var(--color-text-secondary)]">
+                  {session.rfpGenerated
+                    ? (locale === "de"
+                      ? `Dokument ${session.rfpVersion} wurde aus ${session.requirementSetVersion} und ${session.evaluationMethodVersion} erzeugt. 18 Relationen, 2.448 prognostizierte Sendungen.`
+                      : `Document ${session.rfpVersion} was generated from ${session.requirementSetVersion} and ${session.evaluationMethodVersion}. 18 lanes, 2,448 forecast shipments.`)
+                    : (locale === "de"
+                      ? `Paket aus ${session.requirementSetVersion} und ${session.evaluationMethodVersion} vorbefüllt. 18 Relationen, 2.448 prognostizierte Sendungen. Erzeugen Sie die zitierte Ausschreibung, um sie zu prüfen.`
+                      : `Package pre-populated from ${session.requirementSetVersion} and ${session.evaluationMethodVersion}. 18 lanes, 2,448 forecast shipments. Generate the cited RFP to review it.`)}
+                </p>
+                <Button
+                  type="button"
+                  disabled={isRunning || !session.packageLocked || session.rfpGenerated}
+                  onClick={() => { void run(TENDER_SUGGESTIONS[locale][0]) }}
+                  className={cn(pcmButton, "w-full gap-1.5 rounded-[10px] bg-[var(--color-bg-inverse)] text-[13px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90")}
+                >
+                  {isRunning ? (
+                    <>
+                      <SafeIcon name="Loader2" className="h-3.5 w-3.5 animate-spin" />
+                      {t("tenderStudio.drafting")}
+                    </>
+                  ) : (
+                    <>
+                      <SafeIcon name="FileSignature" className="h-3.5 w-3.5" />
+                      {locale === "de" ? "Ausschreibung erzeugen" : "Generate RFP"}
+                    </>
+                  )}
+                </Button>
               </div>
+            ) : (
+              <p className="text-[12px] text-[var(--color-text-secondary)]">
+                {locale === "de"
+                  ? "Die Ausschreibung wird aus dem freigegebenen Anforderungssatz erzeugt. Schließen Sie zuerst die Ausnahmen und geben Sie die Bewertungsmethode frei."
+                  : "The RFP is generated from the approved requirement set. Resolve the exceptions and approve the evaluation method first."}
+              </p>
             )}
           </section>
 
 
           {/* Drafted tender catalogue */}
-          {draftedTenders.length > 0 && (
+          {session.rfpGenerated && draftedTenders.length > 0 && (
             <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 space-y-2.5")}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1147,7 +1183,7 @@ export function TenderStudioPage() {
               )}
 
               {/* Rendered ITT */}
-              {itt && (
+              {itt && session.rfpGenerated && (
                 <section className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
                   {/* Document header */}
                   <div className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-inverse)] px-6 py-5">
@@ -1174,15 +1210,14 @@ export function TenderStudioPage() {
                             <SafeIcon name="Printer" className="h-3.5 w-3.5" />
                             {t("tenderStudio.printPdf")}
                           </Button>
-                          {pkg && !submitted && (
+                          {session.rfpApproved && (
                             <Button
                               type="button"
-                              onClick={submitForApproval}
-                              disabled={!session.packageLocked || !session.rfpApproved}
-                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90 disabled:opacity-50")}
+                              onClick={() => openInbox()}
+                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90")}
                             >
                               <SafeIcon name="SendHorizontal" className="h-3.5 w-3.5" />
-                              {t("tenderStudio.issue")}
+                              {locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations"}
                             </Button>
                           )}
                           {submitted && (
@@ -1203,11 +1238,26 @@ export function TenderStudioPage() {
                   </div>
 
                   {linkedTranslation && (
-                    <div className="border-b border-[var(--color-border-default)] px-6 py-4 text-[12px] text-[var(--color-text-secondary)]">
+                    <div className="border-b border-[var(--color-border-default)] px-6 py-4 text-[12px] text-[var(--color-text-secondary)] space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                        {locale === "de" ? "Verknüpfte Übersetzung des britischen Originals" : "Linked translation of the British English original"}
+                      </p>
                       <p className="font-semibold text-[var(--color-text-primary)]">{linkedTranslation.title}</p>
-                      {linkedTranslation.projectSummary.slice(0, 2).map((paragraph) => (
-                        <p key={paragraph} className="mt-1">{paragraph}</p>
+                      {linkedTranslation.projectSummary.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
                       ))}
+                      <p>{linkedTranslation.technical.scopeIntro}</p>
+                      {linkedTranslation.technical.parameters.slice(0, 4).map((row) => (
+                        <p key={row.parameter}>{row.parameter}: {row.requirement} <span className="text-[var(--color-text-muted)]">({linkedTranslation.technical.citations[0]})</span></p>
+                      ))}
+                      <p>{linkedTranslation.quality.intro}</p>
+                      {linkedTranslation.legal.clauses.map((clause) => (
+                        <p key={clause.heading}>
+                          <span className="font-medium text-[var(--color-text-primary)]">{clause.heading}. </span>
+                          {clause.text} <span className="text-[var(--color-text-muted)]">({clause.source})</span>
+                        </p>
+                      ))}
+                      <p>{linkedTranslation.pricing.intro}</p>
                     </div>
                   )}
                   <div className="space-y-7 px-6 py-6">
@@ -1346,6 +1396,28 @@ export function TenderStudioPage() {
                         </table>
                       </div>
                     </div>
+                  </div>
+                  <div className="border-t border-[var(--color-border-default)] px-6 py-4 space-y-2">
+                    <label className="block text-[12px] font-medium text-[var(--color-text-primary)]">
+                      {locale === "de" ? "Prüfungskommentar" : "Review note"}
+                      <textarea
+                        value={session.rfpEditNote}
+                        onChange={(e) => patchSession({ rfpEditNote: e.target.value })}
+                        rows={2}
+                        className="mt-1 w-full rounded-[10px] border border-[var(--color-border-default)] px-3 py-2 text-[12px]"
+                        placeholder={locale === "de" ? "Optional bearbeiten, bevor Sie freigeben" : "Edit if needed, then approve"}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!session.rfpGenerated || session.rfpApproved || phase !== "complete"}
+                      onClick={() => patchSession({ rfpApproved: true, rfpVersion: session.rfpVersion ?? "RFP-2026-001-v1" })}
+                      className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
+                    >
+                      {session.rfpApproved
+                        ? (locale === "de" ? `${session.rfpVersion} freigegeben` : `${session.rfpVersion} approved`)
+                        : (locale === "de" ? "Zitierte Ausschreibung freigeben" : "Approve cited RFP")}
+                    </button>
                   </div>
                 </section>
               )}

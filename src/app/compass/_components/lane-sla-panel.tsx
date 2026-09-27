@@ -18,20 +18,35 @@ function supplierName(id: string | null): string {
 
 export function LaneSlaPanel({ compact = false }: { compact?: boolean }) {
   const t = useT()
+  const { locale } = useStore()
   const sla = CONTRACTS[0]
-  const rows = compact ? LANES.filter((l) => l.laneId).slice(0, 8) : LANES.filter((l) => l.laneId)
+  const allRows = LANES.filter((l) => l.laneId)
+  const [expanded, setExpanded] = React.useState(!compact)
+  const rows = expanded ? allRows : allRows.slice(0, 8)
 
   return (
     <section className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
       <div className="border-b border-[var(--color-border-default)] px-4 py-3">
         <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("lanes.title")}</h3>
         <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+          {!expanded && allRows.length > rows.length
+            ? (locale === "de" ? `${rows.length} von ${allRows.length} angezeigt. ` : `Showing ${rows.length} of ${allRows.length}. `)
+            : (locale === "de" ? `${allRows.length} Relationen. ` : `${allRows.length} lanes. `)}
           {t("lanes.slaLine", {
             otd: sla ? `${((sla.otdTarget ?? 0) * 100).toFixed(1)}%` : "98.0%",
             acceptance: sla ? `${((sla.acceptanceTarget ?? 0) * 100).toFixed(1)}%` : "97.0%",
             claims: sla ? `${((sla.claimsTargetMax ?? 0) * 100).toFixed(1)}%` : "0.5%",
           })}
         </p>
+        {compact && allRows.length > 8 && (
+          <button
+            type="button"
+            className="mt-1 text-[11px] font-semibold text-[var(--color-brand-primary)]"
+            onClick={() => setExpanded((open) => !open)}
+          >
+            {expanded ? (locale === "de" ? "Weniger anzeigen" : "Show fewer") : (locale === "de" ? "Alle anzeigen" : "View all")}
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">

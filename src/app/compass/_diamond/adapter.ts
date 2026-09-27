@@ -433,7 +433,7 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
     objective: de
       ? `${pkg.packageRef} vom Umfang bis zum Zuschlag für ${PROJECT.shortName} führen — ${pkg.quantity}, Budget ${money(pkg.budget)}. Angezeigter Betrag ${money(pkg.targetSavings)} ist illustrativ.`
       : `Take ${pkg.packageRef} from scope to award for ${PROJECT.shortName} — ${pkg.quantity} against a ${formatCompactEur(pkg.budget, locale)} budget. The displayed ${formatCompactEur(pkg.targetSavings, locale)} is illustrative.`,
-    source: { page: "tender-studio", label: de ? "In Ausschreibungsmanagement öffnen" : "Open in Tender Management" },
+    source: { page: "tender-studio", label: de ? "Im Beschaffungsarbeitsbereich öffnen" : "Open in Sourcing Workspace" },
     stage,
     status: statusForStage[stage],
     health,
@@ -510,7 +510,7 @@ export interface DiamondData {
 /**
  * Build the Action Centre from the tender register.
  * `stageOverrides` carries session progress (e.g. an ITT drafted in
- * Tender Management advances its package to the approval gate).
+ * the Sourcing Workspace advances its package to the approval gate).
  */
 export function buildDiamondMissions(
   stageOverrides?: Record<string, MissionStage>,

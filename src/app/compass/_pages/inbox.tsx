@@ -6,7 +6,8 @@ import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
 import { formatDateDMY } from "@/lib/compass/locale-display"
 import { enterMotion, pcmCard } from "../_components/motion"
-import { journeyIndex } from "@/lib/compass/logistics/session"
+import { communicationsBlock, invitesSent, SEND_CHECKS, statusForSession } from "@/lib/compass/logistics/session"
+import { ACTIVE_USER } from "../_components/hub/active-user"
 import {
   inboxMessages,
   carrierLabel,
@@ -19,25 +20,25 @@ const CLASS_ORDER: InboxClass[] = ["confirmed", "potentially", "not-relevant"]
 
 export function InboxPage() {
   const t = useT()
-  const { locale, session, classifyInbox, sendOutboundDraft } = useStore()
+  const { locale, session, classifyInbox, recordAttachmentMatch, sendOutboundDraft, openTenderStudio, patchSession } = useStore()
   const messages = React.useMemo(() => {
-    const released = journeyIndex(session.journeyStep) >= 4
+    const responsesStaged = invitesSent(session)
     return inboxMessages().filter((m) => {
       if (m.id === "EML-010" || m.id === "EML-011") return session.performanceReleased
-      if (m.direction === "outbound") return session.rfpApproved || released
-      return released
+      if (m.direction === "outbound") return session.rfpApproved && session.rfpGenerated
+      return responsesStaged
     })
-  }, [session.journeyStep, session.performanceReleased, session.rfpApproved])
+  }, [session])
   const [activeId, setActiveId] = React.useState(messages[0]?.id ?? "EML-001")
   const active = messages.find((m) => m.id === activeId) ?? messages[0]
   const hero = enterMotion(0)
+  const held = communicationsBlock(session)
 
   const classOf = (m: InboxMessage): InboxClass | "unclassified" =>
     session.emailClassifications[m.id] ?? "unclassified"
   const sent = (id: string) => session.sentDraftIds.includes(id)
   const [checks, setChecks] = React.useState<Record<string, boolean>>({})
-  const [clarification, setClarification] = React.useState<string | null>(null)
-  const checkKeys = ["recipient", "authority", "facts", "dates", "attachment", "confidentiality"] as const
+  const checkKeys = SEND_CHECKS
   const checkLabels: Record<(typeof checkKeys)[number], string> = locale === "de"
     ? {
         recipient: "Empfänger",
@@ -56,6 +57,10 @@ export function InboxPage() {
         confidentiality: "Confidentiality",
       }
   const checksPass = checkKeys.every((k) => checks[`${active?.id}:${k}`])
+  const awaitingReview = messages.filter((m) => m.affectsBids && isQuarantined(m.id, session.emailClassifications))
+  const draftCount = messages.filter((m) => m.direction === "outbound" && !sent(m.id)).length
+  const sentCount = messages.filter((m) => sent(m.id)).length
+  const sendRecord = active ? session.sendApprovals.find((row) => row.emailId === active.id) : undefined
   const evidence = (m: InboxMessage) => ({
     reason: m.suggestedClass === "not-relevant"
       ? (locale === "de" ? "Kein Bezug zu RFP-2026-001" : "No link to RFP-2026-001")
@@ -73,13 +78,36 @@ export function InboxPage() {
       <div className={hero.className} style={hero.style}>
         <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">{t("inbox.title")}</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-[var(--color-text-secondary)]">{t("inbox.subtitle")}</p>
+        <p className="mt-1 text-[12px] font-medium text-[var(--color-text-primary)]">{t(`flight.${statusForSession(session)}`)}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+      {held && (
+        <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
+          <p className="text-[13px] text-[var(--color-text-secondary)]">{locale === "de" ? held.de : held.en}</p>
+          <button
+            type="button"
+            onClick={() => openTenderStudio(null)}
+            className="mt-3 rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
+          >
+            {t("inbox.returnToWorkspace")}
+          </button>
+        </div>
+      )}
+
+      {!held && <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
           <div className="border-b border-[var(--color-border-default)] px-4 py-3">
             <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("inbox.messages")}</h2>
             <p className="text-[11px] text-[var(--color-text-muted)]">{t("inbox.quarantineHint")}</p>
+            <p className="mt-2 flex flex-wrap gap-2 text-[11px] tabular-nums text-[var(--color-text-secondary)]">
+              <span>{draftCount} {t("inbox.draftCount")}</span>
+              <span>{sentCount} {t("inbox.sentCount")}</span>
+              {awaitingReview.length > 0 && (
+                <span className="font-semibold text-[var(--color-accent-warning-text)]">
+                  {awaitingReview.length} {t("inbox.awaitingReview")}
+                </span>
+              )}
+            </p>
           </div>
           <ul className="max-h-[70vh] overflow-y-auto p-1.5">
             {messages.map((m) => {
@@ -125,6 +153,9 @@ export function InboxPage() {
                 {t("inbox.from")} {active.from} · {t("inbox.to")} {active.to}
                 {active.supplierId ? ` · ${carrierLabel(active.supplierId)}` : ""}
               </p>
+              <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                {locale === "de" ? "Herkunft" : "Lineage"}: {active.eventId} · {session.rfpVersion ?? "RFP-2026-001"} · {active.attachments[0]?.version ?? (locale === "de" ? "ohne Anhang" : "no attachment")} · {classOf(active)}
+              </p>
             </div>
 
             <div className="rounded-[10px] bg-[var(--color-bg-subtle)] p-3 space-y-2">
@@ -142,12 +173,18 @@ export function InboxPage() {
               <div>
                 <h3 className="text-[12px] font-semibold text-[var(--color-text-primary)]">{t("inbox.attachments")}</h3>
                 <ul className="mt-1 space-y-1">
-                  {active.attachments.map((a) => (
+                  {active.attachments.map((a) => {
+                    const isRfp = (active.id === "EML-001" || active.id === "EML-002") && /RFP_/i.test(a.name)
+                    const versioned = isRfp
+                      ? a.name.replace(/\.docx$/i, `_${session.rfpVersion ?? "unapproved"}.docx`)
+                      : a.name
+                    return (
                     <li key={a.name} className="text-[12px] text-[var(--color-text-secondary)]">
-                      {a.name} · {a.version}
+                      {versioned} · {isRfp ? (session.rfpVersion ?? "unapproved") : a.version}
                       {a.supersedes ? ` · ${t("inbox.supersedes")} ${a.supersedes}` : ""}
                     </li>
-                  ))}
+                    )
+                  })}
                 </ul>
               </div>
             )}
@@ -195,24 +232,61 @@ export function InboxPage() {
                   <p className="text-[12px] text-[var(--color-accent-warning-text)]">{t("inbox.quarantineBody")}</p>
                 )}
                 {active.id === "EML-008" && (
-                  <p className="text-[12px] text-[var(--color-text-secondary)]">
-                    {locale === "de"
-                      ? "Version 1 bleibt sichtbar. Nur die bestätigte aktuelle Version wird bewertet."
-                      : "Version 1 stays visible. Only the confirmed current version is used for evaluation."}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-[12px] text-[var(--color-text-secondary)]">
+                      {locale === "de"
+                        ? "Version 1 bleibt sichtbar. Bestätigen Sie, welche Fassung zum Nachweis wird."
+                        : "Version 1 stays visible. Confirm which file is the evidence."}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(["revised", "original", "rejected"] as const).map((match) => (
+                        <button
+                          key={match}
+                          type="button"
+                          onClick={() => recordAttachmentMatch(active.id, match)}
+                          className={cn(
+                            "rounded-[8px] border px-3 py-1.5 text-[12px] font-medium",
+                            session.attachmentMatches[active.id] === match
+                              ? "border-[var(--color-brand-primary)] bg-[var(--color-tint-brand)]"
+                              : "border-[var(--color-border-default)]",
+                          )}
+                        >
+                          {match === "revised"
+                            ? (locale === "de" ? "Aktuelle Version verwenden" : "Use revised version")
+                            : match === "original"
+                              ? (locale === "de" ? "Original behalten" : "Keep original")
+                              : (locale === "de" ? "Zuordnung ablehnen" : "Reject match")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {active.kind === "clarification" && (
-                  <button
-                    type="button"
-                    className="text-[12px] font-semibold text-[var(--color-brand-primary)]"
-                    onClick={() => setClarification(locale === "de"
-                      ? "An alle Bieter, anonymisiert: Der Kraftstoffzuschlag folgt SRC-005. Die Prognose von 2.448 Sendungen ist keine Abnahmeverpflichtung."
-                      : "To all bidders, anonymised: the fuel surcharge follows SRC-005. The forecast of 2,448 shipments is not a volume commitment.")}
-                  >
-                    {locale === "de" ? "Anonymisierte Klarstellung an alle Bieter" : "Anonymised clarification to all bidders"}
-                  </button>
+                  <div className="space-y-2">
+                    <p className="text-[12px] text-[var(--color-text-secondary)]">
+                      {locale === "de"
+                        ? "Dies speichert eine Notiz für alle Bieter. Es wird keine Nachricht gesendet."
+                        : "This records a note for all bidders. It does not send a message."}
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded-[8px] border border-[var(--color-border-default)] px-3 py-1.5 text-[12px] font-semibold"
+                      onClick={() => patchSession({
+                        clarificationNote: locale === "de"
+                          ? "An alle Bieter, anonymisiert: Der Kraftstoffzuschlag folgt SRC-005. Die Prognose von 2.448 Sendungen ist keine Abnahmeverpflichtung."
+                          : "To all bidders, anonymised: the fuel surcharge follows SRC-005. The forecast of 2,448 shipments is not a volume commitment.",
+                      })}
+                    >
+                      {locale === "de" ? "Anonymisierte Klarstellung notieren" : "Record anonymised clarification"}
+                    </button>
+                    {session.clarificationNote && (
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">
+                        {locale === "de" ? "Notiz, nicht gesendet: " : "Recorded note, not sent: "}
+                        {session.clarificationNote}
+                      </p>
+                    )}
+                  </div>
                 )}
-                {clarification && <p className="text-[12px] text-[var(--color-text-secondary)]">{clarification}</p>}
               </div>
             )}
 
@@ -236,16 +310,24 @@ export function InboxPage() {
                 <button
                   type="button"
                   disabled={sent(active.id) || !checksPass}
-                  onClick={() => sendOutboundDraft(active.id)}
+                  onClick={() => sendOutboundDraft(active.id, {
+                    approverName: ACTIVE_USER.name,
+                    checks: checkKeys.filter((key) => checks[`${active.id}:${key}`]),
+                  })}
                   className="rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] disabled:opacity-50"
                 >
                   {sent(active.id) ? t("inbox.sent") : t("inbox.approveSend")}
                 </button>
+                {sent(active.id) && sendRecord && (
+                  <p className="text-[12px] text-[var(--color-text-secondary)]">
+                    {sendRecord.approverName} · {formatDateDMY(sendRecord.approvedAt)} · {sendRecord.rfpVersion} · {t("inbox.delivered")}
+                  </p>
+                )}
               </div>
             )}
           </section>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

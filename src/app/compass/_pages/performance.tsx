@@ -4,8 +4,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
-import { formatEur, formatFixed } from "../_i18n/currency"
-import { formatDateDMY } from "@/lib/compass/locale-display"
+import { formatFixed } from "../_i18n/currency"
+import { formatDateDMY, formatEurFigure } from "@/lib/compass/locale-display"
 import { enterMotion, pcmCard } from "../_components/motion"
 import { ACTIONS } from "@/lib/compass/logistics/expected/actions"
 import { CONTRACTS } from "@/lib/compass/logistics/structured/contracts"
@@ -16,7 +16,9 @@ import {
   incidentsFor,
   laneLabel,
   actualShipmentCount,
+  FORECAST_SHIPMENTS,
 } from "@/lib/compass/logistics/vendor-model"
+import { performanceBlock } from "@/lib/compass/logistics/session"
 
 export function PerformancePage() {
   const t = useT()
@@ -36,19 +38,28 @@ export function PerformancePage() {
   const lateShipments = SHIPMENTS.filter(
     (row) => row.supplierId === profile?.supplier.supplierId && row.onTimeDelivery === 0 && (row.month ?? "").slice(0, 7) <= (session.asOfMonth ?? "2026-09"),
   ).slice(0, 4)
-  const incidents = profile ? incidentsFor(profile.supplier.supplierId!) : []
-  const openActions = ACTIONS.filter(
-    (a) =>
-      (a.relatedEntity === profile?.supplier.supplierId || a.actionType === "Performance alert" || a.actionType === "Corrective action") &&
-      a.status !== "Closed",
-  )
+  const incidents = profile ? incidentsFor(profile.supplier.supplierId!, session.asOfMonth) : []
+  const performanceActions = ACTIONS.filter((a) => {
+    if (profile?.supplier.supplierId !== "SUP-001") return false
+    return a.actionId === "ACT-006" || a.actionId === "ACT-007"
+  })
+  const reviewRecord = session.actionRecords.find((r) => r.id === "ACT-006")
+  const reviewStarted = reviewRecord?.status === "assigned" || reviewRecord?.status === "accepted" || reviewRecord?.status === "closed"
   const hero = enterMotion(0)
+  const held = performanceBlock(session)
 
   return (
     <div className="space-y-6">
       <div className={hero.className} style={hero.style}>
         <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">{t("performance.title")}</h1>
-        <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{t("performance.subtitle", { shipments: actualShipmentCount(undefined, session.asOfMonth).toLocaleString("en-GB") })}</p>
+        <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+          {held
+            ? (locale === "de" ? held.de : held.en)
+            : t("performance.subtitle", {
+                shipments: actualShipmentCount(undefined, session.asOfMonth).toLocaleString("en-GB"),
+                forecast: FORECAST_SHIPMENTS.toLocaleString("en-GB"),
+              })}
+        </p>
         <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">
           {t("performance.asOf", { month: session.asOfMonth ?? "2026-09" })}
           {!session.performanceReleased ? ` · ${t("performance.postAward")}` : ""}
@@ -103,8 +114,8 @@ export function PerformancePage() {
                   const movement = currentScore && priorScore ? currentScore.total - priorScore.total : null
                   const late = lateShipments.length
                   return locale === "de"
-                    ? `Abweichung im Zeitraum ${session.asOfMonth}: OTD ${((latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% gegen Ziel. ${actualShipmentCount(profile.supplier.supplierId!, session.asOfMonth)} geprüfte Sendungen. Score ${currentScore ? formatFixed(currentScore.total, locale) : "—"}${movement !== null ? ` (${movement > 0 ? "+" : ""}${formatFixed(movement, locale)} gegenüber ${prior?.month?.slice(0, 7)})` : ""}. ${late} verspätete Sendungen und ${profile.incidents.length} Vorfälle in diesem Zeitraum. Die Prognose von 2.448 ist keine Ist-Menge.`
-                    : `Variance for ${session.asOfMonth}: OTD ${((latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% against target. ${actualShipmentCount(profile.supplier.supplierId!, session.asOfMonth)} verified shipments. Score ${currentScore ? formatFixed(currentScore.total, locale) : "—"}${movement !== null && prior ? ` (${movement > 0 ? "+" : ""}${formatFixed(movement, locale)} from ${prior.month?.slice(0, 7)})` : ""}. ${late} late shipments and ${profile.incidents.length} incidents in the selected period changed the latest month. The 2,448 figure is a sourcing forecast, not this total.`
+                    ? `Abweichung im Zeitraum ${session.asOfMonth}: OTD ${((latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% gegen Ziel. ${actualShipmentCount(profile.supplier.supplierId!, session.asOfMonth).toLocaleString("de-DE")} Sendungen dieses Anbieters im Zeitraum. Score ${currentScore ? formatFixed(currentScore.total, locale) : "—"}${movement !== null ? ` (${movement > 0 ? "+" : ""}${formatFixed(movement, locale)} gegenüber ${prior?.month?.slice(0, 7)})` : ""}. ${late} verspätete Sendungen und ${profile.incidents.length} Vorfälle in diesem Zeitraum. Die Prognose von ${FORECAST_SHIPMENTS.toLocaleString("de-DE")} ist keine Ist-Menge.`
+                    : `Variance for ${session.asOfMonth}: OTD ${((latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% against target. ${actualShipmentCount(profile.supplier.supplierId!, session.asOfMonth).toLocaleString("en-GB")} ${profile.supplier.supplierName ?? "carrier"} period shipments. Score ${currentScore ? formatFixed(currentScore.total, locale) : "—"}${movement !== null && prior ? ` (${movement > 0 ? "+" : ""}${formatFixed(movement, locale)} from ${prior.month?.slice(0, 7)})` : ""}. ${late} late shipments and ${profile.incidents.length} incidents in the selected period. The sourcing forecast is ${FORECAST_SHIPMENTS.toLocaleString("en-GB")} shipments, not this total.`
                 })()}
               </p>
             )}
@@ -135,7 +146,15 @@ export function PerformancePage() {
 
           <section className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
             <div className="border-b border-[var(--color-border-default)] px-5 py-3">
-              <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("performance.trend")}</h3>
+              <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                {profile.months.length === 12
+                  ? t("performance.trend")
+                  : t("performance.trendPeriod", {
+                      count: profile.months.length,
+                      from: profile.months[0]?.month?.slice(0, 7) ?? "—",
+                      to: profile.months[profile.months.length - 1]?.month?.slice(0, 7) ?? session.asOfMonth,
+                    })}
+              </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
@@ -184,98 +203,146 @@ export function PerformancePage() {
             </section>
             <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
               <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("performance.corrective")}</h3>
-              {openActions.length === 0 ? (
+              {performanceActions.length === 0 ? (
                 <p className="text-[12px] text-[var(--color-text-muted)]">{t("performance.noActions")}</p>
               ) : (
-                openActions.map((a) => {
+                performanceActions
+                  .filter((a) => a.actionId === "ACT-006" || (reviewStarted && session.performanceReleased))
+                  .map((a) => {
                   const record = session.actionRecords.find((r) => r.id === a.actionId)
+                  const status = record?.status ?? "open"
+                  const statusLabel = status === "assigned"
+                    ? (locale === "de" ? "Zugeordnet" : "Assigned")
+                    : status === "dismissed"
+                      ? (locale === "de" ? "Zurückgewiesen" : "Dismissed")
+                      : status === "closed"
+                        ? (locale === "de" ? "Geschlossen" : "Closed")
+                        : (locale === "de" ? "Offen" : "Open")
                   return (
-                  <div key={a.actionId} className="rounded-[10px] border border-[var(--color-border-default)] px-3 py-2">
-                    <p className="text-[12px] font-medium text-[var(--color-text-primary)]">{a.title}</p>
+                  <div key={a.actionId} className={cn("rounded-[10px] border px-3 py-2", a.actionId === "ACT-006" ? "border-[var(--color-brand-primary)]" : "border-[var(--color-border-default)]")}>
+                    <p className="text-[12px] font-medium text-[var(--color-text-primary)]">{a.recommendedAction}</p>
                     <p className="text-[11px] text-[var(--color-text-secondary)]">
-                      {a.actionId} · {record?.owner ?? a.owner} · {formatDateDMY(a.dueDate)} · {record?.status ?? a.status}
+                      {a.title} · {a.actionId} · {statusLabel}
+                      {record ? ` · ${record.owner} · ${formatDateDMY(record.dueDate)}` : ""}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{a.recommendedAction}</p>
-                    {editingId === a.actionId && (
-                      <div className="mt-2 space-y-1">
-                        <input
-                          value={draftNotes}
-                          onChange={(e) => setDraftNotes(e.target.value)}
-                          placeholder={locale === "de" ? "Notiz" : "Notes"}
-                          className="w-full rounded border border-[var(--color-border-default)] px-2 py-1 text-[11px]"
-                        />
-                        <input
-                          value={draftEvidence}
-                          onChange={(e) => setDraftEvidence(e.target.value)}
-                          placeholder={locale === "de" ? "Abschlussnachweis" : "Closure evidence"}
-                          className="w-full rounded border border-[var(--color-border-default)] px-2 py-1 text-[11px]"
-                        />
-                        <button
-                          type="button"
-                          className="text-[11px] font-semibold text-[var(--color-brand-primary)]"
-                          onClick={() => patchSession({
-                            actionRecords: [
-                              ...session.actionRecords.filter((r) => r.id !== a.actionId),
-                              {
-                                id: a.actionId!,
-                                status: "edited",
-                                owner: record?.owner ?? a.owner ?? "Supplier Manager",
-                                dueDate: record?.dueDate ?? a.dueDate ?? "",
-                                rationale: a.trigger ?? "",
-                                notes: draftNotes,
-                                closureEvidence: draftEvidence || undefined,
-                              },
-                            ],
-                          })}
-                        >
-                          {locale === "de" ? "Notiz speichern" : "Save note"}
-                        </button>
-                      </div>
+                    {record?.rationale && status === "dismissed" && (
+                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{record.rationale}</p>
                     )}
                     {record?.closureEvidence && (
                       <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{record.closureEvidence}</p>
                     )}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {(["accepted", "edited", "dismissed", "assigned", "closed"] as const).map((status) => (
+                    {a.actionId === "ACT-006" && status === "open" && (
+                      <div className="mt-2 space-y-2">
                         <button
-                          key={status}
                           type="button"
-                          className="text-[11px] font-semibold text-[var(--color-brand-primary)]"
+                          disabled={!session.performanceReleased}
                           onClick={() => {
-                            if (status === "edited") {
-                              setEditingId(a.actionId ?? null)
-                              setDraftNotes(record?.notes ?? "")
-                              return
-                            }
-                            if (status === "closed") {
-                              setEditingId(a.actionId ?? null)
-                              setDraftEvidence(record?.closureEvidence ?? "")
-                            }
                             patchSession({
+                              caAssigned: true,
                               actionRecords: [
-                                ...session.actionRecords.filter((r) => r.id !== a.actionId),
+                                ...session.actionRecords.filter((r) => r.id !== "ACT-006"),
                                 {
-                                  id: a.actionId!,
-                                  status,
-                                  owner: record?.owner ?? a.owner ?? "Supplier Manager",
-                                  dueDate: record?.dueDate ?? a.dueDate ?? "",
+                                  id: "ACT-006",
+                                  status: "assigned",
+                                  owner: a.owner ?? "Logistics Procurement Lead",
+                                  dueDate: a.dueDate ?? "2026-09-25",
                                   rationale: a.trigger ?? "",
-                                  notes: record?.notes ?? "",
-                                  closureEvidence: status === "closed" ? (draftEvidence || record?.closureEvidence) : record?.closureEvidence,
+                                  notes: "Supplier performance review initiated.",
                                 },
                               ],
                             })
                           }}
+                          className="rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] disabled:opacity-50"
                         >
-                          {status}
+                          {locale === "de" ? "Lieferanten-Leistungsprüfung starten" : "Initiate supplier performance review"}
                         </button>
-                      ))}
-                      {a.actionId === "ACT-007" && (
-                        <button type="button" className="text-[11px] font-semibold" onClick={() => openInbox("EML-011")}>
+                        {!session.performanceReleased && (
+                          <p className="text-[11px] text-[var(--color-text-muted)]">
+                            {locale === "de" ? "Verfügbar, sobald der Betriebszeitraum freigegeben ist." : "Available after the operating period is released."}
+                          </p>
+                        )}
+                        {session.performanceReleased && (
+                          <button
+                            type="button"
+                            className="block text-[11px] font-semibold text-[var(--color-text-secondary)]"
+                            onClick={() => setEditingId(editingId === "dismiss-ACT-006" ? null : "dismiss-ACT-006")}
+                          >
+                            {locale === "de" ? "Mit Begründung zurückweisen" : "Dismiss with rationale"}
+                          </button>
+                        )}
+                        {editingId === "dismiss-ACT-006" && (
+                          <div className="space-y-1">
+                            <input
+                              value={draftNotes}
+                              onChange={(e) => setDraftNotes(e.target.value)}
+                              placeholder={locale === "de" ? "Begründung" : "Rationale"}
+                              className="w-full rounded border border-[var(--color-border-default)] px-2 py-1 text-[11px]"
+                            />
+                            <button
+                              type="button"
+                              disabled={draftNotes.trim().length < 8}
+                              className="text-[11px] font-semibold text-[var(--color-brand-primary)] disabled:opacity-50"
+                              onClick={() => {
+                                patchSession({
+                                  actionRecords: [
+                                    ...session.actionRecords.filter((r) => r.id !== "ACT-006"),
+                                    {
+                                      id: "ACT-006",
+                                      status: "dismissed",
+                                      owner: a.owner ?? "Logistics Procurement Lead",
+                                      dueDate: a.dueDate ?? "",
+                                      rationale: draftNotes.trim(),
+                                      notes: "",
+                                    },
+                                  ],
+                                })
+                                setEditingId(null)
+                              }}
+                            >
+                              {locale === "de" ? "Zurückweisung speichern" : "Save dismissal"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {a.actionId === "ACT-007" && session.performanceReleased && reviewStarted && status !== "closed" && (
+                      <div className="mt-2 space-y-2">
+                        <button type="button" className="rounded-[8px] border border-[var(--color-border-default)] px-3 py-1.5 text-[12px] font-semibold" onClick={() => openInbox("EML-011")}>
                           {locale === "de" ? "Deutschen Entwurf prüfen" : "Review German draft"}
                         </button>
-                      )}
-                    </div>
+                        {session.correctiveDraftApproved && (
+                          <div className="space-y-1">
+                            <input
+                              value={draftEvidence}
+                              onChange={(e) => setDraftEvidence(e.target.value)}
+                              placeholder={locale === "de" ? "Abschlussnachweis" : "Closure evidence"}
+                              className="w-full rounded border border-[var(--color-border-default)] px-2 py-1 text-[11px]"
+                            />
+                            <button
+                              type="button"
+                              disabled={draftEvidence.trim().length < 8}
+                              className="text-[11px] font-semibold text-[var(--color-brand-primary)] disabled:opacity-50"
+                              onClick={() => patchSession({
+                                actionRecords: [
+                                  ...session.actionRecords.filter((r) => r.id !== "ACT-007"),
+                                  {
+                                    id: "ACT-007",
+                                    status: "closed",
+                                    owner: a.owner ?? "Supplier Manager",
+                                    dueDate: a.dueDate ?? "",
+                                    rationale: a.trigger ?? "",
+                                    notes: record?.notes ?? "",
+                                    closureEvidence: draftEvidence.trim(),
+                                  },
+                                ],
+                              })}
+                            >
+                              {locale === "de" ? "Mit Nachweis schließen" : "Close with evidence"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   )
                 })
@@ -300,7 +367,7 @@ export function PerformancePage() {
               )}
               {session.createdContracts.length > 0 && (
                 <p className="text-[11px] text-[var(--color-text-secondary)]">
-                  {t("performance.newBaseline")} {session.createdContracts.map((c) => c.contractId).join(", ")} · {formatEur(session.createdContracts.reduce((s, c) => s + c.contractValueEur, 0), locale)}
+                  {t("performance.newBaseline")} {session.createdContracts.map((c) => c.contractId).join(", ")} · {formatEurFigure(session.createdContracts.reduce((s, c) => s + c.contractValueEur, 0), locale === "de" ? "de" : "en")}
                 </p>
               )}
             </section>
@@ -311,10 +378,10 @@ export function PerformancePage() {
               <h3 className="text-[15px] font-semibold">{locale === "de" ? "Verlängerung" : "Renewal"}</h3>
               <dl className="grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ablauf" : "Expiry"}</dt><dd>{awardedBaseline?.endDate ?? contract?.endDate ?? "31 December 2026"} · {awardedBaseline?.renewalTerms ?? "120-day notice"}</dd></div>
-                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ist gegen Zuschlag" : "Actual versus awarded"}</dt><dd>OTD {((profile.latest?.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% / {((awardedBaseline?.otdTarget ?? contract?.otdTarget ?? 0) * 100).toFixed(1)}% · {formatEur(awardedBaseline?.contractValueEur ?? contract?.contractValueEur ?? 0, locale)}</dd></div>
+                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ist gegen Zuschlag" : "Actual versus awarded"}</dt><dd>OTD {((profile.latest?.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% / {((awardedBaseline?.otdTarget ?? contract?.otdTarget ?? 0) * 100).toFixed(1)}% · {formatEurFigure(awardedBaseline?.contractValueEur ?? contract?.contractValueEur ?? 0, locale === "de" ? "de" : "en")}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Trend" : "Trend"}</dt><dd>{profile.latest?.trendFlag ?? "—"} · {profile.months.length} {locale === "de" ? "Monate bis" : "months through"} {session.asOfMonth}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Vorfälle" : "Incidents"}</dt><dd>{profile.incidents.length}</dd></div>
-                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Maßnahmen" : "Actions"}</dt><dd>{openActions.filter((a) => (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "closed" && (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "dismissed").length} {locale === "de" ? "offen" : "still open"}</dd></div>
+                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Maßnahmen" : "Actions"}</dt><dd>{performanceActions.filter((a) => (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "closed" && (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "dismissed").length} {locale === "de" ? "offen" : "still open"}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Lücke" : "Gap"}</dt><dd>{(profile.latest?.onTimeDeliveryPct ?? 1) < (awardedBaseline?.otdTarget ?? contract?.otdTarget ?? 0) ? (locale === "de" ? "OTD unter dem zugesagten Ziel" : "OTD below the awarded target") : (locale === "de" ? "Keine offene KPI-Lücke" : "No open KPI gap")}</dd></div>
                 <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nächster Schritt" : "Recommended next step"}</dt><dd>{locale === "de" ? "Neuausschreibung mit geprüfter Historie vorbereiten. Das kaufmännische Ergebnis wird nicht automatisch entschieden." : "Prepare a re-tender with verified history. The commercial outcome is not decided automatically."}</dd></div>
               </dl>

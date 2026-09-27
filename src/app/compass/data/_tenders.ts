@@ -112,11 +112,11 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     submissionDeadline: "2026-12-31",
     openedAt: "2024-10-01",
     bidders: 1,
-    narrative: "CON-2024-02 with NorthBridge Freight Ltd also ends 31 December 2026. NorthBridge is the strongest incumbent on service score and is a candidate in the dual-award scenario (35%) alongside AlpineLink.",
+    narrative: "CON-2024-02 with NorthBridge Freight Ltd also ends 31 December 2026. Treat the expiry with CON-2024-01 as one sourcing need. No award scenario has been chosen.",
     risk: "Notice window is the same as CON-2024-01 — treat as one sourcing event, not two isolated tenders.",
     evidence: [
       "Contract value €3.08m; OTD target 97.5%.",
-      "Evaluation rank 3; include in dual-award scenario AWD-02.",
+      "SRC-009 existing-contract extract. Award scenarios are not available until bids are confirmed.",
     ],
     valueType: "protection",
   },
@@ -165,7 +165,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     risk: "Without an assigned owner and deadline the deterioration becomes evaluation evidence and a renewal driver.",
     evidence: [
       "ACT-007 corrective-action draft; CAP-001.",
-      "Linked to ACT-006 performance alert and twelve-month OTD series.",
+      "Linked to ACT-006 performance alert and the OTD series through the reporting date.",
     ],
     valueType: "protection",
   },
@@ -189,7 +189,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     risk: "Re-using unverified or post-award rumour as history would bias the next evaluation.",
     evidence: [
       "Awarded contract baseline copied from the 2027 dual award without re-keying SLA targets.",
-      "Incumbent scores require twelve complete months of verified execution.",
+      "Incumbent scores use the published monthly total, calculation v1.2, for the months through the reporting date.",
     ],
     valueType: "creation",
   },

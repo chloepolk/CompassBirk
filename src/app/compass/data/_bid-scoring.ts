@@ -64,6 +64,7 @@ export interface BidEvaluationResult {
   compositeScore: number | null
   finalRank: number | null
   highCommercialRisk: boolean
+  historyLabel: "No History" | "Available"
   warrantyMonths: number
   fatNoticeDays: number
   insight: string
@@ -83,11 +84,18 @@ function evaluateGates(bid: BidInput): GateId[] {
 }
 
 /** Logistics method inputs. History is not a weighted component. */
+const HISTORY_BY_BID: Record<string, "No History" | "Available"> = {
+  "bid-rheinroute": "Available",
+  "bid-northbridge": "Available",
+  "bid-alpinelink": "No History",
+  "bid-veloce": "No History",
+}
+
 const LOGISTICS_PROFILE: Record<string, { lanes: number; service: number; visibility: number; sustainability: number; evidenceMissing?: boolean }> = {
   "bid-rheinroute": { lanes: 18, service: 22, visibility: 13, sustainability: 8 },
   "bid-northbridge": { lanes: 15, service: 24, visibility: 15, sustainability: 9 },
   "bid-alpinelink": { lanes: 18, service: 20, visibility: 12, sustainability: 7 },
-  "bid-veloce": { lanes: 12, service: 16, visibility: 8, sustainability: 5, evidenceMissing: true },
+  "bid-veloce": { lanes: 18, service: 16, visibility: 8, sustainability: 5 },
 }
 
 function logisticsProfile(bid: BidInput) {
@@ -163,7 +171,8 @@ export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvalua
         sustainabilityScore: null,
         compositeScore: null,
         finalRank: null,
-        highCommercialRisk: false,
+        highCommercialRisk: gateFailures.includes("iso9001"),
+        historyLabel: HISTORY_BY_BID[bid.id] ?? "No History",
         warrantyMonths: bid.warrantyMonths,
         fatNoticeDays: bid.fatNoticeDays,
         insight: bid.insight,
@@ -197,6 +206,7 @@ export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvalua
       compositeScore,
       finalRank: null as number | null,
       highCommercialRisk,
+      historyLabel: HISTORY_BY_BID[bid.id] ?? "No History",
       warrantyMonths: bid.warrantyMonths,
       fatNoticeDays: bid.fatNoticeDays,
       insight: bid.insight,

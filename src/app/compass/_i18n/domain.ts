@@ -83,7 +83,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
       "Ohne zugewiesene Person und Frist wird die Verschlechterung zur Bewertungsevidenz und zum Erneuerungstreiber.",
     evidence: [
       "Korrekturmaßnahmenentwurf ACT-007; CAP-001.",
-      "Verknüpft mit Leistungswarnung ACT-006 und der Zwölf-Monats-Pünktlichkeitsserie.",
+      "Verknüpft mit Leistungswarnung ACT-006 und der Pünktlichkeitsserie bis zum Stichtag.",
     ],
   },
   "PKG-REN-001": {
@@ -95,7 +95,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
       "Die Wiederverwendung ungeprüfter oder nachträglicher Gerüchte als Historie würde die nächste Bewertung verzerren.",
     evidence: [
       "Zuschlags-Vertragsbaseline aus dem Dual Award 2027 ohne erneute SLA-Erfassung übernommen.",
-      "Incumbent-Scores erfordern zwölf vollständige Monate geprüfter Ausführung.",
+      "Incumbent-Scores nutzen die veröffentlichte Monatssumme, Berechnung v1.2, für die Monate bis zum Stichtag.",
     ],
   },
 }

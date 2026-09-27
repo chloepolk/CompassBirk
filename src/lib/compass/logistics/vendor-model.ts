@@ -102,18 +102,21 @@ export function computeScore(latest: Performance | null, monthCount: number): Ve
   const commercial = latest.commercialScore ?? 0
   const sla = latest.slaScore ?? 0
   const relationship = latest.relationshipScore ?? 0
-  const total =
+  const weighted =
     operational * SCORE_WEIGHTS.operational +
     commercial * SCORE_WEIGHTS.commercial +
     sla * SCORE_WEIGHTS.sla +
     relationship * SCORE_WEIGHTS.relationship
+  // The monthly extract is the published score. Re-rounding the weighted parts
+  // drifts by a tenth (EuroSpan August 2026 is 96.2 in v1.2, not 96.1).
+  const total = latest.overallScore ?? Math.round(weighted * 10) / 10
   return {
     operational,
     commercial,
     sla,
     relationship,
-    total: Math.round(total * 10) / 10,
-    method: "Operational 40% · Commercial 25% · Contract/SLA 20% · Relationship 15%. Latest complete month. Twelve months of verified execution required.",
+    total,
+    method: "Operational 40% · Commercial 25% · Contract/SLA 20% · Relationship 15%. Calculation v1.2 uses the published monthly total. The selected period is the months through the reporting date.",
   }
 }
 

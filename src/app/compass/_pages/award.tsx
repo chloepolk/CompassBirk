@@ -4,28 +4,30 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
-import { formatEur } from "../_i18n/currency"
+import { formatEurFigure } from "@/lib/compass/locale-display"
 import { pcmCard } from "../_components/motion"
-import { ACTIVE_USER } from "../_components/hub/active-user"
+import { NOTIFY_DELEGATE } from "../_components/hub/active-user"
 import { AWARD_SCENARIOS, scenarioById } from "@/lib/compass/logistics/award-scenarios"
-import { journeyIndex } from "@/lib/compass/logistics/session"
+import { awardBlock, journeyIndex } from "@/lib/compass/logistics/session"
 
 export function AwardPage() {
   const t = useT()
   const { locale, session, confirmAward, retreatJourney, openBidEvaluation, patchSession } = useStore()
-  const selected = scenarioById(session.selectedScenarioId ?? "AWD-02")
+  const selected = session.selectedScenarioId ? scenarioById(session.selectedScenarioId) : null
+  const money = (n: number) => formatEurFigure(n, locale === "de" ? "de" : "en")
   const [rationale, setRationale] = React.useState("")
   const [overrideOn, setOverrideOn] = React.useState(false)
   const [notice, setNotice] = React.useState<string | null>(null)
   const pending = session.journeyStep === "s6" || session.awardPending
   const approved = journeyIndex(session.journeyStep) >= 7
+  const held = awardBlock(session)
 
   const approve = () => {
     if (overrideOn && rationale.trim().length < 8) {
       setNotice(locale === "de" ? "Eine Begründung ist erforderlich." : "A rationale is required.")
       return
     }
-    confirmAward("PKG-RFP-001", { name: ACTIVE_USER.name, role: ACTIVE_USER.role }, {
+    confirmAward("PKG-RFP-001", { name: NOTIFY_DELEGATE.name, role: NOTIFY_DELEGATE.role }, {
       comment: rationale.trim(),
       overrideReason: overrideOn ? rationale.trim() : null,
     })
@@ -63,24 +65,41 @@ export function AwardPage() {
             : "Named approval for RFP-2026-001. No award is recorded before this approval."}
         </p>
         <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">
-          {locale === "de" ? "Freigebende Person" : "Approver"}: {ACTIVE_USER.name} · {ACTIVE_USER.role}
+          {locale === "de" ? "Freigebende Person" : "Approver"}: {NOTIFY_DELEGATE.name} · {NOTIFY_DELEGATE.role}
         </p>
+        {selected && (
+          <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+            {locale === "de"
+              ? `Herkunft: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"} · ${selected.id}. Die Empfehlung erzeugt den Zuschlag nicht.`
+              : `Lineage: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"} · ${selected.id}. The recommendation does not create the award.`}
+          </p>
+        )}
       </div>
 
-      {!pending && !approved && (
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          {locale === "de"
-            ? "Eine Empfehlung liegt noch nicht zur Freigabe vor."
-            : "A recommendation is not yet waiting for approval."}
+      {held && (
+        <p className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[13px] text-[var(--color-text-secondary)]">
+          {locale === "de" ? held.de : held.en}
         </p>
       )}
 
+      {!selected && (
+        <button
+          type="button"
+          onClick={() => openBidEvaluation("PKG-RFP-001")}
+          className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
+        >
+          {locale === "de" ? "Szenario in der Angebotsbewertung wählen" : "Choose a scenario in Bid Evaluation"}
+        </button>
+      )}
+
+      {selected && (
+      <>
       <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-3")}>
         <h2 className="text-[16px] font-semibold">{selected.title}</h2>
         <p className="text-[13px] text-[var(--color-text-secondary)]">{selected.why}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {[
-            [locale === "de" ? "Kosten" : "Cost", formatEur(selected.costEur, locale)],
+            [locale === "de" ? "Kosten" : "Cost", money(selected.costEur)],
             [locale === "de" ? "Service" : "Service", selected.service],
             [locale === "de" ? "Kapazität" : "Capacity", selected.capacity],
             [locale === "de" ? "Konzentration" : "Concentration", selected.concentration],
@@ -110,6 +129,8 @@ export function AwardPage() {
           </div>
         ))}
       </section>
+      </>
+      )}
 
       {session.approvalTrace && (
         <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 text-[12px] text-[var(--color-text-secondary)]")}>
@@ -150,7 +171,7 @@ export function AwardPage() {
               {session.createdContracts.map((c) => (
                 <div key={c.contractId} className="rounded-[12px] border border-[var(--color-border-default)] px-4 py-3 text-[12px]">
                   <p className="font-medium">{c.contractTitle}</p>
-                  <p>{c.contractId} · {formatEur(c.contractValueEur, locale)} · OTD {(c.otdTarget * 100).toFixed(1)}%</p>
+                  <p>{c.contractId} · {money(c.contractValueEur)} · OTD {(c.otdTarget * 100).toFixed(1)}%</p>
                   <p className="text-[var(--color-text-muted)]">{c.startDate} – {c.endDate} · {c.rateBasis ?? "Lane rates from selected scenario"} · {c.renewalTerms ?? "120-day notice"}</p>
                 </div>
               ))}

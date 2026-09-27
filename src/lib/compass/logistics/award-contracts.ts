@@ -1,5 +1,6 @@
 import { CONTRACTS } from "./structured/contracts"
 import { SUPPLIERS } from "./structured/suppliers"
+import { BID_RATES } from "./structured/bid-rates"
 import type { SessionContract } from "./session"
 import { scenarioById } from "./award-scenarios"
 
@@ -27,6 +28,10 @@ export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001", scenarioI
   return scenario.suppliers.map(({ supplierId, valueEur }) => {
     const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
     const sla = slaFrom(supplierId)
+    const rates = BID_RATES.filter((row) => row.supplierId === supplierId && row.laneId && row.rateEurPerShipment != null)
+    const rateBasis = rates.length
+      ? `${rates.length} winning lane rates copied from ${rates[0]?.bidVersion ?? "the confirmed bid"}: ${rates.slice(0, 4).map((row) => `${row.laneId} EUR ${row.rateEurPerShipment}`).join(", ")}`
+      : "No lane rates on the winning bid"
     return {
       contractId: `CON-2027-${supplierId.slice(-3)}`,
       supplierId,
@@ -40,8 +45,8 @@ export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001", scenarioI
       claimsTargetMax: sla.claimsTargetMax,
       invoiceAccuracyTarget: sla.invoiceAccuracyTarget,
       status: "Awarded",
-      lanes: ["18 European lanes"],
-      rateBasis: "Confirmed current rate-card version, EUR, SRC-005 fuel formula",
+      lanes: rates.map((row) => row.laneId!).filter(Boolean),
+      rateBasis,
       capacityNote: scenario.capacity,
       renewalTerms: "120-day notice; renewal uses verified execution only",
       scenarioId: scenario.id,

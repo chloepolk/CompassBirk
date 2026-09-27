@@ -80,7 +80,7 @@ const BODIES: Record<string, { en: string; de: string; kind: InboxKind; directio
     kind: "invitation",
     affectsBids: false,
     en: "You are invited to respond to RFP-2026-001, European Road Freight Services 2027. Eighteen lanes; 2,448 forecast shipments; SLA in SRC-002. Rate card template attached. Responses close 23 October 2026.",
-    de: "Sie sind eingeladen, auf RFP-2026-001, Europäische Straßengüterverkehre 2027, zu antworten. Achtzehn Relationen; 2.448 prognostizierte Sendungen; SLA gemäß SRC-002. Preistabelle im Anhang. Frist 23. Oktober 2026.",
+    de: "Sie sind eingeladen, auf RFP-2026-001, Europäische Straßentransporte 2027, zu antworten. Achtzehn Relationen; 2.448 prognostizierte Sendungen; SLA gemäß SRC-002. Preistabelle im Anhang. Frist 23. Oktober 2026.",
   },
   "EML-002": {
     direction: "outbound",

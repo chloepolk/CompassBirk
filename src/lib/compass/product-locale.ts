@@ -11,7 +11,7 @@ export const FE_LOCALE_COOKIE_KEY = "fe-locale"
 
 export const FE_GLOSSARY = [
   "Action Centre",
-  "Tender Management",
+  "Sourcing Workspace",
   "Intelligence Panel",
   "Compass Logistics Procurement",
   "No History",

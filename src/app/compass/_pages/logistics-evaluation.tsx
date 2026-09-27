@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useStore } from "../_store"
 import { AWARD_SCENARIOS } from "@/lib/compass/logistics/award-scenarios"
-import { formatEur } from "../_i18n/currency"
+import { formatEurFigure } from "@/lib/compass/locale-display"
 
 const METHOD = [
   { name: "Normalised cost", weight: "30%", note: "Lane rate plus disclosed fuel surcharge, EUR. Original rate card stays attached." },
@@ -19,12 +19,23 @@ export function LogisticsEvaluationPanel() {
   const [scenarioId, setScenarioId] = React.useState(session.selectedScenarioId ?? "AWD-02")
   const [override, setOverride] = React.useState("")
   const [audit, setAudit] = React.useState<string[]>([])
+  const [notice, setNotice] = React.useState<string | null>(null)
   const selected = AWARD_SCENARIOS.find((s) => s.id === scenarioId) ?? AWARD_SCENARIOS[1]
+
+  React.useEffect(() => {
+    if (session.selectedScenarioId) setScenarioId(session.selectedScenarioId)
+  }, [session.selectedScenarioId])
 
   const recommend = () => {
     const originalScenarioId = "AWD-02"
     const rationale = override.trim()
-    if (scenarioId !== originalScenarioId && rationale.length < 8) return
+    if (scenarioId !== originalScenarioId && rationale.length < 8) {
+      setNotice(de
+        ? "Eine Abweichung wird erst gespeichert, wenn die Begründung mindestens 8 Zeichen hat."
+        : "An override is saved only after the rationale has at least 8 characters.")
+      return
+    }
+    setNotice(null)
     const entry = {
       at: new Date().toISOString(),
       originalScenarioId,
@@ -69,7 +80,7 @@ export function LogisticsEvaluationPanel() {
           <label key={s.id} className="flex cursor-pointer gap-2 rounded-[10px] border border-[var(--color-border-default)] px-3 py-2 text-[12px]">
             <input type="radio" name="scenario" checked={scenarioId === s.id} onChange={() => setScenarioId(s.id)} />
             <span>
-              <span className="font-medium">{s.title}</span> · {formatEur(s.costEur, locale)} · {s.service} · {s.capacity} · {s.concentration} · {s.transitionRisk} · {s.history}
+              <span className="font-medium">{s.title}</span> · {formatEurFigure(s.costEur, de ? "de" : "en")} · {s.service} · {s.capacity} · {s.concentration} · {s.transitionRisk} · {s.history}
               <span className="mt-0.5 block text-[var(--color-text-muted)]">{s.why} {s.id !== "AWD-02" ? s.whyNot : ""}</span>
             </span>
           </label>
@@ -85,9 +96,15 @@ export function LogisticsEvaluationPanel() {
         placeholder={de ? "Abweichung nur mit Begründung. Das Original bleibt im Prüfpfad." : "Override only with a rationale. The original recommendation stays in the audit history."}
         className="w-full rounded-[10px] border border-[var(--color-border-default)] px-3 py-2 text-[12px]"
       />
+      <p className="text-[11px] text-[var(--color-text-muted)]">
+        {de
+          ? `Herkunft: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"}. Incumbent-Score aus Vendor 360, Berechnung v1.2. Eine Empfehlung ist kein Zuschlag.`
+          : `Lineage: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"}. Incumbent history is the Vendor 360 score, calculation v1.2. A recommendation is not an award.`}
+      </p>
       <button type="button" onClick={recommend} className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white">
         {de ? "Empfehlung zur Freigabe" : "Recommend for approval"}
       </button>
+      {notice && <p className="text-[12px] text-[var(--color-accent-warning-text)]">{notice}</p>}
       {audit.length > 0 && (
         <ul className="text-[11px] text-[var(--color-text-muted)]">
           {audit.map((line) => <li key={line}>{line}</li>)}

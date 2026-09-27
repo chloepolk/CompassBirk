@@ -15,7 +15,7 @@ export const REPLAY: Replay[] = [
     internalCheckpointId: 0,
     checkpointName: "Foundation",
     prerequisiteBusinessAction: "Open prototype and select European road freight event",
-    fixtureEvidenceLoaded: "Suppliers, lanes, contracts, 12-month baseline",
+    fixtureEvidenceLoaded: "Suppliers, lanes, contracts, performance through the reporting date",
     expectedProductResponse: "Shows contract expiry, spend and sourcing opportunity",
     nextFixturePrecondition: "User selects Create sourcing event",
     customerUiVisibility: "Never",

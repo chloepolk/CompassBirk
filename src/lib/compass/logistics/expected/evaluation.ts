@@ -25,7 +25,7 @@ export const EVALUATION: Evaluation[] = [
     capacityScore: 100,
     implementationScore: 90,
     sustainabilityScore: 78,
-    vendorHistoryScore: 79,
+    vendorHistoryScore: 90,
     weightedScore: 89.9,
     rank: 2,
     recommendation: "Include in award scenario",

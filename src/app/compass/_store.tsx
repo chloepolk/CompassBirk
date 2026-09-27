@@ -22,6 +22,7 @@ import {
 import { TENDER_PACKAGES } from "./data/_tenders"
 import {
   DEFAULT_SESSION,
+  emptySession,
   loadSession,
   persistSession,
   applyReplayCheckpoint,
@@ -30,6 +31,7 @@ import {
   type LogisticsSession,
   type EmailClass,
   type JourneyStep,
+  SEND_CHECKS,
 } from "@/lib/compass/logistics/session"
 import { defaultAwardContracts } from "@/lib/compass/logistics/award-contracts"
 import type {
@@ -191,11 +193,11 @@ export interface AcmeDemoStore {
   focusMissionId: string | null
   setFocusMission: (id: string | null) => void
 
-  /** Session progress on tender packages (e.g. an ITT drafted in Tender Management
+  /** Session progress on tender packages (e.g. an ITT drafted in the Sourcing Workspace
    *  advances its package to the approval gate on the Action Centre). */
   tenderStages: Record<string, MissionStage>
   advanceTenderStage: (packageId: string, stage: MissionStage) => void
-  /** Package to preload when Tender Management opens (set by the board's Draft ITT action). */
+  /** Package to preload when the Sourcing Workspace opens (set by the board's Draft ITT action). */
   focusTenderId: string | null
   openTenderStudio: (packageId: string | null) => void
   /** Package to focus when Bid Evaluation opens (set by the board's Evaluate bids action). */
@@ -252,7 +254,8 @@ export interface AcmeDemoStore {
   openInbox: (emailId?: string | null) => void
   classifyEmail: (emailId: string) => void
   classifyInbox: (emailId: string, classification: EmailClass) => void
-  sendOutboundDraft: (emailId: string) => void
+  recordAttachmentMatch: (emailId: string, match: "original" | "revised" | "rejected") => void
+  sendOutboundDraft: (emailId: string, meta?: { approverName: string; checks: string[] }) => void
 
   /** Catalogue of completed ITT drafts (persisted across navigation and reloads). */
   draftedTenders: DraftedTender[]
@@ -371,7 +374,7 @@ function getPageContext(page: Page, locale: Locale): string {
   if (locale === "de") {
     switch (page) {
       case "operating-loop": return "Aktionszentrum — live Ausschreibungspipeline für europäische Straßengüterverkehre, in der Pakete fünf Tore durchlaufen (Scoped → Specified → Approved → Issued → Awarded)"
-      case "tender-studio": return "Ausschreibungsmanagement — Entwurf aus kontrollierten Logistikdokumenten"
+      case "tender-studio": return "Beschaffungsarbeitsbereich — Anforderungen, Quelldokumente, Bewertungsmethode und zitierte Ausschreibung"
       case "bid-evaluation": return "Angebotsbewertung — Trägerangebote mit Qualifikationstoren und gewichteter Bewertung"
       case "vendor-360": return "Lieferanten 360 — Beziehung, Ausgaben, Verträge und transparenter Score"
       case "performance": return "Leistung — Ist gegen vertragliche Baseline, Vorfälle und Korrekturmaßnahmen"
@@ -381,12 +384,12 @@ function getPageContext(page: Page, locale: Locale): string {
   }
   switch (page) {
     case "operating-loop": return "Action Centre — the live tender pipeline for European road-freight sourcing, where packages move through 5 gates (Scoped → Specified → Approved → Issued → Awarded), each with an accountable owner, bid deadline and value target"
-    case "tender-studio": return "Tender Management — the RFP drafting workspace: controlled logistics specifications, SLA, qualification and contract terms, plus the pipeline that assembles, reviews and renders a request for proposal"
+    case "tender-studio": return "Sourcing Workspace — requirements, source documents, the evaluation method and the cited RFP"
     case "bid-evaluation": return "Bid Evaluation — tabulated carrier returns with qualification gates (insurance, due diligence, data integration) and weighted scoring, including matrix, cards and award recommendations"
-    case "vendor-360": return "Vendor 360 — relationship, spend, contracts and a transparent score shown only when twelve months of verified execution exist"
+    case "vendor-360": return "Vendor 360 — relationship, spend, contracts and a transparent score from the months through the reporting date."
     case "performance": return "Performance — actual versus contractual baseline, trends, incidents and corrective actions"
     case "inbox": return "Supplier communications — classify inbound mail, quarantine unconfirmed bid evidence, and approve outbound drafts before send"
-    default: return "Compass Logistics Procurement workspace covering Action Centre, Tender Management, Bid Evaluation, Vendor 360, Performance and Inbox"
+    default: return "Compass Logistics Procurement workspace covering Action Centre, Sourcing Workspace, Bid Evaluation, Vendor 360, Performance and Inbox"
   }
 }
 
@@ -702,15 +705,18 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
 
   const [authenticated, setAuthenticated] = React.useState(false)
   const [session, setSession] = React.useState<LogisticsSession>(DEFAULT_SESSION)
+  const [sessionReady, setSessionReady] = React.useState(false)
   const [focusSupplierId, setFocusSupplierId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setSession(loadSession())
+    setSessionReady(true)
   }, [])
 
   React.useEffect(() => {
+    if (!sessionReady) return
     persistSession(session)
-  }, [session])
+  }, [session, sessionReady])
 
   const [state, setState] = React.useState<CockpitState>({
     activePage: "operating-loop",
@@ -1332,6 +1338,13 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
   }, [])
 
+  const releaseEvidence = (session: LogisticsSession): LogisticsSession => {
+    const bidIds = ["EML-007", "EML-008", "EML-009"]
+    const confirmed = bidIds.every((id) => session.emailClassifications[id] === "confirmed")
+    if (confirmed && session.attachmentMatches["EML-008"] === "revised") return advanceTo(session, "s5")
+    return session
+  }
+
   const classifyInbox = React.useCallback((emailId: string, classification: EmailClass) => {
     setSession(prev => {
       const emailClassifications = { ...prev.emailClassifications, [emailId]: classification }
@@ -1343,22 +1356,42 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
         emailClassifications,
         confirmedEvidenceIds: confirmedBids,
       }
-      if (confirmedBids.length === bidIds.length) {
-        next = advanceTo(next, "s5")
-      }
+      next = releaseEvidence(next)
       persistSession(next)
       return next
     })
   }, [])
 
-  const sendOutboundDraft = React.useCallback((emailId: string) => {
+  const recordAttachmentMatch = React.useCallback((emailId: string, match: "original" | "revised" | "rejected") => {
+    setSession(prev => {
+      let next: LogisticsSession = {
+        ...prev,
+        attachmentMatches: { ...prev.attachmentMatches, [emailId]: match },
+      }
+      next = releaseEvidence(next)
+      persistSession(next)
+      return next
+    })
+  }, [])
+
+  const sendOutboundDraft = React.useCallback((emailId: string, meta?: { approverName: string; checks: string[] }) => {
     setSession(prev => {
       if (prev.sentDraftIds.includes(emailId)) return prev
       const invitation = emailId === "EML-001" || emailId === "EML-002"
-      if (invitation && (!prev.rfpApproved || !prev.packageLocked)) return prev
+      if (invitation && (!prev.rfpApproved || !prev.rfpGenerated || !prev.packageLocked || !prev.rfpVersion)) return prev
+      if (invitation && !SEND_CHECKS.every((check) => meta?.checks.includes(check))) return prev
       let next: LogisticsSession = {
         ...prev,
         sentDraftIds: [...prev.sentDraftIds, emailId],
+        sendApprovals: invitation && meta && prev.rfpVersion
+          ? [...prev.sendApprovals, {
+              emailId,
+              approverName: meta.approverName,
+              approvedAt: new Date().toISOString(),
+              rfpVersion: prev.rfpVersion,
+              checks: meta.checks,
+            }]
+          : prev.sendApprovals,
       }
       const invitesSent = ["EML-001", "EML-002"].every((id) => next.sentDraftIds.includes(id))
       if (invitation && invitesSent) next = advanceTo(next, "s4")
@@ -1442,7 +1475,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const resetExtrasRef = React.useRef<() => void>(() => {})
 
   const resetSession = React.useCallback(() => {
-    const next = { ...DEFAULT_SESSION }
+    const next = emptySession()
     persistSession(next)
     setSession(next)
     setTenderStages({})
@@ -1463,7 +1496,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   }, [])
 
   const applyOperatorCheckpoint = React.useCallback((checkpoint: number) => {
-    const next = { ...DEFAULT_SESSION, ...applyReplayCheckpoint(checkpoint) }
+    const next = { ...emptySession(), ...applyReplayCheckpoint(checkpoint) }
     persistSession(next)
     setSession(next)
     if (checkpoint >= 6) {
@@ -1678,6 +1711,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       openInbox,
       classifyEmail,
       classifyInbox,
+      recordAttachmentMatch,
       sendOutboundDraft,
       draftedTenders,
       saveDraftedTender,
@@ -1693,7 +1727,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       appliedTenderQtyByPackage,
       applyResidualToTender,
     }),
-    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, advanceJourney, retreatJourney, openAward, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, classifyEmail, classifyInbox, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
+    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, advanceJourney, retreatJourney, openAward, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, classifyEmail, classifyInbox, recordAttachmentMatch, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
   )
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

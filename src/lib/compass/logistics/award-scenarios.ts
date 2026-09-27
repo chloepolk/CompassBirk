@@ -55,7 +55,7 @@ export const AWARD_SCENARIOS: AwardScenario[] = [
     service: "Verified OTD below the 98% target",
     capacity: "Known network, weaker recent execution",
     concentration: "100% incumbent",
-    history: "Twelve-month score available and visible",
+    history: "August 2026 score available and visible",
     transitionRisk: "Low",
     assumptions: "Uses confirmed rate card v2.",
     exceptions: "Performance exception remains open.",

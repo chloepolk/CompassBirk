@@ -42,7 +42,7 @@ export const BIDS_RFP_2026_001: BidInput[] = [
     acceptsStandardWarranty: true,
     pdfPath: null,
     insight:
-      "Incumbent; full 18-lane coverage; revised rate card accepted as version 2. Vendor history is available (score 79) and is an approved evidence source, not an automatic preference.",
+      "Incumbent; full 18-lane coverage; revised rate card accepted as version 2. History uses the August 2026 Vendor 360 score, not a copied bid value.",
   },
   {
     id: "bid-northbridge",
@@ -96,7 +96,7 @@ export const BIDS_RFP_2026_001: BidInput[] = [
     acceptsStandardWarranty: true,
     pdfPath: null,
     insight:
-      "Evidence missing: the cargo insurance certificate is not on the return. Not ranked, and not treated as a scored fail. Challenger remains No History.",
+      "Disqualified: cargo insurance is below the mandatory EUR 5 million. Not ranked and not scored as zero. Challenger remains No History.",
   },
 ]
 

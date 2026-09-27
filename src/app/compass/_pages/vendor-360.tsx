@@ -4,13 +4,13 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
-import { formatEur, formatFixed } from "../_i18n/currency"
+import { formatFixed } from "../_i18n/currency"
+import { formatEurFigure } from "@/lib/compass/locale-display"
 import { formatDateDMY } from "@/lib/compass/locale-display"
 import { enterMotion, pcmCard } from "../_components/motion"
 import {
   allVendorProfiles,
   SCORE_WEIGHTS,
-  MIN_EVIDENCE_MONTHS,
   type VendorProfile,
 } from "@/lib/compass/logistics/vendor-model"
 
@@ -74,7 +74,7 @@ function VendorCard({
         )}
       </div>
       <p className="mt-2 text-[12px] text-[var(--color-text-secondary)]">
-        {t("vendor.spend")} {formatEur(profile.supplier.annualSpendEur ?? 0, locale)}
+        {t("vendor.spend")} {formatEurFigure(profile.supplier.annualSpendEur ?? 0, locale === "de" ? "de" : "en")}
       </p>
     </button>
   )
@@ -82,7 +82,7 @@ function VendorCard({
 
 export function Vendor360Page() {
   const t = useT()
-  const { locale, focusSupplierId, session } = useStore()
+  const { locale, focusSupplierId, openPerformance, session } = useStore()
   const profiles = React.useMemo(() => allVendorProfiles(session.createdContracts, session.asOfMonth), [session.createdContracts, session.asOfMonth])
   const [activeId, setActiveId] = React.useState(focusSupplierId ?? profiles[0]?.supplier.supplierId ?? "SUP-001")
 
@@ -98,9 +98,16 @@ export function Vendor360Page() {
   const scoreDetail = (key: string) => {
     const month = profile?.latest?.month ?? "—"
     const target = key === "sla" ? "OTD 98%" : key === "operational" ? "shipment records" : key === "commercial" ? "invoice accuracy" : "relationship history"
+    const component = key === "operational"
+      ? profile?.latest?.operationalScore
+      : key === "commercial"
+        ? profile?.latest?.commercialScore
+        : key === "sla"
+          ? profile?.latest?.slaScore
+          : profile?.latest?.relationshipScore
     return locale === "de"
-      ? `Quelle: Monatsleistung ${month}. Ziel ${target}. Formelanteil im gewichteten Gesamtwert. Ausgewählter Zeitraum ${profile?.months.length ?? 0} Monate. Nachweis ${profile?.evidenceMonths ?? 0}/${MIN_EVIDENCE_MONTHS}.`
-      : `Source: monthly performance ${month}. Target ${target}. Weight is the share of the total. Selected period ${profile?.months.length ?? 0} months. Evidence on record ${profile?.evidenceMonths ?? 0}/${MIN_EVIDENCE_MONTHS}.`
+      ? `Quelle: Monatsauszug v1.2 · ${profile?.supplier.supplierId ?? "—"} · ${month}. Komponente ${component ?? "—"}. Ziel ${target}. Berechnung v1.2 verwendet den veröffentlichten Gesamtwert, nicht eine neu gerundete Summe.`
+      : `Source: monthly extract v1.2 · ${profile?.supplier.supplierId ?? "—"} · ${month}. Component ${component ?? "—"}. Target ${target}. Calculation v1.2 uses the published total, not a re-rounded sum.`
   }
 
   return (
@@ -146,7 +153,7 @@ export function Vendor360Page() {
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{t("vendor.spend")}</p>
                   <p className="mt-0.5 text-[13px] font-medium tabular-nums text-[var(--color-text-primary)]">
-                    {formatEur(profile.supplier.annualSpendEur ?? 0, locale)}
+                    {formatEurFigure(profile.supplier.annualSpendEur ?? 0, locale === "de" ? "de" : "en")}
                   </p>
                 </div>
                 <div>
@@ -157,7 +164,12 @@ export function Vendor360Page() {
             </section>
 
             <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-3")}>
-              <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("vendor.scoreTitle")}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("vendor.scoreTitle")}</h3>
+                <button type="button" className="text-[12px] font-semibold text-[var(--color-brand-primary)] hover:underline" onClick={() => openPerformance(profile.supplier.supplierId)}>
+                  {locale === "de" ? "Leistung prüfen" : "Review performance"}
+                </button>
+              </div>
               {profile.score ? (
                 <>
                   <p className="text-[28px] font-semibold tabular-nums text-[var(--color-text-primary)]">
@@ -177,8 +189,11 @@ export function Vendor360Page() {
                   <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{profile.score.method}</p>
                   <p className="text-[11px] text-[var(--color-text-secondary)]">
                     {locale === "de"
-                      ? `Formel: 0,40×Betrieb + 0,25×Kommerziell + 0,20×SLA + 0,15×Beziehung = ${formatFixed(profile.score.total, locale)}. Zeitraum ${profile.latest?.month ?? "—"}. Nachweis ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS} Monate. Verarbeitungszeit: sofort auf dem bestätigten Monatsauszug.`
-                      : `Formula: 0.40×operational + 0.25×commercial + 0.20×SLA + 0.15×relationship = ${formatFixed(profile.score.total, locale)}. Period ${profile.latest?.month ?? "—"}. Evidence ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS} months. Processing time: immediate on the confirmed monthly extract.`}
+                      ? `Formel: 0,40×Betrieb + 0,25×Kommerziell + 0,20×SLA + 0,15×Beziehung = ${formatFixed(profile.score.total, locale)}. Berechnung v1.2 · Monatsauszug ${profile.latest?.month ?? "—"} · ${profile.months.length} Monate im ausgewählten Zeitraum.`
+                      : `Formula: 0.40×operational + 0.25×commercial + 0.20×SLA + 0.15×relationship = ${formatFixed(profile.score.total, locale)}. Calculation v1.2 · monthly extract ${profile.latest?.month ?? "—"} · ${profile.months.length} months in the selected period.`}
+                  </p>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    {profile.months.slice(-3).map((row) => `${row.month?.slice(0, 7)} ${formatFixed(row.overallScore ?? 0, locale)}`).join(" → ")}
                   </p>
                   {session.confirmedEvidenceIds.length > 0 && (
                     <p className="text-[11px] text-[var(--color-text-secondary)]">
@@ -189,7 +204,7 @@ export function Vendor360Page() {
                 </>
               ) : (
                 <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
-                  {t("vendor.noHistoryBody", { months: MIN_EVIDENCE_MONTHS })}
+                  {t("vendor.noHistoryBody")}
                 </p>
               )}
             </section>
@@ -206,7 +221,7 @@ export function Vendor360Page() {
                       {c.contractId} · {formatDateDMY(c.startDate)} – {formatDateDMY(c.endDate)} · {t("vendor.notice")} {c.noticeDays}d
                     </p>
                     <p className="mt-0.5 text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                      {formatEur(c.contractValueEur ?? 0, locale)} · OTD {(c.otdTarget ?? 0) * 100}%
+                      {formatEurFigure(c.contractValueEur ?? 0, locale === "de" ? "de" : "en")} · OTD {(c.otdTarget ?? 0) * 100}%
                     </p>
                   </div>
                 ))
@@ -220,17 +235,25 @@ export function Vendor360Page() {
                   {t("vendor.latestMonth")} {formatDateDMY(profile.latest.month)} · {profile.latest.trendFlag}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    [t("vendor.otd"), `${((profile.latest.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}%`],
-                    [t("vendor.acceptance"), `${((profile.latest.tenderAcceptancePct ?? 0) * 100).toFixed(1)}%`],
-                    [t("vendor.claims"), `${((profile.latest.claimsPct ?? 0) * 100).toFixed(2)}%`],
-                    [t("vendor.invoice"), `${((profile.latest.invoiceAccuracyPct ?? 0) * 100).toFixed(1)}%`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</p>
-                      <p className="text-[14px] font-semibold tabular-nums text-[var(--color-text-primary)]">{value}</p>
-                    </div>
-                  ))}
+                  {([
+                    [t("vendor.otd"), (profile.latest.onTimeDeliveryPct ?? 0) * 100, (profile.contracts[0]?.otdTarget ?? 0) * 100, false],
+                    [t("vendor.acceptance"), (profile.latest.tenderAcceptancePct ?? 0) * 100, (profile.contracts[0]?.acceptanceTarget ?? 0) * 100, false],
+                    [t("vendor.claims"), (profile.latest.claimsPct ?? 0) * 100, (profile.contracts[0]?.claimsTargetMax ?? 0) * 100, true],
+                    [t("vendor.invoice"), (profile.latest.invoiceAccuracyPct ?? 0) * 100, (profile.contracts[0]?.invoiceAccuracyTarget ?? 0) * 100, false],
+                  ] as const).map(([label, actual, target, lowerIsBetter]) => {
+                    const gap = actual - target
+                    const off = lowerIsBetter ? actual > target : actual < target
+                    return (
+                      <div key={label} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</p>
+                        <p className="text-[14px] font-semibold tabular-nums text-[var(--color-text-primary)]">{formatFixed(actual, locale)}%</p>
+                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                          {locale === "de" ? "Ziel" : "Target"} {formatFixed(target, locale)}% · {!off ? (locale === "de" ? "im Ziel" : "on target") : lowerIsBetter ? (locale === "de" ? "über Ziel" : "above target") : (locale === "de" ? "unter Ziel" : "below target")}
+                          {` (${gap > 0 ? "+" : ""}${formatFixed(gap, locale)})`}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               </section>
             )}
@@ -238,13 +261,24 @@ export function Vendor360Page() {
             <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
               <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{locale === "de" ? "Beziehungsakte" : "Relationship record"}</h3>
               <ul className="space-y-1 text-[12px] text-[var(--color-text-secondary)]">
-                <li>{locale === "de" ? "Beschaffung" : "Sourcing"}: {profile.bid ? `${profile.bid.eventId} · ${profile.bid.bidStatus ?? "submitted"}` : (locale === "de" ? "Kein Angebot in RFP-2026-001" : "No bid on RFP-2026-001")}</li>
+                <li>{locale === "de" ? "Beschaffung" : "Sourcing"}: {session.bidsReleased && profile.bid ? `${profile.bid.eventId} · ${profile.bid.bidStatus ?? "submitted"}` : session.sourcingEventId ? `${session.sourcingEventId} · ${locale === "de" ? "noch nicht bestätigt" : "not yet confirmed"}` : (locale === "de" ? "Kein Angebot in RFP-2026-001" : "No bid on RFP-2026-001")}</li>
                 <li>{locale === "de" ? "Vertrag" : "Contract"}: {profile.contracts.map((c) => c.contractId).join(", ") || (locale === "de" ? "Keiner" : "None")}</li>
                 <li>{locale === "de" ? "Ausführung" : "Execution"}: {profile.latest ? `${formatDateDMY(profile.latest.month)} · ${profile.latest.shipments} ${locale === "de" ? "Sendungen" : "shipments"}` : "—"}</li>
-                <li>{locale === "de" ? "Score" : "Score"}: {profile.score ? formatFixed(profile.score.total, locale) : t("vendor.noHistory")}</li>
+                <li>{locale === "de" ? "Score" : "Score"}: {profile.score ? `${formatFixed(profile.score.total, locale)} · v1.2 · ${profile.latest?.month?.slice(0, 7) ?? session.asOfMonth}` : t("vendor.noHistory")}</li>
+                {profile.supplier.supplierId === "SUP-001" && (
+                  <li>
+                    {locale === "de" ? "Offene Maßnahme" : "Open action"}: ACT-006 · {session.actionRecords.find((r) => r.id === "ACT-006")?.status ?? (locale === "de" ? "offen" : "open")} · {session.actionRecords.find((r) => r.id === "ACT-006")?.owner ?? "Logistics Procurement Lead"} · {formatDateDMY(session.actionRecords.find((r) => r.id === "ACT-006")?.dueDate ?? "2026-09-25")}
+                  </li>
+                )}
                 <li>{locale === "de" ? "Vorfall" : "Incident"}: {profile.incidents[0] ? `${profile.incidents[0].incidentId} · ${formatDateDMY(profile.incidents[0].incidentDate)}` : (locale === "de" ? "Keiner im Zeitraum" : "None in the selected period")}</li>
                 <li>{locale === "de" ? "Kommunikation" : "Communication"}: {session.confirmedEvidenceIds.length > 0 ? session.confirmedEvidenceIds.join(", ") : (locale === "de" ? "Noch keine bestätigte Nachricht" : "No confirmed message yet")}</li>
-                <li>{locale === "de" ? "Korrekturmaßnahme" : "Corrective action"}: {session.correctiveDraftApproved ? (locale === "de" ? "Deutscher Entwurf freigegeben" : "German draft approved") : session.caAssigned ? (locale === "de" ? "Zugeordnet" : "Assigned") : (locale === "de" ? "Noch nicht zugeordnet" : "Not yet assigned")}</li>
+                <li>{locale === "de" ? "Korrekturmaßnahme" : "Corrective action"}: {(() => {
+                  const closed = session.actionRecords.find((r) => r.id === "ACT-007")
+                  if (closed?.closureEvidence) return `${closed.status} · ${closed.closureEvidence}`
+                  if (session.correctiveDraftApproved) return locale === "de" ? "Deutscher Entwurf freigegeben" : "German draft approved"
+                  if (session.caAssigned) return locale === "de" ? "Zugeordnet" : "Assigned"
+                  return locale === "de" ? "Noch nicht zugeordnet" : "Not yet assigned"
+                })()}</li>
               </ul>
             </section>
 

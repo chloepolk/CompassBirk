@@ -25,7 +25,7 @@ export const BIDS: Bids[] = [
     serviceScore: 88,
     implementationScore: 90,
     sustainabilityScore: 78,
-    vendorHistoryScore: 79,
+    vendorHistoryScore: 90,
     notes: "Incumbent; full network; revised rate card received.",
   },
   {

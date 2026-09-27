@@ -69,7 +69,7 @@ function agentSubEntry(
 function outcomeHumanFallback(locale: Locale) {
   const finance = personForRole("CFO", locale)
   return {
-    label: locale === "de" ? "Realisierten Wert mit Finance bestätigen und den Kreislauf schließen" : "Confirm realized value with Finance and close the loop",
+    label: locale === "de" ? "Nächsten Zyklus aus der geprüften Historie starten" : "Start the next cycle from the verified history",
     assignee: finance.name,
     assigneeRole: finance.role,
   }

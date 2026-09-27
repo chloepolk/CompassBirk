@@ -10,7 +10,7 @@ import { AgenticFocusHero } from "../_components/agentic-hero"
 import { PortfolioLedger } from "../_components/hub/portfolio-ledger"
 import { ActionFilterBar, type AssigneeKey, type HorizonKey } from "../_components/hub/action-filter-bar"
 import { MissionActionCard } from "../_components/hub/mission-action-card"
-import { translatedFlightPathSteps, flightProgressLabel, flightStepIdForStage, flightStepIdForJourney } from "../_components/hub/flight-stages"
+import { translatedFlightPathSteps, flightProgressLabel, flightStepIdForStage, flightStepIdForSession } from "../_components/hub/flight-stages"
 import { useT } from "../_i18n/use-t"
 import type { AuditEntry, StatusKey } from "../_components/hub/hub-types"
 import { EditActionModal } from "../_components/hub/edit-action-modal"
@@ -25,6 +25,7 @@ import {
   type MissionSessionPatch,
 } from "../_components/hub/bluepilot-action-reconcile"
 import { isMissionOwnedByActiveUser, ACTIVE_USER } from "../_components/hub/active-user"
+import { journeyIndex, statusForSession } from "@/lib/compass/logistics/session"
 import { listItemMotion } from "../_components/motion"
 import { reasoningFromMission, buildActionBoardHeroReasoning } from "../_components/reasoning-helpers"
 import type { Locale } from "../_i18n"
@@ -159,11 +160,12 @@ export function OperatingLoopPage() {
 
   const derivedStages = React.useMemo(() => {
     const next = { ...tenderStages }
-    if (session.awardApproved) next["PKG-RFP-001"] = "outcome_roi"
+    if (session.awardApproved && journeyIndex(session.journeyStep) >= 10) next["PKG-RFP-001"] = "outcome_roi"
+    else if (session.awardApproved) next["PKG-RFP-001"] = "execute"
     else if (session.bidsReleased) next["PKG-RFP-001"] = next["PKG-RFP-001"] ?? "execute"
     else if (session.packageLocked) next["PKG-RFP-001"] = next["PKG-RFP-001"] ?? "decide"
     return next
-  }, [tenderStages, session.awardApproved, session.bidsReleased, session.packageLocked])
+  }, [tenderStages, session.awardApproved, session.bidsReleased, session.packageLocked, session.journeyStep])
 
   const { missions, closed } = React.useMemo(
     () => buildDiamondMissions(derivedStages, locale, appliedTenderQtyByPackage),
@@ -171,11 +173,12 @@ export function OperatingLoopPage() {
   )
   const visibleMissions = React.useMemo(
     () => missions.filter((m) => {
-      if (m.id === "PKG-REN-001") return session.awardApproved
-      if (m.id === "PKG-RFP-001") return session.acceptedNeed
+      if (m.id === "PKG-REN-001") return journeyIndex(session.journeyStep) >= 9
+      if (m.id === "PKG-RFP-001") return session.acceptedNeed && Boolean(session.sourcingEventId)
+      if (m.id === "PKG-PERF-001" || m.id === "PKG-CA-001") return session.performanceReleased
       return true
     }),
-    [missions, session.awardApproved, session.acceptedNeed],
+    [missions, session.journeyStep, session.acceptedNeed, session.sourcingEventId, session.performanceReleased],
   )
   const orderedMissions = React.useMemo(() => orderMissions(visibleMissions, missionPriority), [visibleMissions, missionPriority])
   const saveEdit = React.useCallback((missionId: string, oldValue: string, newValue: string) => {
@@ -324,7 +327,7 @@ export function OperatingLoopPage() {
     const motion = listItemMotion(i)
     const reconciling = reconcilingId === mission.id
     const assignedToYou = isMissionOwnedByActiveUser({ ...mission, owner: fields.ownerRole })
-    // Packages ahead of the approval gate can be drafted in Tender Management.
+    // Packages ahead of the approval gate can be drafted in the Sourcing Workspace.
     const isLiveEvent = mission.id === "PKG-RFP-001"
     const step = session.journeyStep
     const canDraft = !isLiveEvent && (fields.stage === "mission_created" || fields.stage === "understand")
@@ -343,24 +346,28 @@ export function OperatingLoopPage() {
         govStatus === "approved_for_award"
     const liveCta = isLiveEvent
       ? step === "s1"
-        ? { label: locale === "de" ? "Ausschreibung entwerfen" : "Draft RFP", run: () => openTenderStudio(mission.id) }
+        ? { label: locale === "de" ? "Beschaffungsarbeitsbereich öffnen" : "Open sourcing workspace", run: () => { advanceJourney("s2"); openTenderStudio(mission.id) } }
         : step === "s2"
           ? { label: locale === "de" ? "Ausnahmen schließen" : "Resolve requirements", run: () => openTenderStudio(mission.id) }
-          : step === "s3" && !session.rfpApproved
-            ? { label: locale === "de" ? "Ausschreibung freigeben" : "Approve RFP", run: () => openTenderStudio(mission.id) }
-            : step === "s3"
-              ? { label: locale === "de" ? "Einladung prüfen und senden" : "Approve and send invitation", run: () => openInbox() }
-              : step === "s4"
-              ? { label: locale === "de" ? "Posteingang prüfen" : "Review supplier inbox", run: () => openInbox() }
-              : step === "s5"
-                ? { label: locale === "de" ? "Angebote vergleichen" : "Compare bids", run: () => openBidEvaluation(mission.id) }
-                : step === "s6"
-                  ? { label: locale === "de" ? "Zuschlag freigeben" : "Approve award", run: () => openAward() }
-                  : step === "s7"
-                    ? { label: locale === "de" ? "Betriebszeitraum fortschreiben" : "Advance operating period", run: () => { advanceJourney("s8"); openPerformance("SUP-001") } }
-                    : step === "s8" || step === "s9"
-                      ? { label: locale === "de" ? "Korrekturmaßnahme freigeben" : "Approve corrective action", run: () => openPerformance("SUP-001") }
-                      : { label: locale === "de" ? "Verlängerung öffnen" : "Open renewal", run: () => openPerformance("SUP-001") }
+          : step === "s3" && !session.rfpGenerated
+            ? { label: locale === "de" ? "Ausschreibung erzeugen" : "Generate RFP", run: () => openTenderStudio(mission.id) }
+            : step === "s3" && !session.rfpApproved
+              ? { label: locale === "de" ? "Zitierte Ausschreibung prüfen" : "Review cited RFP", run: () => openTenderStudio(mission.id) }
+              : step === "s3"
+                ? { label: locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations", run: () => openInbox() }
+                : step === "s4"
+                  ? { label: locale === "de" ? "Lieferantenantworten prüfen" : "Review supplier responses", run: () => openInbox() }
+                  : step === "s5"
+                    ? { label: locale === "de" ? "Angebote bewerten" : "Evaluate bids", run: () => openBidEvaluation(mission.id) }
+                    : step === "s6"
+                      ? { label: locale === "de" ? "Zur Freigabe einreichen" : "Submit for approval", run: () => openAward() }
+                      : step === "s7"
+                        ? { label: locale === "de" ? "Zur Ausführung wechseln" : "Advance to execution", run: () => { advanceJourney("s8"); openPerformance("SUP-001") } }
+                        : step === "s8"
+                          ? { label: locale === "de" ? "Korrekturmaßnahme prüfen" : "Review corrective action", run: () => openPerformance("SUP-001") }
+                          : step === "s9"
+                            ? { label: locale === "de" ? "Verlängerung prüfen" : "Review renewal", run: () => openPerformance("SUP-001") }
+                            : { label: locale === "de" ? "Nächsten Zyklus starten" : "Start next cycle", run: () => openTenderStudio("PKG-REN-001") }
       : null
     const primaryActionLabel = liveCta
       ? liveCta.label
@@ -427,9 +434,9 @@ export function OperatingLoopPage() {
           valueType={mission.valueType}
           statusLabel={t(`health.${mission.health}`).toUpperCase()}
           statusTone={mission.health}
-          stageLabel={isLiveEvent ? flightProgressLabel(session.journeyStep, t) : flightProgressLabel(fields.stage, t)}
+          stageLabel={isLiveEvent ? t(`flight.${statusForSession(session)}`) : flightProgressLabel(fields.stage, t)}
           flightPathSteps={flightPathSteps}
-          currentFlightStepId={isLiveEvent ? flightStepIdForJourney(session.journeyStep) : flightStepIdForStage(fields.stage)}
+          currentFlightStepId={isLiveEvent ? flightStepIdForSession(session) : flightStepIdForStage(fields.stage)}
           owner={assignedName}
           ownerRole={assignedRole}
           isAssignedToYou={assignedToYouNow}
@@ -498,7 +505,7 @@ export function OperatingLoopPage() {
           <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{isLiveEvent ? "RFP-2026-001" : mission.id}</dd></div>
           <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>{assignedName} · {assignedRole}</dd></div>
           <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>{isLiveEvent ? "23 October 2026" : mission.targetCompletionAt.slice(0, 10)}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{isLiveEvent ? flightProgressLabel(session.journeyStep, t) : t(`health.${mission.health}`)}</dd></div>
+          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{isLiveEvent ? t(`flight.${statusForSession(session)}`) : t(`health.${mission.health}`)}</dd></div>
           <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{isLiveEvent ? (locale === "de" ? "Vertragsablauf am 31. Dezember 2026 und Leistungsstand lösen die Beschaffung aus." : "Contract expiry on 31 December 2026 and current performance trigger sourcing.") : fields.narrative}</dd></div>
           <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>{(mission.evidence.length > 0 ? mission.evidence : ["SRC-001"]).join(", ")}</dd></div>
           <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ" : "Illustrative"} {formatCurrency(isLiveEvent ? 5650000 : mission.projectedValue, locale)}. {locale === "de" ? "Formel: angezeigter Betrag aus der Ereignisquelle. Status illustrativ, nicht realisiert." : "Formula: displayed amount from the event source. Status illustrative, not realised."}</dd></div>
@@ -621,7 +628,7 @@ export function OperatingLoopPage() {
                 {!session.acceptedNeed && (
                   <div className="rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                      {locale === "de" ? "Bedarf erkannt" : "Need identified"}
+                      {t(`flight.${statusForSession(session)}`)}
                     </p>
                     <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text-primary)]">
                       {locale === "de" ? "Rahmenverträge laufen am 31. Dezember 2026 aus" : "Frameworks expire on 31 December 2026"}
@@ -630,18 +637,47 @@ export function OperatingLoopPage() {
                       <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{locale === "de" ? "Beschaffungsbedarf" : "Sourcing need"}</dd></div>
                       <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>Category Manager, Logistics</dd></div>
                       <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>31 December 2026</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{locale === "de" ? "Bedarf erkannt" : "Need identified"}</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{t(`flight.${statusForSession(session)}`)}</dd></div>
+                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verträge" : "Contracts"}</dt><dd>CON-2024-01 RheinRoute · CON-2024-02 NorthBridge</dd></div>
+                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Umfang" : "Scope"}</dt><dd>{locale === "de" ? "Europäischer Straßengüterverkehr · 18 Relationen · 2.448 prognostizierte Sendungen" : "European road freight · 18 lanes · 2,448 forecast shipments"}</dd></div>
                       <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{locale === "de" ? "Vertragsablauf und Leistungsstand. Noch kein neues Beschaffungsereignis." : "Contract expiry and performance. No new sourcing event exists yet."}</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>SRC-001</dd></div>
+                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>SRC-001 v1.2 · SRC-009 · SRC-010</dd></div>
                       <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ €5,65 Mio. Jahreswert. Formel: Ereigniswert aus SRC-001. Status illustrativ, nicht realisiert." : "Illustrative €5.65m annual value. Formula: event value from SRC-001. Status illustrative, not realised."}</dd></div>
                     </dl>
-                    <button
-                      type="button"
-                      className="mt-3 rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
-                      onClick={() => advanceJourney("s1")}
-                    >
-                      {locale === "de" ? "Bedarf bestätigen" : "Validate sourcing need"}
-                    </button>
+                    {session.needRejected ? (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-[12px] text-[var(--color-text-secondary)]">
+                          {locale === "de" ? "Bedarf abgelehnt. Es wurde kein Beschaffungsereignis angelegt." : "Need rejected. No sourcing event was created."}
+                        </p>
+                        <button
+                          type="button"
+                          className="text-[12px] font-semibold text-[var(--color-brand-primary)]"
+                          onClick={() => patchSession({ needRejected: false })}
+                        >
+                          {locale === "de" ? "Ablehnung zurücknehmen" : "Withdraw rejection"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
+                          onClick={() => {
+                            patchSession({ needRejected: false, sourcingEventId: "RFP-2026-001" })
+                            advanceJourney("s1")
+                          }}
+                        >
+                          {locale === "de" ? "Bedarf bestätigen" : "Validate sourcing need"}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-[10px] border border-[var(--color-border-default)] px-4 py-2 text-[13px] font-semibold"
+                          onClick={() => patchSession({ needRejected: true, sourcingEventId: null, acceptedNeed: false })}
+                        >
+                          {locale === "de" ? "Bedarf ablehnen" : "Reject sourcing need"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {openMissions.map((mission, i) => renderOpenMission(mission, i))}

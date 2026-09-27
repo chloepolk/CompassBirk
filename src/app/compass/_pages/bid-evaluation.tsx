@@ -7,11 +7,13 @@ import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
 import { localeTag, type Locale } from "../_i18n"
-import { formatEur, formatFixed } from "../_i18n/currency"
+import { formatFixed } from "../_i18n/currency"
+import { formatEurFigure } from "@/lib/compass/locale-display"
+import { vendorProfile } from "@/lib/compass/logistics/vendor-model"
 import { localizedTenderPackages } from "../_i18n/domain"
 import { localizeQuantity } from "../_i18n/tender"
 import { enterMotion, listItemMotion, pcmCard } from "../_components/motion"
-import { formatCurrency, type MissionStage } from "../_diamond/stages"
+import { type MissionStage } from "../_diamond/stages"
 import { EVAL_PACKAGE_ID, bidsForPackage } from "../data/_bids"
 import {
   evaluateBids,
@@ -45,15 +47,9 @@ import { AwardGovernanceChip, AwardRecommendPanel, AwardNotificationToast } from
 import { LaneSlaPanel, RateNormalisationPanel } from "../_components/lane-sla-panel"
 import { LogisticsEvaluationPanel } from "./logistics-evaluation"
 import { quarantinedBidEvidence } from "@/lib/compass/logistics/inbox-model"
+import { evaluationBlock, invitesSent } from "@/lib/compass/logistics/session"
 
 type EvalStatus = "ready" | "awaiting_returns" | "not_issued" | "awarded"
-
-function evalStatusFor(pkg: TenderPackage, bidCount: number, bidsReleased: boolean): EvalStatus {
-  if (pkg.stage === "outcome_roi") return "awarded"
-  if (bidsReleased && bidCount > 0) return "ready"
-  if (pkg.stage === "execute") return "awaiting_returns"
-  return "not_issued"
-}
 
 const STATUS_KEYS: Record<EvalStatus, "bidEval.ready" | "bidEval.awaitingReturns" | "bidEval.notIssued" | "bidEval.awarded"> = {
   ready: "bidEval.ready",
@@ -76,7 +72,22 @@ const STATUS_CLS: Record<EvalStatus, string> = {
 }
 
 function formatPriceFull(n: number, locale: Locale): string {
-  return formatEur(n, locale)
+  return formatEurFigure(n, locale === "de" ? "de" : "en")
+}
+
+const SUPPLIER_BY_BID: Record<string, string> = {
+  "bid-rheinroute": "SUP-001",
+  "bid-northbridge": "SUP-002",
+  "bid-alpinelink": "SUP-004",
+  "bid-veloce": "SUP-005",
+}
+
+function historyText(bidId: string, label: "No History" | "Available", locale: Locale, asOf: string): string {
+  if (label === "No History") return locale === "de" ? "Keine Historie" : "No History"
+  const latest = vendorProfile(SUPPLIER_BY_BID[bidId] ?? "", [], asOf)?.latest
+  if (latest?.overallScore == null) return locale === "de" ? "Verfügbar" : "Available"
+  const period = latest.month?.slice(0, 7) ?? asOf
+  return `${formatFixed(latest.overallScore, locale)} · ${period} · v1.2`
 }
 
 function ScoreBar({
@@ -268,20 +279,20 @@ function buildPackageRows(
   tenderStages: Record<string, MissionStage>,
   locale: Locale,
   bidsReleased: boolean,
-  awardApproved: boolean,
+  invitationsSent: boolean,
 ): PackageEvalRow[] {
   return localizedTenderPackages(locale)
-    .filter((p) => {
-      if (p.id === "PKG-REN-001") return awardApproved
-      if (p.id === "PKG-CA-001" || p.id === "PKG-PERF-001") return false
-      return p.stage !== "outcome_roi" || (bidsReleased && bidsForPackage(p.id, locale).length > 0)
-    })
+    .filter((p) => p.id === EVAL_PACKAGE_ID)
     .map((pkg) => {
       const stage = tenderStages[pkg.id] ?? pkg.stage
       const effective = { ...pkg, stage }
       const bids = bidsReleased ? bidsForPackage(pkg.id, locale) : []
       const results = bids.length > 0 ? evaluateBids(bids, locale) : []
-      const status = evalStatusFor(effective, bids.length, bidsReleased)
+      const status: EvalStatus = bidsReleased && bids.length > 0
+        ? "ready"
+        : invitationsSent
+          ? "awaiting_returns"
+          : "not_issued"
       const ranked = results.filter((r) => r.finalRank != null)
       const top = ranked.find((r) => r.finalRank === 1) ?? null
       return {
@@ -306,15 +317,8 @@ function buildPackageRows(
     })
 }
 
-function EmptyPackageState({ status, pkg }: { status: EvalStatus; pkg: TenderPackage }) {
+function EmptyPackageState({ copy, actionLabel, onAction }: { copy: string; actionLabel: string; onAction: () => void }) {
   const t = useT()
-  const copy =
-    status === "awaiting_returns"
-      ? t("bidEval.awaitingCopy")
-      : status === "awarded"
-        ? t("bidEval.awardedCopy")
-        : t("bidEval.upstreamCopy", { stage: t(`stages.${pkg.stage}.title`) })
-
   return (
     <div className="flex flex-col items-center justify-center rounded-[16px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-6 py-16 text-center">
       <SafeIcon name="Inbox" className="mb-3 size-8 text-[var(--color-text-muted)]" />
@@ -322,17 +326,35 @@ function EmptyPackageState({ status, pkg }: { status: EvalStatus; pkg: TenderPac
         {t("bidEval.empty")}
       </p>
       <p className="mt-1 max-w-md text-[12px] text-[var(--color-text-secondary)]">{copy}</p>
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-4 rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
+      >
+        {actionLabel}
+      </button>
     </div>
   )
 }
 
 export function BidEvaluationPage() {
   const t = useT()
-  const { focusEvalPackageId, tenderStages, openBidEvaluation, openTenderStudio, locale, awardApprovals, submitAwardRecommendation, appliedTenderQtyByPackage, session } = useStore()
+  const { focusEvalPackageId, tenderStages, openBidEvaluation, openTenderStudio, openInbox, locale, awardApprovals, submitAwardRecommendation, appliedTenderQtyByPackage, session } = useStore()
+  const held = evaluationBlock(session)
+  const invitationsSent = invitesSent(session)
   const rows = React.useMemo(
-    () => buildPackageRows(tenderStages, locale, session.bidsReleased, session.awardApproved),
-    [tenderStages, locale, session.bidsReleased, session.awardApproved],
+    () => buildPackageRows(tenderStages, locale, session.bidsReleased, invitationsSent),
+    [tenderStages, locale, session.bidsReleased, invitationsSent],
   )
+  const nextAction = !session.rfpGenerated
+    ? { label: locale === "de" ? "Ausschreibung erzeugen" : "Generate the cited RFP", run: () => openTenderStudio(EVAL_PACKAGE_ID) }
+    : !session.rfpApproved
+      ? { label: locale === "de" ? "Zitierte Ausschreibung prüfen" : "Review and approve the cited RFP", run: () => openTenderStudio(EVAL_PACKAGE_ID) }
+      : !invitationsSent
+        ? { label: locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations", run: () => openInbox() }
+        : !session.bidsReleased
+          ? { label: locale === "de" ? "Lieferantennachweis prüfen" : "Review supplier evidence", run: () => openInbox() }
+          : null
 
   const defaultId =
     focusEvalPackageId && rows.some((r) => r.pkg.id === focusEvalPackageId)
@@ -421,6 +443,9 @@ export function BidEvaluationPage() {
   const readyCount = rows.filter((r) => r.status === "ready").length
   const riskAcross = rows.reduce((s, r) => s + r.riskCount, 0)
   const returnsAcross = rows.reduce((s, r) => s + r.bidCount, 0)
+  const pendingEvidence = invitesSent(session) && !session.bidsReleased
+    ? quarantinedBidEvidence(session.emailClassifications)
+    : []
 
   const weightChips = [
     { label: t("bidEval.price"), max: PRICE_MAX },
@@ -450,9 +475,14 @@ export function BidEvaluationPage() {
             <p className="mt-1 max-w-2xl text-[12px] text-[var(--color-text-muted)]">
               {t("bidEval.historyMethod")}
             </p>
-            {quarantinedBidEvidence(session.emailClassifications).length > 0 && (
+            {held && (
+              <p className="mt-2 max-w-2xl rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+                {locale === "de" ? held.de : held.en}
+              </p>
+            )}
+            {pendingEvidence.length > 0 && (
               <p className="mt-2 text-[12px] text-[var(--color-accent-warning-text)]">
-                {t("inbox.quarantineHint")} {quarantinedBidEvidence(session.emailClassifications).join(", ")}
+                {t("inbox.quarantineHint")} {pendingEvidence.join(", ")}
               </p>
             )}
           </div>
@@ -462,12 +492,12 @@ export function BidEvaluationPage() {
               <span className="text-[var(--color-text-muted)]">{t("bidEval.readyCount")}</span>
             </span>
             <span className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1.5 tabular-nums">
-              <strong className="text-[var(--color-text-primary)]">{returnsAcross}</strong>{" "}
-              <span className="text-[var(--color-text-muted)]">{t("bidEval.returns")}</span>
+              <strong className="text-[var(--color-text-primary)]">{pendingEvidence.length > 0 ? 0 : returnsAcross}</strong>{" "}
+              <span className="text-[var(--color-text-muted)]">{pendingEvidence.length > 0 ? t("bidEval.eligible") : t("bidEval.returns")}</span>
             </span>
             <span className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1.5 tabular-nums">
-              <strong className="text-[var(--color-text-primary)]">{riskAcross}</strong>{" "}
-              <span className="text-[var(--color-text-muted)]">{t("bidEval.riskFlags")}</span>
+              <strong className="text-[var(--color-text-primary)]">{pendingEvidence.length > 0 ? pendingEvidence.length : riskAcross}</strong>{" "}
+              <span className="text-[var(--color-text-muted)]">{pendingEvidence.length > 0 ? t("bidEval.awaitingReview") : t("bidEval.riskFlags")}</span>
             </span>
           </div>
         </div>
@@ -566,7 +596,7 @@ export function BidEvaluationPage() {
                   </div>
                 )}
                 <p className="mt-1 max-w-2xl text-[12px] text-[var(--color-text-secondary)]">
-                  {localizeQuantity(displayPackageQuantity(pkg.id, pkg.quantity, appliedTenderQtyByPackage, locale), locale)} · {t("bidEval.budget")} {formatCurrency(pkg.budget, locale)} · {t("bidEval.closes")}{" "}
+                  {localizeQuantity(displayPackageQuantity(pkg.id, pkg.quantity, appliedTenderQtyByPackage, locale), locale)} · {t("bidEval.budget")} {formatEurFigure(pkg.budget, locale === "de" ? "de" : "en")} · {t("bidEval.closes")}{" "}
                   {formatDateDMY(pkg.submissionDeadline)}
                 </p>
               </div>
@@ -592,8 +622,12 @@ export function BidEvaluationPage() {
             </div>
           )}
 
-          {activeRow && activeRow.status !== "ready" ? (
-            <EmptyPackageState status={activeRow.status} pkg={activeRow.pkg} />
+          {activeRow && activeRow.status !== "ready" && nextAction ? (
+            <EmptyPackageState
+              copy={held ? (locale === "de" ? held.de : held.en) : t("bidEval.empty")}
+              actionLabel={nextAction.label}
+              onAction={nextAction.run}
+            />
           ) : (
             <>
               <section className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
@@ -603,7 +637,7 @@ export function BidEvaluationPage() {
                       {t("bidEval.evaluationMatrix")}
                     </h3>
                     <p className="text-[11px] text-[var(--color-text-muted)]">
-                      {t("bidEval.matrixExplain")}
+                      {t("bidEval.matrixExplain")} {t("bidEval.veloceNote")}
                     </p>
                   </div>
                   {results.some((r) => r.finalRank === 1) && (
@@ -641,6 +675,7 @@ export function BidEvaluationPage() {
                         <th className="px-3 py-2.5">{t("bidEval.qaHseq")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.legal")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.sustainability")}</th>
+                        <th className="px-3 py-2.5">{t("bidEval.history")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.gating")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.composite")}</th>
                         <th className="px-3 py-2.5">{t("bidEval.rank")}</th>
@@ -669,6 +704,9 @@ export function BidEvaluationPage() {
                             <MatrixCell>{r.legalScore != null ? formatFixed(r.legalScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>{r.sustainabilityScore != null ? formatFixed(r.sustainabilityScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>
+                              {historyText(r.bidId, r.historyLabel, locale, session.asOfMonth)}
+                            </MatrixCell>
+                            <MatrixCell>
                               <span
                                 className={cn(
                                   "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
@@ -677,7 +715,7 @@ export function BidEvaluationPage() {
                                     : "bg-[var(--color-tint-critical)] text-[var(--color-accent-critical-text)]",
                                 )}
                               >
-                                {r.gatingStatus === "Pass" ? t("common.pass") : r.gatingStatus === "Evidence missing" ? (locale === "de" ? "Nachweis fehlt" : "Evidence missing") : t("common.fail")}
+                                {r.gatingStatus === "Pass" ? t("common.pass") : r.gatingStatus === "Evidence missing" ? (locale === "de" ? "Nachweis fehlt" : "Evidence missing") : (locale === "de" ? "Disqualifiziert" : "Disqualified")}
                               </span>
                             </MatrixCell>
                             <MatrixCell className="font-semibold">
@@ -710,7 +748,7 @@ export function BidEvaluationPage() {
                   </h3>
                   <p className="text-[11px] text-[var(--color-text-muted)]">
                     {t("bidEval.bidCardsExplain")}
-                    {pkg ? ` · ${t("bidEval.budgetBaseline")} ${formatCurrency(pkg.budget, locale)}` : ""}.
+                    {pkg ? ` · ${t("bidEval.budgetBaseline")} ${formatEurFigure(pkg.budget, locale === "de" ? "de" : "en")}` : ""}.
                   </p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">

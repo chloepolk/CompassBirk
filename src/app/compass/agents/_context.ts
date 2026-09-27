@@ -262,7 +262,7 @@ export function buildPortfolioContext(drill: DrillState): Record<string, unknown
     view: drill.page,
     workspaceSurfaces: [
       "Action Centre — live tender pipeline and savings ledger",
-      "Tender Management — RFP drafting from controlled documents",
+      "Sourcing Workspace — RFP drafting from controlled documents",
       "Bid Evaluation — gated scoring of supplier returns",
     ],
     tenderPipeline: serializePipeline(),
@@ -320,7 +320,7 @@ export function buildMarketContext(drill: DrillState): Record<string, unknown> {
     })),
     bidEvaluation: buildBidEvaluationContext(),
     supplierConstraints: [
-      "RheinRoute is the incumbent with twelve months of verified execution (SUP-001).",
+      "RheinRoute is the incumbent with a published August 2026 score of 90.0 for the months through the reporting date (SUP-001).",
       "NorthBridge and EuroSpan bid as established challengers; AlpineLink and Veloce remain No History (SRC-008).",
       "Fuel surcharge is disclosed under SRC-005; lane rates stay in EUR.",
       "Lane capacity and OTD sit on the SLA path for the 2027 award.",
@@ -406,7 +406,7 @@ export function buildChatBriefing(): string {
 
 WORKSPACE SURFACES:
 - Action Centre: live tender pipeline, 5-gate flight path, owners, deadlines, savings ledger.
-- Tender Management: draft RFPs from controlled documents (SRC-001 to SRC-008) with multi-agent assemble and quality review.
+- Sourcing Workspace: draft RFPs from controlled documents (SRC-001 to SRC-008) with multi-agent assemble and quality review.
 - Bid Evaluation: portfolio of tabulated returns with hard gates and the logistics score (see BID EVALUATION below).
 
 TENDER PIPELINE:

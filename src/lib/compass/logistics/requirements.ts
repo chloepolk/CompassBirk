@@ -4,6 +4,7 @@ export type RequirementRow = {
   category: string
   mandatory: boolean
   source: string
+  sourceVersion: string
   section: string
   confidence: string
   state: "clear" | "gap" | "conflict"
@@ -17,6 +18,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "Scope",
     mandatory: true,
     source: "SRC-001",
+    sourceVersion: "v1.2",
     section: "2.1",
     confidence: "High",
     state: "clear",
@@ -28,6 +30,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "Commercial",
     mandatory: true,
     source: "SRC-005",
+    sourceVersion: "v1.2",
     section: "3.2",
     confidence: "High",
     state: "conflict",
@@ -39,6 +42,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "SLA",
     mandatory: true,
     source: "SRC-002",
+    sourceVersion: "v1.2",
     section: "4.1",
     confidence: "High",
     state: "clear",
@@ -50,6 +54,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "Qualification",
     mandatory: true,
     source: "SRC-008",
+    sourceVersion: "v1.2",
     section: "5.2",
     confidence: "High",
     state: "clear",
@@ -61,6 +66,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "Technology",
     mandatory: true,
     source: "SRC-006",
+    sourceVersion: "v1.2",
     section: "2.0",
     confidence: "Medium",
     state: "gap",
@@ -72,6 +78,7 @@ export const REQUIREMENTS: RequirementRow[] = [
     category: "Sustainability",
     mandatory: false,
     source: "SRC-007",
+    sourceVersion: "v1.2",
     section: "1.3",
     confidence: "Medium",
     state: "clear",
@@ -99,5 +106,5 @@ export const SOURCE_CLASSES = [
   "Sustainability (SRC-007)",
   "Qualification (SRC-008)",
   "Contract extract (SRC-009)",
-  "Historical review — included where twelve complete months are on record",
+  "Historical service review (SRC-010)",
 ]
