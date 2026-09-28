@@ -36,15 +36,15 @@ export function localizeComponentSpec(spec: ComponentSpec, locale: Locale): Comp
     unit: "Relationen",
     parameters: [
       { parameter: "Relationen", requirement: "18 europäische Abgangs- und Zielpaare" },
-      { parameter: "Prognosemenge", requirement: "2.448 Sendungen pro Jahr (Entscheidungsgrundlage, keine garantierte Abnahme)" },
+      { parameter: "Prognosemenge", requirement: "2.448 prognostizierte Sendungen. Das ist keine Mindestabnahme." },
       { parameter: "Equipment", requirement: "Curtainsider / Koffer; ausgewählte Relationen temperaturgeführt" },
-      { parameter: "OTD-Ziel", requirement: "98,0 % pünktliche Zustellung" },
-      { parameter: "Annahmequote", requirement: "97,0 %" },
-      { parameter: "Schadensobergrenze", requirement: "0,5 % der Sendungen" },
+      { parameter: "OTD-Ziel", requirement: "Pünktliche Zustellung von mindestens 98,0 %." },
+      { parameter: "Sendungsannahmerate", requirement: "Sendungsannahmerate von mindestens 97,0 %." },
+      { parameter: "Schadensobergrenze", requirement: "Schäden von höchstens 0,5 % der Sendungen." },
       { parameter: "Rechnungsgenauigkeit", requirement: "99,0 %" },
-      { parameter: "Währung", requirement: "EUR, feste Relationenraten zuzüglich offengelegtem Kraftstoffzuschlag" },
-      { parameter: "Sichtbarkeit", requirement: "API, EDI oder vereinbarte Tagesdatei" },
-      { parameter: "Versicherung", requirement: "Frachtversicherung von mindestens 5 Mio. EUR" },
+      { parameter: "Währung", requirement: "Feste EUR-Relationenraten, eine offengelegte Kraftstoffzuschlagsformel und ein Nebenkostenverzeichnis." },
+      { parameter: "Sichtbarkeit", requirement: "Der Bieter nennt API, EDI oder eine Tagesdatei, den Umsetzungsplan, den Testzeitplan und die Kosten. Die gewählte Methode wird vor dem Betriebsstart getestet." },
+      { parameter: "Versicherung", requirement: "Frachtversicherung von mindestens 5 Mio. EUR." },
     ],
   }
 }
@@ -88,7 +88,7 @@ export function localizedStandards(_locale: Locale, baseline = false): StandardR
 const FAT_DE = [
   "Frachtführer reichen Qualifikationsnachweise (Versicherung, Due Diligence und Datenanbindung) mindestens 30 Tage vor dem geplanten Leistungsbeginn ein.",
   "Eine Frachtversicherung von mindestens 5 Mio. EUR ist verpflichtend, bevor ein Angebot das Qualifikationstor bestehen kann.",
-  "Die Sendungssichtbarkeit erfolgt über API, EDI oder eine vereinbarte Tagesdatei gemäß SRC-006.",
+  "Der Bieter nennt API, EDI oder eine Tagesdatei sowie Umsetzungsplan, Testzeitplan und Kosten. Die gewählte Methode wird vor dem Betriebsstart getestet.",
 ]
 
 export function localizedFatRequirements(locale: Locale): string[] {
@@ -102,7 +102,7 @@ const CLAUSE_DE: Record<string, { heading: string; text: string }> = {
   },
   "4.3": {
     heading: "Sichtbarkeit und Nachweis",
-    text: "Der Lieferant stellt die vereinbarte Sichtbarkeit (API, EDI oder Tagesdatei) und den POD-Nachweis spätestens in der in SRC-002 genannten Frist bereit.",
+    text: "Der Bieter nennt die Anbindung (API, EDI oder eine vereinbarte Tagesdatei), den Umsetzungsplan, den Testzeitplan und die Kosten. Die gewählte Methode wird vor dem Betriebsstart getestet. Der POD-Nachweis folgt spätestens in der in SRC-002 genannten Frist.",
   },
   "5.1–5.3": {
     heading: "Haftung und Versicherung",
@@ -114,7 +114,7 @@ const CLAUSE_DE: Record<string, { heading: string; text: string }> = {
   },
   "7.1": {
     heading: "Festpreise",
-    text: "Relationenraten sind in EUR fest und bindend. Ein nach SRC-005 offengelegter Kraftstoffzuschlag ist das einzige zulässige variable Element, sofern kein Index schriftlich vereinbart ist.",
+    text: "Relationenraten sind in EUR fest und bindend, mit einer nach SRC-005 offengelegten Kraftstoffzuschlagsformel und einem Nebenkostenverzeichnis.",
   },
   "7.2": {
     heading: "Zahlungsbedingungen",

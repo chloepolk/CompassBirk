@@ -1,19 +1,103 @@
 /* ------------------------------------------------------------------ */
-/*  Bid evaluation scoring — RFP-2026-001 model (0–100)            */
+/*  Bid evaluation scoring — EVAL-LOG-v1 (0–100)                       */
 /*                                                                     */
-/*  Price 35% · Tech 25% · QA/HSEQ 20% · Legal 20%                     */
-/*  Hard gates run first; operational deviation penalty P is deferred. */
+/*  Cost 35 · Service 20 · Capacity 15 · Implementation 10             */
+/*  Sustainability 5 · Verified history 15                             */
+/*  Hard gates run first. No History rescales the other weights.       */
 /* ------------------------------------------------------------------ */
 
 import type { BidInput } from "./_bids"
 import type { Locale } from "../_i18n"
+import { BIDS } from "@/lib/compass/logistics/structured/bids"
+import { vendorProfile } from "@/lib/compass/logistics/vendor-model"
 
 /** EVAL-LOG-v1 weights. Qualification gates are not part of the weighted score. */
-export const PRICE_MAX = 30
-export const TECH_MAX = 25
-export const QA_MAX = 20
-export const LEGAL_MAX = 15
-export const SUSTAINABILITY_MAX = 10
+export const PRICE_MAX = 35
+export const TECH_MAX = 20
+export const QA_MAX = 15
+export const LEGAL_MAX = 10
+export const SUSTAINABILITY_MAX = 5
+export const HISTORY_MAX = 15
+/** Non-history weights. A No History bid rescales these from 85 to 100. */
+export const NON_HISTORY_SHARE = PRICE_MAX + TECH_MAX + QA_MAX + LEGAL_MAX + SUSTAINABILITY_MAX
+export const CHALLENGER_SCALE = 100 / NON_HISTORY_SHARE
+
+export const SUPPLIER_BY_BID: Record<string, string> = {
+  "bid-rheinroute": "SUP-001",
+  "bid-northbridge": "SUP-002",
+  "bid-alpinelink": "SUP-004",
+  "bid-veloce": "SUP-005",
+}
+
+export interface EvalCriterion {
+  id: "cost" | "service" | "capacity" | "implementation" | "sustainability" | "history"
+  weight: number
+  nameEn: string
+  nameDe: string
+  noteEn: string
+  noteDe: string
+}
+
+/** Same table on the method panel and the bid cards. */
+export const EVAL_LOG_V1: EvalCriterion[] = [
+  {
+    id: "cost",
+    weight: PRICE_MAX,
+    nameEn: "Normalised cost",
+    nameDe: "Normalisierte Kosten",
+    noteEn: "Lowest compliant annual cost scores 100. Other compliant bids are indexed to it.",
+    noteDe: "Die niedrigsten konformen Jahreskosten erhalten 100. Andere konforme Angebote werden dazu indexiert.",
+  },
+  {
+    id: "service",
+    weight: TECH_MAX,
+    nameEn: "Service / SLA",
+    nameDe: "Service / SLA",
+    noteEn: "Bid service commitment, scored out of 100.",
+    noteDe: "Servicezusage des Angebots, bewertet von 100.",
+  },
+  {
+    id: "capacity",
+    weight: QA_MAX,
+    nameEn: "Capacity / coverage",
+    nameDe: "Kapazität / Abdeckung",
+    noteEn: "Bid capacity commitment, scored out of 100.",
+    noteDe: "Kapazitätszusage des Angebots, bewertet von 100.",
+  },
+  {
+    id: "implementation",
+    weight: LEGAL_MAX,
+    nameEn: "Implementation / visibility",
+    nameDe: "Umsetzung / Sichtbarkeit",
+    noteEn: "Bid implementation commitment, scored out of 100.",
+    noteDe: "Umsetzungszusage des Angebots, bewertet von 100.",
+  },
+  {
+    id: "sustainability",
+    weight: SUSTAINABILITY_MAX,
+    nameEn: "Sustainability",
+    nameDe: "Nachhaltigkeit",
+    noteEn: "Bid sustainability commitment, scored out of 100.",
+    noteDe: "Nachhaltigkeitszusage des Angebots, bewertet von 100.",
+  },
+  {
+    id: "history",
+    weight: HISTORY_MAX,
+    nameEn: "Verified vendor history",
+    nameDe: "Geprüfte Lieferantenhistorie",
+    noteEn: "Vendor 360 monthly score for incumbents only. No History is not zero: the other weights, which sum to 85, are rescaled to 100.",
+    noteDe: "Vendor-360-Monatsscore nur für Incumbents. No History ist nicht null: die übrigen Gewichte, die 85 ergeben, werden auf 100 umbasiert.",
+  },
+]
+
+export interface AppliedWeights {
+  cost: number
+  service: number
+  capacity: number
+  implementation: number
+  sustainability: number
+  history: number | null
+}
 
 export const STANDARD_WARRANTY_MONTHS = 24
 /** Warranty below this after a >25% cut from standard → high commercial risk. */
@@ -61,10 +145,14 @@ export interface BidEvaluationResult {
   qaScore: number | null
   legalScore: number | null
   sustainabilityScore: number | null
+  historyScore: number | null
   compositeScore: number | null
   finalRank: number | null
   highCommercialRisk: boolean
   historyLabel: "No History" | "Available"
+  /** 1 for incumbents. 100/85 when No History rescales the other weights. */
+  weightScale: number
+  applied: AppliedWeights
   warrantyMonths: number
   fatNoticeDays: number
   insight: string
@@ -83,23 +171,37 @@ function evaluateGates(bid: BidInput): GateId[] {
   return failures
 }
 
-/** Logistics method inputs. History is not a weighted component. */
-const HISTORY_BY_BID: Record<string, "No History" | "Available"> = {
-  "bid-rheinroute": "Available",
-  "bid-northbridge": "Available",
-  "bid-alpinelink": "No History",
-  "bid-veloce": "No History",
+function asScore(value: string | number | null | undefined): number {
+  return typeof value === "number" ? value : 0
 }
 
-const LOGISTICS_PROFILE: Record<string, { lanes: number; service: number; visibility: number; sustainability: number; evidenceMissing?: boolean }> = {
-  "bid-rheinroute": { lanes: 18, service: 22, visibility: 13, sustainability: 8 },
-  "bid-northbridge": { lanes: 15, service: 24, visibility: 15, sustainability: 9 },
-  "bid-alpinelink": { lanes: 18, service: 20, visibility: 12, sustainability: 7 },
-  "bid-veloce": { lanes: 18, service: 16, visibility: 8, sustainability: 5 },
+function commitmentScores(bidId: string) {
+  const supplierId = SUPPLIER_BY_BID[bidId]
+  const row = BIDS.find((b) => b.eventId === "RFP-2026-001" && b.supplierId === supplierId)
+  return {
+    service: asScore(row?.serviceScore),
+    capacity: asScore(row?.capacityScore),
+    implementation: row?.implementationScore ?? 0,
+    sustainability: row?.sustainabilityScore ?? 0,
+  }
 }
 
-function logisticsProfile(bid: BidInput) {
-  return LOGISTICS_PROFILE[bid.id] ?? { lanes: 18, service: 18, visibility: 10, sustainability: 6 }
+function historyFor(bidId: string, throughMonth: string): { label: "No History" | "Available"; index: number | null } {
+  const supplierId = SUPPLIER_BY_BID[bidId]
+  if (!supplierId) return { label: "No History", index: null }
+  const profile = vendorProfile(supplierId, [], throughMonth)
+  if (!profile || profile.historyStatus !== "Available" || profile.score?.total == null) {
+    return { label: "No History", index: null }
+  }
+  return { label: "Available", index: profile.score.total }
+}
+
+function appliedMax(weight: number, scale: number): number {
+  return round1(weight * scale)
+}
+
+function pointsFromIndex(index: number, max: number): number {
+  return round1((max * index) / 100)
 }
 
 function buildRecommendation(
@@ -140,76 +242,101 @@ function buildRecommendation(
   return `Rank #${result.finalRank}, composite ${result.compositeScore}. ${bid.insight}`
 }
 
+const NOMINAL_APPLIED: AppliedWeights = {
+  cost: PRICE_MAX,
+  service: TECH_MAX,
+  capacity: QA_MAX,
+  implementation: LEGAL_MAX,
+  sustainability: SUSTAINABILITY_MAX,
+  history: HISTORY_MAX,
+}
+
 /**
- * Evaluate a set of bids. Price normalisation uses P_min among **eligible**
- * (gate-passing) bids only. Disqualified bids keep null scores and no rank.
+ * Evaluate a set of bids. Cost uses the lowest compliant annual price.
+ * Verified history uses the Vendor 360 monthly score through `throughMonth`.
+ * A No History bid is not scored as zero: the other weights are rescaled from 85 to 100.
+ * Disqualified bids keep null scores and no rank.
  */
-export function evaluateBids(bids: BidInput[], locale: Locale = "en"): BidEvaluationResult[] {
+export function evaluateBids(
+  bids: BidInput[],
+  locale: Locale = "en",
+  throughMonth = "2026-08",
+): BidEvaluationResult[] {
   const gated = bids.map((bid) => {
-    const profile = logisticsProfile(bid)
     const gateFailures = evaluateGates(bid)
-    const evidenceMissing = Boolean(profile.evidenceMissing)
-    return { bid, gateFailures, evidenceMissing, pass: !evidenceMissing && gateFailures.length === 0 }
+    const history = historyFor(bid.id, throughMonth)
+    return { bid, gateFailures, history, pass: gateFailures.length === 0 }
   })
 
   const eligible = gated.filter((g) => g.pass)
   const pMin = eligible.length > 0 ? Math.min(...eligible.map((g) => g.bid.totalPrice)) : 0
 
-  const scored = gated.map(({ bid, gateFailures, pass, evidenceMissing }) => {
-    if (!pass) {
-      const base: BidEvaluationResult = {
-        bidId: bid.id,
-        supplier: bid.supplier,
-        pdfPath: bid.pdfPath,
-        totalPrice: bid.totalPrice,
-        gatingStatus: evidenceMissing ? "Evidence missing" : "Fail",
-        gateFailures,
-        priceScore: null,
-        techScore: null,
-        qaScore: null,
-        legalScore: null,
-        sustainabilityScore: null,
-        compositeScore: null,
-        finalRank: null,
-        highCommercialRisk: gateFailures.includes("iso9001"),
-        historyLabel: HISTORY_BY_BID[bid.id] ?? "No History",
-        warrantyMonths: bid.warrantyMonths,
-        fatNoticeDays: bid.fatNoticeDays,
-        insight: bid.insight,
-        recommendation: "",
-      }
-      base.recommendation = buildRecommendation(bid, base, locale)
-      return base
-    }
-
-    const profile = logisticsProfile(bid)
-    const priceScore = round1(PRICE_MAX * (pMin / bid.totalPrice))
-    const techScore = profile.service
-    const qaScore = round1(QA_MAX * (profile.lanes / 18))
-    const legalScore = profile.visibility
-    const sustainabilityScore = profile.sustainability
-    const compositeScore = round1(priceScore + techScore + qaScore + legalScore + sustainabilityScore)
-    const highCommercialRisk = false
-
-    return {
+  const scored = gated.map(({ bid, gateFailures, history, pass }) => {
+    const blank: BidEvaluationResult = {
       bidId: bid.id,
       supplier: bid.supplier,
       pdfPath: bid.pdfPath,
       totalPrice: bid.totalPrice,
-      gatingStatus: "Pass" as const,
+      gatingStatus: "Fail",
       gateFailures,
+      priceScore: null,
+      techScore: null,
+      qaScore: null,
+      legalScore: null,
+      sustainabilityScore: null,
+      historyScore: null,
+      compositeScore: null,
+      finalRank: null,
+      highCommercialRisk: gateFailures.includes("iso9001"),
+      historyLabel: history.label,
+      weightScale: 1,
+      applied: { ...NOMINAL_APPLIED, history: history.label === "Available" ? HISTORY_MAX : null },
+      warrantyMonths: bid.warrantyMonths,
+      fatNoticeDays: bid.fatNoticeDays,
+      insight: bid.insight,
+      recommendation: "",
+    }
+    if (!pass) {
+      blank.recommendation = buildRecommendation(bid, blank, locale)
+      return blank
+    }
+
+    const scale = history.index == null ? CHALLENGER_SCALE : 1
+    const applied: AppliedWeights = {
+      cost: appliedMax(PRICE_MAX, scale),
+      service: appliedMax(TECH_MAX, scale),
+      capacity: appliedMax(QA_MAX, scale),
+      implementation: appliedMax(LEGAL_MAX, scale),
+      sustainability: appliedMax(SUSTAINABILITY_MAX, scale),
+      history: history.index == null ? null : HISTORY_MAX,
+    }
+    const commitments = commitmentScores(bid.id)
+    const costIndex = pMin > 0 ? (100 * pMin) / bid.totalPrice : 0
+    const priceScore = pointsFromIndex(costIndex, applied.cost)
+    const techScore = pointsFromIndex(commitments.service, applied.service)
+    const qaScore = pointsFromIndex(commitments.capacity, applied.capacity)
+    const legalScore = pointsFromIndex(commitments.implementation, applied.implementation)
+    const sustainabilityScore = pointsFromIndex(commitments.sustainability, applied.sustainability)
+    const historyScore = history.index == null || applied.history == null
+      ? null
+      : pointsFromIndex(history.index, applied.history)
+    const parts = [priceScore, techScore, qaScore, legalScore, sustainabilityScore]
+    if (historyScore != null) parts.push(historyScore)
+    const compositeScore = round1(parts.reduce((sum, part) => sum + part, 0))
+
+    return {
+      ...blank,
+      gatingStatus: "Pass" as const,
       priceScore,
       techScore,
       qaScore,
       legalScore,
       sustainabilityScore,
+      historyScore,
       compositeScore,
-      finalRank: null as number | null,
-      highCommercialRisk,
-      historyLabel: HISTORY_BY_BID[bid.id] ?? "No History",
-      warrantyMonths: bid.warrantyMonths,
-      fatNoticeDays: bid.fatNoticeDays,
-      insight: bid.insight,
+      highCommercialRisk: false,
+      weightScale: scale,
+      applied,
       recommendation: "",
     }
   })
@@ -247,9 +374,7 @@ export function sortEvaluationForDisplay(results: BidEvaluationResult[]): BidEva
 }
 
 /*
- * Expected demo outcomes (smoke):
- * - Prysmatic: Fail (ddpRotterdam), no composite / rank
- * - P_min among eligible = NexCore 2,150,000
- * - Viking: Pass, highCommercialRisk true (12 mo warranty), Legal floored after −15
- * - J-Tech vs NexCore: J-Tech typically ranks #1 on tech/QA despite higher price
+ * Ranks are computed from the composite. They are not preset.
+ * Veloce fails cargo insurance and stays unranked.
+ * AlpineLink and Veloce stay No History; their other weights rescale from 85 to 100.
  */

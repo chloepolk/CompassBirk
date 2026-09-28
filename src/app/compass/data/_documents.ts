@@ -44,7 +44,7 @@ export interface StandardRow {
 
 export const STANDARDS_MATRIX: StandardRow[] = [
   { authority: "ISO", ref: "ISO 9001:2015", scope: "Quality management systems — required for approved carriers." },
-  { authority: "SRC", ref: "SRC-002", scope: "Carrier performance and SLA — OTD, tender acceptance, claims and invoice accuracy." },
+  { authority: "SRC", ref: "SRC-002", scope: "Carrier performance and SLA — OTD, shipment acceptance rate, claims and invoice accuracy." },
   { authority: "SRC", ref: "SRC-008", scope: "Supplier qualification — mandatory evidence, gates and No History treatment." },
 ]
 
@@ -58,7 +58,7 @@ export const BASELINE_STANDARDS: StandardRow[] = [
 export const FAT_TRACEABILITY_CLAUSES = [
   "Carriers shall submit qualification evidence (insurance, due diligence and data-integration method) at least 30 days before the intended service start.",
   "Cargo liability insurance of at least EUR 5 million is mandatory before a bid can pass the qualification gate.",
-  "Shipment visibility shall be provided by API, EDI or an agreed daily file, as specified in SRC-006.",
+  "The bidder states API, EDI or a daily file, the implementation plan, the testing timetable and the cost. The selected method is tested before go-live.",
 ]
 
 /* ------------------------------------------------------------------ */
@@ -96,15 +96,15 @@ export const COMPONENT_SPECS: ComponentSpec[] = [
     overview: "FTL and LTL road-freight capacity across 18 European lanes, with visibility, SLA and EUR rate-card requirements.",
     parameters: [
       { parameter: "Lanes", requirement: "18 European origin–destination pairs" },
-      { parameter: "Forecast volume", requirement: "2,448 shipments per year (decision input, not a guaranteed commitment)" },
+      { parameter: "Forecast volume", requirement: "2,448 forecast shipments. This is not a minimum commitment." },
       { parameter: "Equipment", requirement: "Curtainsider / box trailer; selected lanes temperature-controlled" },
-      { parameter: "OTD target", requirement: "98.0% on-time delivery" },
-      { parameter: "Tender acceptance", requirement: "97.0%" },
-      { parameter: "Claims ceiling", requirement: "0.5% of shipments" },
+      { parameter: "OTD target", requirement: "On-time delivery of at least 98.0%." },
+      { parameter: "Shipment acceptance rate", requirement: "Shipment acceptance rate of at least 97.0%." },
+      { parameter: "Claims ceiling", requirement: "Claims of no more than 0.5% of shipments." },
       { parameter: "Invoice accuracy", requirement: "99.0%" },
-      { parameter: "Currency", requirement: "EUR, fixed lane rates plus disclosed fuel surcharge" },
-      { parameter: "Visibility", requirement: "API, EDI or agreed daily file" },
-      { parameter: "Insurance", requirement: "Cargo liability of at least EUR 5 million" },
+      { parameter: "Currency", requirement: "Fixed EUR lane rates, a disclosed fuel-surcharge formula and an accessorial schedule." },
+      { parameter: "Visibility", requirement: "The bidder states API, EDI or a daily file, the implementation plan, the testing timetable and the cost. The selected method is tested before go-live." },
+      { parameter: "Insurance", requirement: "Cargo liability insurance of at least EUR 5 million." },
     ],
     keywords: ["road", "freight", "lane", "ftl", "ltl", "carrier", "logistics", "european"],
     applicableStandards: ["ISO 9001:2015", "SRC-002", "SRC-008"],
@@ -161,10 +161,10 @@ export const PROCUREMENT_CLAUSES: TermsClause[] = [
   { ref: "3.3", heading: "Audit Rights", text: "The Company reserves the right to audit the Supplier's operations and quality-assurance documentation with 48 hours' prior written notice." },
   { ref: "4.1", heading: "Performance of Services", text: "Unless otherwise specified in the Purchase Order, Services shall be performed on the agreed origin–destination lanes using the nominated equipment." },
   { ref: "4.2", heading: "Title & Risk", text: "Risk in the goods remains with the Supplier while they are in the Supplier's care, custody or control, until delivery against the agreed POD." },
-  { ref: "4.3", heading: "Visibility & Evidence", text: "The Supplier must provide agreed visibility (API, EDI or daily file) and supporting POD evidence no later than the interval set in SRC-002." },
+  { ref: "4.3", heading: "Visibility & Evidence", text: "The bidder states the connectivity method (API, EDI or an agreed daily file), the implementation plan, the testing timetable and the cost. The selected method is tested before go-live. Supporting POD evidence is provided no later than the interval set in SRC-002." },
   { ref: "5.1–5.3", heading: "Liability & Insurance", text: "The Supplier shall maintain cargo liability of at least EUR 5 million and remain responsible for loss of or damage to goods in its care." },
   { ref: "6.2", heading: "Performance Warranty", text: "Service performance follows the SLA in SRC-002 for the contract term. Failures are escalated under the review cadence in that standard." },
-  { ref: "7.1", heading: "Fixed Pricing", text: "Lane rates are fixed and firm in EUR. A disclosed fuel surcharge under SRC-005 is the only permitted variable element unless an index is agreed in writing." },
+  { ref: "7.1", heading: "Fixed Pricing", text: "Lane rates are fixed and firm in EUR, with a disclosed fuel-surcharge formula under SRC-005 and an accessorial schedule." },
   { ref: "7.2", heading: "Payment Terms", text: "Payment shall be made sixty (60) days from the end of the month in which a correct and fully documented invoice is received." },
   { ref: "9.1–9.2", heading: "Governing Law & Disputes", text: "This Agreement shall be governed by and construed in accordance with the laws of England and Wales. Any dispute shall be finally resolved by arbitration under the LCIA Rules; the seat of arbitration shall be London, England." },
 ]
@@ -209,8 +209,8 @@ export const DOCUMENTS: S7Document[] = [
     classification: "Internal",
     fileName: "",
     pages: 1,
-    summary: "KPI definitions, thresholds, review and escalation for OTD, tender acceptance, claims and invoice accuracy.",
-    fullText: "SRC-002 Carrier Performance and SLA Standard. OTD target 98.0%. Tender acceptance 97.0%. Claims ceiling 0.5%. Invoice accuracy 99.0%.",
+    summary: "KPI definitions, thresholds, review and escalation for OTD, shipment acceptance rate, claims and invoice accuracy.",
+    fullText: "SRC-002 Carrier Performance and SLA Standard. OTD target 98.0%. Shipment acceptance rate 97.0%. Claims ceiling 0.5%. Invoice accuracy 99.0%.",
   },
   {
     id: "src-003",

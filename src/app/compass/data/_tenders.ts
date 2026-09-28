@@ -65,7 +65,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     risk: "The RheinRoute and NorthBridge frameworks expire 31 December 2026 with 120-day notice. A late award compresses transition into the January 2027 service start.",
     evidence: [
       "SRC-001: FTL/LTL capacity across 18 European lanes; visibility by API, EDI or daily file.",
-      "SRC-002: OTD target 98.0%; tender acceptance 97.0%; claims ceiling 0.5%.",
+      "SRC-002: OTD target 98.0%; shipment acceptance rate 97.0%; claims ceiling 0.5%.",
       "SRC-008: New carriers remain No History; incumbent scores are an approved evidence source, not an automatic preference.",
       "Estimated annual value €5.65m. Service start 1 January 2027.",
     ],
@@ -140,7 +140,7 @@ export const TENDER_PACKAGES: TenderPackage[] = [
     risk: "Five lanes account for most late deliveries. Unresolved, the deterioration becomes award-evaluation evidence and a renewal driver.",
     evidence: [
       "ACT-006 performance alert; ACT-007 corrective-action draft.",
-      "Operational score uses OTD, tender acceptance and claims (40% of the vendor score).",
+      "Operational score uses OTD, shipment acceptance rate and claims (40% of the vendor score).",
       "Synthetic execution records are labelled as synthetic.",
     ],
     valueType: "protection",

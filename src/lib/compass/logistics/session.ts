@@ -1,5 +1,32 @@
+import type { IttDocument } from "@/app/compass/agents/_tender-types"
 import { defaultAwardContracts } from "./award-contracts"
 import { REQUIREMENTS } from "./requirements"
+import { LANES } from "./structured/lanes"
+import { SUPPLIERS } from "./structured/suppliers"
+import { FORECAST_SHIPMENTS } from "./vendor-model"
+
+export type LaneRateTemplateRow = {
+  laneId: string
+  origin: string
+  destination: string
+  forecastShipments: number
+  currency: "EUR"
+  rate: ""
+  fuelSurcharge: "SRC-005"
+  accessorials: "Bidder schedule"
+}
+
+/** Exact approved package. Communications may attach only this version. */
+export type ApprovedRfp = {
+  version: string
+  requirementSetVersion: string
+  evaluationMethodVersion: string
+  english: IttDocument
+  german: IttDocument
+  laneRateTemplate: LaneRateTemplateRow[]
+  reviewNote: string
+  attachments: { name: string; version: string }[]
+}
 
 export const LOGISTICS_SESSION_KEY = "clp-session-v2"
 
@@ -30,9 +57,14 @@ export type AttachmentMatch = "original" | "revised" | "rejected"
 
 export type SendApproval = {
   emailId: string
+  sender: string
   approverName: string
+  recipients: string[]
   approvedAt: string
+  message: string
+  attachments: { name: string; version: string }[]
   rfpVersion: string
+  delivery: "delivered"
   checks: string[]
 }
 
@@ -136,6 +168,8 @@ export type LogisticsSession = {
   rfpApproved: boolean
   rfpVersion: string | null
   rfpEditNote: string
+  /** Locked English RFP, German translation and lane-rate template. */
+  approvedRfp: ApprovedRfp | null
   bidsReleased: boolean
   awardApproved: boolean
   awardPending: boolean
@@ -166,8 +200,91 @@ export function journeyIndex(step: JourneyStep): number {
 }
 
 const INVITE_IDS = ["EML-001", "EML-002"] as const
-const BID_EMAIL_IDS = ["EML-007", "EML-008", "EML-009"] as const
-export const SEND_CHECKS = ["recipient", "authority", "facts", "dates", "attachment", "confidentiality"] as const
+export const BID_EMAIL_IDS = ["EML-007", "EML-008", "EML-009", "EML-013"] as const
+/** Recipient, sending authority, facts and dates together, attachment version, confidentiality, language. */
+export const SEND_CHECKS = ["recipient", "authority", "factsDates", "attachment", "confidentiality", "language"] as const
+
+export type OutboundCheckKey = (typeof SEND_CHECKS)[number]
+
+export type OutboundDraftFacts = {
+  id: string
+  from: string
+  to: string
+  language: "EN" | "DE"
+  bodyEn: string
+  bodyDe: string
+}
+
+const SOURCING_MAILBOX = "sourcing@compass-demo.example"
+
+function draftText(draft: OutboundDraftFacts): string {
+  return `${draft.bodyEn}\n${draft.bodyDe}`
+}
+
+function mentionsForecast(text: string): boolean {
+  const plain = String(FORECAST_SHIPMENTS)
+  return text.includes(plain)
+    || text.includes(FORECAST_SHIPMENTS.toLocaleString("en-GB"))
+    || text.includes(FORECAST_SHIPMENTS.toLocaleString("de-DE"))
+}
+
+function mentionsLanes(text: string): boolean {
+  const lanes = LANES.filter((lane) => lane.laneId).length
+  return text.includes(String(lanes)) || /eighteen|achtzehn/i.test(text)
+}
+
+function mentionsDeadline(text: string): boolean {
+  return /23 October 2026|23\. Oktober 2026/i.test(text)
+}
+
+/** Six outbound checks. Approve and send stays disabled until every one passes. */
+export function evaluateOutboundChecks(
+  session: Pick<LogisticsSession, "approvedRfp" | "rfpVersion">,
+  draft: OutboundDraftFacts,
+): { key: OutboundCheckKey; pass: boolean }[] {
+  const text = draftText(draft)
+  const contacts = new Set(
+    SUPPLIERS.map((row) => row.contactEmail?.toLowerCase()).filter((email): email is string => Boolean(email)),
+  )
+  const files = issuedInvitationAttachments(session, draft.id)
+  const version = session.rfpVersion
+  const names = new Set(files.map((file) => file.name))
+  const versionsMatch = Boolean(version) && files.length > 0 && files.every((file) => file.version === version)
+  const englishPack = names.has("RFP_EN.docx") && !names.has("RFP_DE.docx") && names.has("Lane_Rate_Template.csv")
+  const germanPack = names.has("RFP_DE.docx") && !names.has("RFP_EN.docx") && names.has("Lane_Rate_Template.csv")
+  const namesAnotherBidder = /\b(rheinroute|northbridge|alpinelink|veloce|eurospan)\b/i.test(text)
+  const confidential = /confidential to the named recipient|für den genannten Empfänger vertraulich/i.test(text)
+  const languagePass = draft.id === "EML-001"
+    ? draft.language === "EN" && englishPack
+    : draft.id === "EML-002"
+      ? draft.language === "DE" && germanPack
+      : false
+
+  return [
+    { key: "recipient", pass: contacts.has(draft.to.toLowerCase()) },
+    { key: "authority", pass: draft.from.toLowerCase() === SOURCING_MAILBOX },
+    {
+      key: "factsDates",
+      pass: text.includes("RFP-2026-001") && mentionsLanes(text) && mentionsForecast(text) && mentionsDeadline(text),
+    },
+    {
+      key: "attachment",
+      pass: Boolean(session.approvedRfp) && versionsMatch && (draft.id === "EML-001" ? englishPack : germanPack),
+    },
+    { key: "confidentiality", pass: confidential && !namesAnotherBidder },
+    { key: "language", pass: languagePass },
+  ]
+}
+
+export function issuedInvitationAttachments(
+  session: Pick<LogisticsSession, "approvedRfp">,
+  emailId: string,
+): { name: string; version: string }[] {
+  const all = session.approvedRfp?.attachments ?? []
+  if (emailId === "EML-001") return all.filter((row) => row.name !== "RFP_DE.docx")
+  if (emailId === "EML-002") return all.filter((row) => row.name !== "RFP_EN.docx")
+  return all
+}
 
 export function invitesSent(session: Pick<LogisticsSession, "sentDraftIds">): boolean {
   return INVITE_IDS.every((id) => session.sentDraftIds.includes(id))
@@ -219,6 +336,7 @@ const STEP_EMAILS: Record<number, Record<string, EmailClass>> = {
     "EML-007": "confirmed",
     "EML-008": "confirmed",
     "EML-009": "confirmed",
+    "EML-013": "confirmed",
     "EML-012": "not-relevant",
   },
 }
@@ -310,6 +428,7 @@ export function recordRequirementDecision(session: LogisticsSession, decision: R
     rfpApproved: false,
     rfpGenerated: false,
     rfpVersion: null,
+    approvedRfp: null,
   }
 }
 
@@ -360,6 +479,7 @@ export function emptySession(): LogisticsSession {
     rfpApproved: false,
     rfpVersion: null,
     rfpEditNote: "",
+    approvedRfp: null,
     bidsReleased: false,
     awardApproved: false,
     awardPending: false,
@@ -385,6 +505,13 @@ export function emptySession(): LogisticsSession {
 
 export const DEFAULT_SESSION: LogisticsSession = emptySession()
 
+function hydrateApprovedRfp(value: unknown): ApprovedRfp | null {
+  if (!value || typeof value !== "object") return null
+  const row = value as ApprovedRfp
+  if (!row.version || !row.english?.ittRef || !row.german?.ittRef || !Array.isArray(row.laneRateTemplate)) return null
+  return row
+}
+
 function hydrateDecisions(value: unknown): RequirementDecision[] {
   if (!Array.isArray(value)) return []
   const out: RequirementDecision[] = []
@@ -400,6 +527,37 @@ function hydrateDecisions(value: unknown): RequirementDecision[] {
       decision: decision as ResolutionChoice,
       rationale: String((row as { rationale?: string }).rationale ?? ""),
       at: typeof at === "string" ? at : undefined,
+    })
+  }
+  return out
+}
+
+function hydrateSendApprovals(raw: unknown): SendApproval[] {
+  if (!Array.isArray(raw)) return []
+  const out: SendApproval[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue
+    const item = row as Partial<SendApproval>
+    if (!item.emailId || !item.approverName || !item.approvedAt) continue
+    const attachments = Array.isArray(item.attachments)
+      ? item.attachments.flatMap((file) => {
+          if (!file || typeof file !== "object") return []
+          const name = String((file as { name?: string }).name ?? "")
+          if (!name) return []
+          return [{ name, version: String((file as { version?: string }).version ?? "") }]
+        })
+      : []
+    out.push({
+      emailId: item.emailId,
+      sender: item.sender ?? "",
+      approverName: item.approverName,
+      recipients: Array.isArray(item.recipients) ? item.recipients.filter((value): value is string => typeof value === "string") : [],
+      approvedAt: item.approvedAt,
+      message: item.message ?? "",
+      attachments,
+      rfpVersion: item.rfpVersion ?? "",
+      delivery: "delivered",
+      checks: Array.isArray(item.checks) ? item.checks.filter((value): value is string => typeof value === "string") : [],
     })
   }
   return out
@@ -430,11 +588,12 @@ export function normalizeSession(parsed: Partial<LogisticsSession>): LogisticsSe
     classifiedEmailIds: Array.isArray(parsed.classifiedEmailIds) ? parsed.classifiedEmailIds : Object.keys(emailClassifications),
     attachmentMatches: { ...(parsed.attachmentMatches ?? {}) },
     sentDraftIds,
-    sendApprovals: parsed.sendApprovals ?? [],
+    sendApprovals: hydrateSendApprovals(parsed.sendApprovals),
     rfpGenerated: generated,
     rfpApproved: approved,
     rfpVersion: (approved || generated) ? (parsed.rfpVersion ?? "RFP-2026-001-v1") : null,
     rfpEditNote: parsed.rfpEditNote ?? "",
+    approvedRfp: generated ? hydrateApprovedRfp(parsed.approvedRfp) : null,
     bidsReleased: Boolean(parsed.bidsReleased) || n >= 5,
     awardPending: parsed.awardPending === true || n === 6,
     awardApproved: Boolean(parsed.awardApproved) || n >= 7,
@@ -495,6 +654,7 @@ function withStepBoundary(session: LogisticsSession, step: JourneyStep): Logisti
     rfpGenerated: n >= 4 ? true : n === 3 ? session.rfpGenerated : false,
     rfpApproved: n >= 4 ? true : n === 3 ? session.rfpApproved : false,
     rfpVersion: n >= 4 ? (session.rfpVersion ?? "RFP-2026-001-v1") : n === 3 ? session.rfpVersion : null,
+    approvedRfp: n >= 4 || (n === 3 && session.rfpGenerated) ? session.approvedRfp : null,
     sentDraftIds: n >= 4 ? Array.from(new Set([...INVITE_IDS, ...session.sentDraftIds])) : [],
     attachmentMatches: n >= 5 ? { "EML-008": "revised", ...session.attachmentMatches } : (n >= 4 ? session.attachmentMatches : {}),
     selectedScenarioId: n >= 6 ? (session.selectedScenarioId ?? "AWD-02") : null,
@@ -555,56 +715,131 @@ export function applyReplayCheckpoint(checkpoint: number): Partial<LogisticsSess
 
 export type GateCopy = { en: string; de: string }
 
-export function communicationsBlock(session: LogisticsSession): GateCopy | null {
-  if ((session.rfpApproved && session.rfpGenerated) || journeyIndex(session.journeyStep) >= 4) return null
-  if (!session.acceptedNeed) {
+export type LifecycleActionId = "return-workspace" | "review-invitations" | "review-evidence" | "review-bids"
+
+export type RfpLifecyclePhase =
+  | "not-issued"
+  | "awaiting-approved-rfp"
+  | "approved-not-issued"
+  | "awaiting-confirmation"
+  | "bids-ready"
+
+export type RfpLifecycle = {
+  phase: RfpLifecyclePhase
+  /** Short status. Every module shows this phrase for the same phase. */
+  status: GateCopy
+  /** Bid Evaluation explanation for this phase. */
+  detail: GateCopy | null
+  /** Communications block. Present only until the RFP is approved. */
+  communications: GateCopy | null
+  action: { id: LifecycleActionId; label: GateCopy } | null
+  /** Reserved RFP ID before generation; document id afterwards. */
+  identifier: GateCopy
+  /** Present only after both invitations have been sent. */
+  issueLine: GateCopy | null
+}
+
+const RETURN_TO_WORKSPACE: GateCopy = {
+  en: "Return to Sourcing Workspace",
+  de: "Zum Beschaffungsarbeitsbereich",
+}
+
+const AWAITING_APPROVED_RFP: GateCopy = {
+  en: "Awaiting approved RFP. Supplier invitations cannot be prepared until the requirements baseline and evaluation method are approved, the RFP is generated, and the generated RFP is approved.",
+  de: "Freigegebene Ausschreibung ausstehend. Lieferanteneinladungen können erst vorbereitet werden, wenn die Anforderungsbaseline und die Bewertungsmethode freigegeben, die Ausschreibung erzeugt und die erzeugte Ausschreibung freigegeben sind.",
+}
+
+/** One phase for the RFP demonstration. Screens must read this instead of inventing status copy. */
+export function rfpLifecycle(session: LogisticsSession): RfpLifecycle {
+  const sent = invitesSent(session)
+  const generated = session.rfpGenerated
+  const approved = session.rfpApproved && generated
+  const version = session.rfpVersion ?? "RFP-2026-001"
+  const identifier: GateCopy = generated
+    ? { en: `Document ${version}`, de: `Dokument ${version}` }
+    : { en: "Reserved RFP ID: RFP-2026-001", de: "Reservierte Ausschreibungs-ID: RFP-2026-001" }
+  const issueLine: GateCopy | null = sent
+    ? {
+        en: `Issued against ${session.requirementSetVersion ?? "REQ-2026-001"} and ${session.evaluationMethodVersion ?? "EVAL-LOG-v1"}. Document ${version}.`,
+        de: `Ausgegeben gegen ${session.requirementSetVersion ?? "REQ-2026-001"} und ${session.evaluationMethodVersion ?? "EVAL-LOG-v1"}. Dokument ${version}.`,
+      }
+    : null
+
+  if (session.bidsReleased || journeyIndex(session.journeyStep) >= 5) {
     return {
-      en: "Validate the sourcing need in the Action Centre before any invitation can be prepared.",
-      de: "Bestätigen Sie den Beschaffungsbedarf im Aktionszentrum, bevor eine Einladung vorbereitet werden kann.",
+      phase: "bids-ready",
+      status: { en: "Bids ready", de: "Angebote bereit" },
+      detail: null,
+      communications: null,
+      action: { id: "review-bids", label: { en: "Review bids", de: "Angebote prüfen" } },
+      identifier,
+      issueLine,
     }
   }
-  if (!session.packageLocked) {
+  if (sent) {
     return {
-      en: "Invitations stay unavailable until the requirement set and evaluation method are approved in the Sourcing Workspace.",
-      de: "Einladungen bleiben gesperrt, bis der Anforderungssatz und die Bewertungsmethode im Beschaffungsarbeitsbereich freigegeben sind.",
+      phase: "awaiting-confirmation",
+      status: { en: "Responses awaiting confirmation", de: "Antworten warten auf Bestätigung" },
+      detail: {
+        en: "Responses awaiting confirmation. Confirm classification and the attachment version before bids can be reviewed.",
+        de: "Antworten warten auf Bestätigung. Bestätigen Sie die Klassifikation und die Anhangsversion, bevor Angebote geprüft werden können.",
+      },
+      communications: null,
+      action: { id: "review-evidence", label: { en: "Review supplier evidence", de: "Lieferantennachweis prüfen" } },
+      identifier,
+      issueLine,
     }
   }
-  if (!session.rfpGenerated) {
+  if (approved) {
     return {
-      en: "Generate the cited RFP in the Sourcing Workspace before invitations can be prepared.",
-      de: "Erzeugen Sie die zitierte Ausschreibung im Beschaffungsarbeitsbereich, bevor Einladungen vorbereitet werden.",
+      phase: "approved-not-issued",
+      status: { en: "Approved but not issued", de: "Freigegeben, noch nicht ausgegeben" },
+      detail: {
+        en: "Approved but not issued. Review supplier invitations. Nothing has been sent.",
+        de: "Freigegeben, noch nicht ausgegeben. Prüfen Sie die Lieferanteneinladungen. Es wurde noch nichts gesendet.",
+      },
+      communications: null,
+      action: { id: "review-invitations", label: { en: "Review supplier invitations", de: "Lieferanteneinladungen prüfen" } },
+      identifier,
+      issueLine,
+    }
+  }
+  if (generated) {
+    return {
+      phase: "awaiting-approved-rfp",
+      status: { en: "Awaiting approved RFP", de: "Freigegebene Ausschreibung ausstehend" },
+      detail: {
+        en: "The cited draft exists. Approve it in the Sourcing Workspace before invitations can be prepared.",
+        de: "Der zitierte Entwurf liegt vor. Geben Sie ihn im Beschaffungsarbeitsbereich frei, bevor Einladungen vorbereitet werden können.",
+      },
+      communications: AWAITING_APPROVED_RFP,
+      action: { id: "return-workspace", label: RETURN_TO_WORKSPACE },
+      identifier,
+      issueLine,
     }
   }
   return {
-    en: "Review and approve the cited RFP before Communications can attach it. An approved requirement set is not an RFP, and an approved draft is not a sent invitation.",
-    de: "Prüfen und geben Sie die zitierte Ausschreibung frei, bevor die Kommunikation sie anhängen kann. Ein freigegebener Anforderungssatz ist keine Ausschreibung, und ein freigegebener Entwurf ist keine gesendete Einladung.",
+    phase: "not-issued",
+    status: { en: "RFP not yet issued", de: "Ausschreibung noch nicht ausgegeben" },
+    detail: {
+      en: "Bid Evaluation cannot generate the RFP. Return to the Sourcing Workspace to approve the requirements and create the cited draft.",
+      de: "Die Angebotsbewertung kann die Ausschreibung nicht erzeugen. Kehren Sie zum Beschaffungsarbeitsbereich zurück, um die Anforderungen freizugeben und den zitierten Entwurf zu erstellen.",
+    },
+    communications: AWAITING_APPROVED_RFP,
+    action: { id: "return-workspace", label: RETURN_TO_WORKSPACE },
+    identifier,
+    issueLine,
   }
 }
 
+export function communicationsBlock(session: LogisticsSession): GateCopy | null {
+  return rfpLifecycle(session).communications
+}
+
 export function evaluationBlock(session: LogisticsSession): GateCopy | null {
-  if (session.bidsReleased || journeyIndex(session.journeyStep) >= 5) return null
-  if (!session.rfpGenerated) {
-    return {
-      en: "No bids yet. Generate the cited RFP from the approved requirement set first.",
-      de: "Noch keine Angebote. Erzeugen Sie zuerst die zitierte Ausschreibung aus dem freigegebenen Anforderungssatz.",
-    }
-  }
-  if (!session.rfpApproved) {
-    return {
-      en: "No bids yet. Review and approve the cited RFP before invitations can be sent.",
-      de: "Noch keine Angebote. Prüfen und geben Sie die zitierte Ausschreibung frei, bevor Einladungen gesendet werden.",
-    }
-  }
-  if (!invitesSent(session)) {
-    return {
-      en: "No bids yet. Review supplier invitations and approve the send. Responses stay held until the invitation is sent.",
-      de: "Noch keine Angebote. Prüfen Sie die Lieferanteneinladungen und geben Sie den Versand frei. Antworten bleiben gesperrt, bis die Einladung gesendet ist.",
-    }
-  }
-  return {
-    en: "Responses are awaiting validation. Confirm email classification and the attachment match before the four bids become eligible.",
-    de: "Antworten warten auf Prüfung. Bestätigen Sie die E-Mail-Klassifikation und die Anhangszuordnung, bevor die vier Angebote bewertbar werden.",
-  }
+  const life = rfpLifecycle(session)
+  if (life.phase === "bids-ready") return null
+  return life.detail
 }
 
 export function awardBlock(session: LogisticsSession): GateCopy | null {

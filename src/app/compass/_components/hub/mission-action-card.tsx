@@ -13,7 +13,7 @@ import { employeeById, employeeByRole, EMPLOYEES, type Employee } from "@/app/co
 import { AssigneePicker } from "./assignee-picker"
 import { ActionCompletionTimeline } from "./action-completion-timeline"
 import { BluePilotMark } from "../bluepilot-mark"
-import { ReasoningExpand, BluePilotReasoningButton, ReasoningTooltip, type ReasoningContent } from "../reasoning-disclosure"
+import { ReasoningExpand, type ReasoningContent } from "../reasoning-disclosure"
 import { isReasoningEmpty } from "../reasoning-helpers"
 import type { MissionObjective } from "@/app/compass/_diamond/types"
 import { useT } from "../../_i18n/use-t"
@@ -69,6 +69,8 @@ export interface MissionActionCardProps extends React.HTMLAttributes<HTMLElement
   governanceNote?: string
   /** Inline award-approval body (clarification, revision, approver actions). */
   governancePanel?: React.ReactNode
+  /** Evidence shown only while the card is open. */
+  decisionBasis?: React.ReactNode
   evaluateBidsLabel?: string
   onEvaluateBids?: () => void
 }
@@ -173,6 +175,7 @@ export function MissionActionCard({
   governanceChip,
   governanceNote,
   governancePanel,
+  decisionBasis,
   evaluateBidsLabel,
   onEvaluateBids,
   className,
@@ -187,6 +190,9 @@ export function MissionActionCard({
   const [closing, setClosing] = React.useState(false)
   const [assignDrawerOpen, setAssignDrawerOpen] = React.useState(false)
   const [reasoningOpen, setReasoningOpen] = React.useState(false)
+  React.useEffect(() => {
+    setReasoningOpen(expanded)
+  }, [expanded])
   const [narrativeOpen, setNarrativeOpen] = React.useState(false)
   const hasReasoning = !isReasoningEmpty(reasoning)
   const narrativeRef = React.useRef<HTMLParagraphElement>(null)
@@ -342,8 +348,11 @@ export function MissionActionCard({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 pl-9">
-        <div className="flex min-w-0 flex-1">
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-3 pl-9">
+        <div className="min-w-0 flex-1 space-y-2">
+          {stageLabel ? (
+            <p className="text-[12px] font-medium text-[var(--color-text-secondary)]">{stageLabel}</p>
+          ) : null}
           <FlightPath
             steps={flightPathSteps}
             currentStepId={currentFlightStepId}
@@ -351,31 +360,24 @@ export function MissionActionCard({
             showLabels={false}
             showPlane={false}
             completed={isCompleted}
-            timelineClassName="max-w-[260px]"
-            suffix={
-              stageLabel ? (
-                <span className="shrink-0 whitespace-nowrap text-[12px] font-medium text-[var(--color-text-secondary)]">
-                  {stageLabel}
-                </span>
-              ) : undefined
-            }
+            timelineClassName="w-full min-w-0 overflow-x-auto"
           />
         </div>
         <div className="flex items-center gap-1.5">
-          {!isCompleted && !isReconciling && (
+          {!isCompleted && !isReconciling && primaryActionLabel && onPrimaryAction && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onPrimaryAction}
+              className="h-[29px] rounded-[8px] bg-[var(--color-bg-inverse)] px-[13px] text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90"
+            >
+              <SafeIcon name="FileSignature" className="h-3.5 w-3.5" />
+              {primaryActionLabel}
+            </Button>
+          )}
+          {expanded && !isCompleted && !isReconciling && (
             <>
-              {primaryActionLabel && onPrimaryAction && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onPrimaryAction}
-                  className="h-[29px] rounded-[8px] bg-[var(--color-bg-inverse)] px-[13px] text-[12px] font-semibold text-[var(--color-text-inverse)] hover:opacity-90"
-                >
-                  <SafeIcon name="FileSignature" className="h-3.5 w-3.5" />
-                  {primaryActionLabel}
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="ghost"
@@ -435,28 +437,8 @@ export function MissionActionCard({
               </DropdownMenu>
             </>
           )}
-          {isCompleted && hasReasoning && (
-            <BluePilotReasoningButton
-              open={reasoningOpen}
-              onClick={(e) => {
-                e.stopPropagation()
-                setReasoningOpen((v) => !v)
-              }}
-              className={actionButtonClass}
-            />
-          )}
         </div>
       </div>
-
-      {hasReasoning && (
-        <ReasoningExpand
-          reasoning={reasoning}
-          trigger="none"
-          open={reasoningOpen}
-          onOpenChange={setReasoningOpen}
-          className="pl-9"
-        />
-      )}
 
       <div
         className={cn(
@@ -474,6 +456,22 @@ export function MissionActionCard({
               )}
               style={panelMotion.style}
             >
+              {(decisionBasis || hasReasoning) && (
+                <div className="space-y-3">
+                  <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    {t("missionCard.decisionBasis")}
+                  </h3>
+                  {decisionBasis}
+                  {hasReasoning && (
+                    <ReasoningExpand
+                      reasoning={reasoning}
+                      trigger="none"
+                      open={reasoningOpen}
+                      onOpenChange={setReasoningOpen}
+                    />
+                  )}
+                </div>
+              )}
               {auditEntries.length > 0 && (
                 <button
                   type="button"

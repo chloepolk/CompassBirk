@@ -16,6 +16,13 @@ export const SCORE_WEIGHTS = {
 
 export const MIN_EVIDENCE_MONTHS = 12
 
+export function trendLabel(flag: string | null | undefined, locale: "en" | "de"): string {
+  if (flag === "Deteriorating") return locale === "de" ? "Verschlechterung" : "Deteriorating"
+  if (flag === "Improving") return locale === "de" ? "Verbesserung" : "Improving"
+  if (flag === "Stable") return locale === "de" ? "Stabil" : "Stable"
+  return flag ?? "—"
+}
+
 export type HistoryStatus = "Available" | "No History"
 
 export type VendorScore = {

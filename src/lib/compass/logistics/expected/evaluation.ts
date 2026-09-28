@@ -1,4 +1,7 @@
-/** expected_generated_outputs — generated from Compass Logistics Procurement Synthetic Dataset v1.2 (Evaluation). Do not import xlsx at runtime. */
+/** expected_generated_outputs — generated from Compass Logistics Procurement Synthetic Dataset v1.2 (Evaluation). Do not import xlsx at runtime.
+ * The weighted scores and ranks in this sheet are the old extract. Bid Evaluation does not read them.
+ * The screen recalculates from EVAL-LOG-v1 using exact annual costs and the Vendor 360 monthly total.
+ */
 
 export type Evaluation = {
   eventId: string | null

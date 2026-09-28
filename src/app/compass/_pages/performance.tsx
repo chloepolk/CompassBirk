@@ -17,6 +17,7 @@ import {
   laneLabel,
   actualShipmentCount,
   FORECAST_SHIPMENTS,
+  trendLabel,
 } from "@/lib/compass/logistics/vendor-model"
 import { performanceBlock } from "@/lib/compass/logistics/session"
 
@@ -174,7 +175,7 @@ export function PerformancePage() {
                       <td className="px-4 py-2 tabular-nums text-[var(--color-text-primary)]">{((row.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}%</td>
                       <td className="px-4 py-2 tabular-nums text-[var(--color-text-secondary)]">{row.shipments}</td>
                       <td className="px-4 py-2 tabular-nums text-[var(--color-text-primary)]">{formatFixed(row.overallScore ?? 0, locale)}</td>
-                      <td className="px-4 py-2 text-[var(--color-text-muted)]">{row.trendFlag}</td>
+                      <td className="px-4 py-2 text-[var(--color-text-muted)]">{trendLabel(row.trendFlag, locale === "de" ? "de" : "en")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -379,7 +380,7 @@ export function PerformancePage() {
               <dl className="grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ablauf" : "Expiry"}</dt><dd>{awardedBaseline?.endDate ?? contract?.endDate ?? "31 December 2026"} · {awardedBaseline?.renewalTerms ?? "120-day notice"}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ist gegen Zuschlag" : "Actual versus awarded"}</dt><dd>OTD {((profile.latest?.onTimeDeliveryPct ?? 0) * 100).toFixed(1)}% / {((awardedBaseline?.otdTarget ?? contract?.otdTarget ?? 0) * 100).toFixed(1)}% · {formatEurFigure(awardedBaseline?.contractValueEur ?? contract?.contractValueEur ?? 0, locale === "de" ? "de" : "en")}</dd></div>
-                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Trend" : "Trend"}</dt><dd>{profile.latest?.trendFlag ?? "—"} · {profile.months.length} {locale === "de" ? "Monate bis" : "months through"} {session.asOfMonth}</dd></div>
+                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Trend" : "Trend"}</dt><dd>{trendLabel(profile.latest?.trendFlag, locale === "de" ? "de" : "en")} · {profile.months.length} {locale === "de" ? "Monate bis" : "months through"} {session.asOfMonth}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Vorfälle" : "Incidents"}</dt><dd>{profile.incidents.length}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Maßnahmen" : "Actions"}</dt><dd>{performanceActions.filter((a) => (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "closed" && (session.actionRecords.find((r) => r.id === a.actionId)?.status ?? "open") !== "dismissed").length} {locale === "de" ? "offen" : "still open"}</dd></div>
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Lücke" : "Gap"}</dt><dd>{(profile.latest?.onTimeDeliveryPct ?? 1) < (awardedBaseline?.otdTarget ?? contract?.otdTarget ?? 0) ? (locale === "de" ? "OTD unter dem zugesagten Ziel" : "OTD below the awarded target") : (locale === "de" ? "Keine offene KPI-Lücke" : "No open KPI gap")}</dd></div>

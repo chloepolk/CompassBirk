@@ -25,7 +25,7 @@ import {
   type MissionSessionPatch,
 } from "../_components/hub/bluepilot-action-reconcile"
 import { isMissionOwnedByActiveUser, ACTIVE_USER } from "../_components/hub/active-user"
-import { journeyIndex, statusForSession } from "@/lib/compass/logistics/session"
+import { journeyIndex, rfpLifecycle, statusForSession } from "@/lib/compass/logistics/session"
 import { listItemMotion } from "../_components/motion"
 import { reasoningFromMission, buildActionBoardHeroReasoning } from "../_components/reasoning-helpers"
 import type { Locale } from "../_i18n"
@@ -125,6 +125,9 @@ export function OperatingLoopPage() {
     advanceJourney,
   } = useStore()
   const flightPathSteps = translatedFlightPathSteps(t)
+  const life = rfpLifecycle(session)
+  const rfpStatus = locale === "de" ? life.status.de : life.status.en
+  const showRfpStatus = journeyIndex(session.journeyStep) <= 5 && !session.awardPending
 
   const [horizonFilter, setHorizonFilter] = React.useState<HorizonKey | null>(null)
   const [statusFilter, setStatusFilter] = React.useState<StatusKey | null>(null)
@@ -140,6 +143,22 @@ export function OperatingLoopPage() {
   const [emailPreviewMissionId, setEmailPreviewMissionId] = React.useState<string | null>(null)
   const [auditViewMissionId, setAuditViewMissionId] = React.useState<string | null>(null)
   const [toastName, setToastName] = React.useState<string | null>(null)
+  const [resetNote, setResetNote] = React.useState(false)
+
+  React.useEffect(() => {
+    const show = () => {
+      setResetNote(true)
+      setExpandedId(null)
+    }
+    window.addEventListener("clp-reset-complete", show)
+    try {
+      if (sessionStorage.getItem("clp-reset-complete") === "1") {
+        sessionStorage.removeItem("clp-reset-complete")
+        setResetNote(true)
+      }
+    } catch { /* ignore */ }
+    return () => window.removeEventListener("clp-reset-complete", show)
+  }, [])
 
   const openEdit = React.useCallback((id: string) => {
     setExpandedId(id)
@@ -176,7 +195,7 @@ export function OperatingLoopPage() {
       if (m.id === "PKG-REN-001") return journeyIndex(session.journeyStep) >= 9
       if (m.id === "PKG-RFP-001") return session.acceptedNeed && Boolean(session.sourcingEventId)
       if (m.id === "PKG-PERF-001" || m.id === "PKG-CA-001") return session.performanceReleased
-      return true
+      return false
     }),
     [missions, session.journeyStep, session.acceptedNeed, session.sourcingEventId, session.performanceReleased],
   )
@@ -270,6 +289,14 @@ export function OperatingLoopPage() {
 
   const roi = React.useMemo(() => buildPortfolioRoi(orderedMissions, closed), [orderedMissions, closed])
 
+  const forcedId = React.useMemo(() => {
+    const forced = orderedMissions.find((mission) => {
+      const status = awardApprovals[mission.id]?.status
+      return status === "clarification_requested" || status === "revision_required"
+    })
+    return forced?.id ?? null
+  }, [orderedMissions, awardApprovals])
+
   const openMissions = React.useMemo(
     () =>
       orderedMissions.filter(
@@ -297,7 +324,9 @@ export function OperatingLoopPage() {
   const showOpen = statusFilter === null || statusFilter === "open"
   const showCompleted = statusFilter === null || statusFilter === "completed"
   const showSections = statusFilter === null
+  const showNeedCard = showOpen && !session.acceptedNeed
   const totalVisible =
+    (showNeedCard ? 1 : 0) +
     (showOpen ? openMissions.length : 0) +
     (showCompleted ? completedLiveMissions.length + closedCards.length : 0)
 
@@ -307,7 +336,7 @@ export function OperatingLoopPage() {
   const staticHeroHeadline = t("actionCentre.heroHeadline", {
     amount: formatCurrency(protectTotal + createTotal, locale),
   })
-  const staticHeroBody = t("actionCentre.heroBody", { count: openMissions.length })
+  const staticHeroBody = t("actionCentre.heroBody", { count: openMissions.length + (showNeedCard ? 1 : 0) })
 
   const heroReasoning = React.useMemo(
     () =>
@@ -320,7 +349,7 @@ export function OperatingLoopPage() {
   )
 
   const renderOpenMission = (mission: DiamondMission, i: number) => {
-    const expanded = expandedId === mission.id
+    const expanded = forcedId != null ? mission.id === forcedId : expandedId === mission.id
     const patch = missionPatches[mission.id]
     const fields = missionFields(mission, locale, patch)
     const person = personForRole(fields.ownerRole, locale)
@@ -337,7 +366,9 @@ export function OperatingLoopPage() {
     const isRenewal = mission.id === "PKG-REN-001"
     const govCopy = awardGovCopy(locale)
     const awardRecord = awardApprovals[mission.id]
-    const govStatus = awardGovernanceStatusFor(fields.stage, awardRecord)
+    const govStatus = isLiveEvent && session.awardApproved
+      ? "awarded"
+      : awardGovernanceStatusFor(fields.stage, awardRecord)
     const inAwardFlow = isLiveEvent
       ? step === "s6"
       : govStatus === "awaiting_approver" ||
@@ -346,25 +377,25 @@ export function OperatingLoopPage() {
         govStatus === "approved_for_award"
     const liveCta = isLiveEvent
       ? step === "s1"
-        ? { label: locale === "de" ? "Beschaffungsarbeitsbereich öffnen" : "Open sourcing workspace", run: () => { advanceJourney("s2"); openTenderStudio(mission.id) } }
+        ? { label: locale === "de" ? "Anforderungen prüfen" : "Review requirements", run: () => { advanceJourney("s2"); openTenderStudio(mission.id) } }
         : step === "s2"
-          ? { label: locale === "de" ? "Ausnahmen schließen" : "Resolve requirements", run: () => openTenderStudio(mission.id) }
+          ? { label: locale === "de" ? "Anforderungen prüfen" : "Review requirements", run: () => openTenderStudio(mission.id) }
           : step === "s3" && !session.rfpGenerated
             ? { label: locale === "de" ? "Ausschreibung erzeugen" : "Generate RFP", run: () => openTenderStudio(mission.id) }
             : step === "s3" && !session.rfpApproved
-              ? { label: locale === "de" ? "Zitierte Ausschreibung prüfen" : "Review cited RFP", run: () => openTenderStudio(mission.id) }
+              ? { label: locale === "de" ? "Ausschreibung prüfen" : "Review RFP", run: () => openTenderStudio(mission.id) }
               : step === "s3"
                 ? { label: locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations", run: () => openInbox() }
                 : step === "s4"
-                  ? { label: locale === "de" ? "Lieferantenantworten prüfen" : "Review supplier responses", run: () => openInbox() }
+                  ? { label: locale === "de" ? "Lieferantennachweis prüfen" : "Review supplier evidence", run: () => openInbox() }
                   : step === "s5"
-                    ? { label: locale === "de" ? "Angebote bewerten" : "Evaluate bids", run: () => openBidEvaluation(mission.id) }
+                    ? { label: locale === "de" ? "Angebote prüfen" : "Review bids", run: () => openBidEvaluation(mission.id) }
                     : step === "s6"
                       ? { label: locale === "de" ? "Zur Freigabe einreichen" : "Submit for approval", run: () => openAward() }
                       : step === "s7"
                         ? { label: locale === "de" ? "Zur Ausführung wechseln" : "Advance to execution", run: () => { advanceJourney("s8"); openPerformance("SUP-001") } }
                         : step === "s8"
-                          ? { label: locale === "de" ? "Korrekturmaßnahme prüfen" : "Review corrective action", run: () => openPerformance("SUP-001") }
+                          ? { label: locale === "de" ? "Leistung prüfen" : "Review performance", run: () => openPerformance("SUP-001") }
                           : step === "s9"
                             ? { label: locale === "de" ? "Verlängerung prüfen" : "Review renewal", run: () => openPerformance("SUP-001") }
                             : { label: locale === "de" ? "Nächsten Zyklus starten" : "Start next cycle", run: () => openTenderStudio("PKG-REN-001") }
@@ -402,7 +433,6 @@ export function OperatingLoopPage() {
     const assignedName = awardRecord?.assignedToName ?? person.name
     const assignedRole = awardRecord?.assignedToRole ?? person.role
     const assignedToYouNow = assignedName === ACTIVE_USER.name || assignedToYou
-    const forceExpand = govStatus === "clarification_requested" || govStatus === "revision_required"
     const procurementActor = { name: ACTIVE_USER.name, role: ACTIVE_USER.role, email: ACTIVE_USER.email }
     const approverActor = {
       name: awardRecord?.snapshot?.requiredApproverName ?? ACTIVE_USER.name,
@@ -434,7 +464,7 @@ export function OperatingLoopPage() {
           valueType={mission.valueType}
           statusLabel={t(`health.${mission.health}`).toUpperCase()}
           statusTone={mission.health}
-          stageLabel={isLiveEvent ? t(`flight.${statusForSession(session)}`) : flightProgressLabel(fields.stage, t)}
+          stageLabel={isLiveEvent && showRfpStatus ? rfpStatus : isLiveEvent ? t(`flight.${statusForSession(session)}`) : flightProgressLabel(fields.stage, t)}
           flightPathSteps={flightPathSteps}
           currentFlightStepId={isLiveEvent ? flightStepIdForSession(session) : flightStepIdForStage(fields.stage)}
           owner={assignedName}
@@ -444,11 +474,14 @@ export function OperatingLoopPage() {
           cost={mission.cost}
           risk={fields.risk}
           reasoning={fields.reasoning}
-          expanded={expanded || forceExpand}
-          onToggleExpand={() => setExpandedId(expanded ? null : mission.id)}
+          expanded={expanded}
+          onToggleExpand={() => {
+            if (forcedId) return
+            setExpandedId(expanded ? null : mission.id)
+          }}
           onEditClick={() => openEdit(mission.id)}
           onEmailClick={() => openEmail(mission.id)}
-          onCompleteClick={() => {
+          onCompleteClick={isLiveEvent && journeyIndex(step) < 10 ? undefined : () => {
             if (fields.stage === "execute" && awardApprovals[mission.id]?.status !== "approved_for_award") {
               setExpandedId(mission.id)
               return
@@ -471,7 +504,7 @@ export function OperatingLoopPage() {
                 : undefined
           }
           governancePanel={
-            awardRecord ? (
+            awardRecord && !(isLiveEvent && session.awardApproved) ? (
               <AwardGovernanceCardBlock
                 record={awardRecord}
                 locale={locale}
@@ -500,22 +533,24 @@ export function OperatingLoopPage() {
           }
           evaluateBidsLabel={canEvaluate && inAwardFlow ? t("actionCentre.evaluateBids") : undefined}
           onEvaluateBids={canEvaluate && inAwardFlow ? () => openBidEvaluation(mission.id) : undefined}
+          decisionBasis={(
+            <dl className="grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{isLiveEvent ? "RFP-2026-001" : mission.id}</dd></div>
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>{assignedName} · {assignedRole}</dd></div>
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>{isLiveEvent ? "23 October 2026" : mission.targetCompletionAt.slice(0, 10)}</dd></div>
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{isLiveEvent && showRfpStatus ? rfpStatus : isLiveEvent ? t(`flight.${statusForSession(session)}`) : t(`health.${mission.health}`)}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{isLiveEvent ? (locale === "de" ? "Vertragsablauf am 31. Dezember 2026 und Leistungsstand lösen die Beschaffung aus." : "Contract expiry on 31 December 2026 and current performance trigger sourcing.") : fields.narrative}</dd></div>
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>{(mission.evidence.length > 0 ? mission.evidence : ["SRC-001"]).join(", ")}</dd></div>
+              <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ" : "Illustrative"} {formatCurrency(isLiveEvent ? 5650000 : mission.projectedValue, locale)}. {locale === "de" ? "Formel: angezeigter Betrag aus der Ereignisquelle. Status illustrativ, nicht realisiert." : "Formula: displayed amount from the event source. Status illustrative, not realised."}</dd></div>
+            </dl>
+          )}
         />
-        <dl className="mt-2 grid gap-2 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{isLiveEvent ? "RFP-2026-001" : mission.id}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>{assignedName} · {assignedRole}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>{isLiveEvent ? "23 October 2026" : mission.targetCompletionAt.slice(0, 10)}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{isLiveEvent ? t(`flight.${statusForSession(session)}`) : t(`health.${mission.health}`)}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{isLiveEvent ? (locale === "de" ? "Vertragsablauf am 31. Dezember 2026 und Leistungsstand lösen die Beschaffung aus." : "Contract expiry on 31 December 2026 and current performance trigger sourcing.") : fields.narrative}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>{(mission.evidence.length > 0 ? mission.evidence : ["SRC-001"]).join(", ")}</dd></div>
-          <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ" : "Illustrative"} {formatCurrency(isLiveEvent ? 5650000 : mission.projectedValue, locale)}. {locale === "de" ? "Formel: angezeigter Betrag aus der Ereignisquelle. Status illustrativ, nicht realisiert." : "Formula: displayed amount from the event source. Status illustrative, not realised."}</dd></div>
-        </dl>
       </div>
     )
   }
 
   const renderCompletedMission = (mission: DiamondMission, i: number) => {
-    const expanded = expandedId === mission.id
+    const expanded = forcedId == null && expandedId === mission.id
     const person = personForRole(mission.owner, locale)
     const patch = missionPatches[mission.id]
     const fields = missionFields(mission, locale, patch)
@@ -552,7 +587,7 @@ export function OperatingLoopPage() {
   }
 
   const renderClosedCard = (card: ReturnType<typeof closedRecordToCardData>, i: number) => {
-    const expanded = expandedId === card.id
+    const expanded = forcedId == null && expandedId === card.id
     const motion = listItemMotion(i)
 
     return (
@@ -585,6 +620,21 @@ export function OperatingLoopPage() {
 
   return (
     <div className="space-y-7">
+      {resetNote && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-accent-positive)]/30 bg-[var(--color-tint-positive)] px-4 py-3 text-[13px] font-semibold text-[var(--color-text-primary)]"
+        >
+          <span>{locale === "de" ? "Zurücksetzen abgeschlossen" : "Reset complete"}</span>
+          <button
+            type="button"
+            className="text-[12px] font-semibold text-[var(--color-text-secondary)]"
+            onClick={() => setResetNote(false)}
+          >
+            {locale === "de" ? "Schließen" : "Dismiss"}
+          </button>
+        </div>
+      )}
       <AgenticFocusHero
         eyebrow={t("actionCentre.todaysFocus")}
         staticHeadline={staticHeroHeadline}
@@ -618,7 +668,7 @@ export function OperatingLoopPage() {
 
         {totalVisible === 0 ? (
           <EmptyState />
-        ) : showSections ? (
+        ) : (showSections || showNeedCard) ? (
           <div className="space-y-6">
             {showOpen && (!session.acceptedNeed || openMissions.length > 0) && (
               <div className="space-y-3">
@@ -626,59 +676,106 @@ export function OperatingLoopPage() {
                   {t("actionCentre.openSection")}
                 </h3>
                 {!session.acceptedNeed && (
-                  <div className="rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                      {t(`flight.${statusForSession(session)}`)}
-                    </p>
-                    <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text-primary)]">
-                      {locale === "de" ? "Rahmenverträge laufen am 31. Dezember 2026 aus" : "Frameworks expire on 31 December 2026"}
-                    </h3>
-                    <dl className="mt-2 grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{locale === "de" ? "Beschaffungsbedarf" : "Sourcing need"}</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>Category Manager, Logistics</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>31 December 2026</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{t(`flight.${statusForSession(session)}`)}</dd></div>
-                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verträge" : "Contracts"}</dt><dd>CON-2024-01 RheinRoute · CON-2024-02 NorthBridge</dd></div>
-                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Umfang" : "Scope"}</dt><dd>{locale === "de" ? "Europäischer Straßengüterverkehr · 18 Relationen · 2.448 prognostizierte Sendungen" : "European road freight · 18 lanes · 2,448 forecast shipments"}</dd></div>
-                      <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{locale === "de" ? "Vertragsablauf und Leistungsstand. Noch kein neues Beschaffungsereignis." : "Contract expiry and performance. No new sourcing event exists yet."}</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>SRC-001 v1.2 · SRC-009 · SRC-010</dd></div>
-                      <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ €5,65 Mio. Jahreswert. Formel: Ereigniswert aus SRC-001. Status illustrativ, nicht realisiert." : "Illustrative €5.65m annual value. Formula: event value from SRC-001. Status illustrative, not realised."}</dd></div>
-                    </dl>
-                    {session.needRejected ? (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-[12px] text-[var(--color-text-secondary)]">
-                          {locale === "de" ? "Bedarf abgelehnt. Es wurde kein Beschaffungsereignis angelegt." : "Need rejected. No sourcing event was created."}
-                        </p>
-                        <button
-                          type="button"
-                          className="text-[12px] font-semibold text-[var(--color-brand-primary)]"
-                          onClick={() => patchSession({ needRejected: false })}
-                        >
-                          {locale === "de" ? "Ablehnung zurücknehmen" : "Withdraw rejection"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white"
-                          onClick={() => {
-                            patchSession({ needRejected: false, sourcingEventId: "RFP-2026-001" })
-                            advanceJourney("s1")
-                          }}
-                        >
-                          {locale === "de" ? "Bedarf bestätigen" : "Validate sourcing need"}
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-[10px] border border-[var(--color-border-default)] px-4 py-2 text-[13px] font-semibold"
-                          onClick={() => patchSession({ needRejected: true, sourcingEventId: null, acceptedNeed: false })}
-                        >
-                          {locale === "de" ? "Bedarf ablehnen" : "Reject sourcing need"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <article className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-[18px] py-4 shadow-[0_6px_16px_rgba(26,38,64,0.05)]">
+                    {(() => {
+                      const needOpen = forcedId == null && expandedId === "sourcing-need"
+                      const stateLabel = showRfpStatus ? rfpStatus : t(`flight.${statusForSession(session)}`)
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            aria-expanded={needOpen}
+                            onClick={() => {
+                              if (forcedId) return
+                              setExpandedId(needOpen ? null : "sourcing-need")
+                            }}
+                            className="flex w-full items-start gap-3 text-left"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <h2 className="text-[14px] font-semibold leading-snug text-[var(--color-text-primary)]">
+                                {locale === "de" ? "Rahmenverträge laufen am 31. Dezember 2026 aus" : "Frameworks expire on 31 December 2026"}
+                              </h2>
+                              <p className="mt-1.5 text-[11px] text-[var(--color-text-secondary)]">
+                                {locale === "de" ? "Kategoriemanager, Logistik" : "Category Manager, Logistics"}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-[8px] bg-[var(--color-bg-subtle)] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                              {stateLabel}
+                            </span>
+                            <span className="shrink-0 text-[15px] font-bold tabular-nums text-[var(--color-text-primary)]">
+                              {locale === "de" ? "Illustrativ €5,65 Mio." : "Illustrative €5.65m"}
+                            </span>
+                          </button>
+                          <p className="mt-2 line-clamp-3 text-[12px] leading-snug text-[var(--color-text-secondary)]">
+                            {session.needRejected
+                              ? (locale === "de" ? "Bedarf abgelehnt. Es wurde kein Beschaffungsereignis angelegt." : "Need rejected. No sourcing event was created.")
+                              : (locale === "de" ? "Vertragsablauf und Leistungsstand. Noch kein neues Beschaffungsereignis." : "Contract expiry and performance. No new sourcing event exists yet.")}
+                          </p>
+                          <p className="mt-2 text-[12px] font-medium text-[var(--color-text-secondary)]">
+                            {locale === "de" ? "Bedarf erkannt" : "Need identified"}
+                          </p>
+                          <div className="mt-3">
+                            {session.needRejected ? (
+                              <button
+                                type="button"
+                                className="rounded-[8px] bg-[var(--color-bg-inverse)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)]"
+                                onClick={() => patchSession({ needRejected: false })}
+                              >
+                                {locale === "de" ? "Ablehnung zurücknehmen" : "Withdraw rejection"}
+                              </button>
+                            ) : !needOpen ? (
+                              <button
+                                type="button"
+                                className="rounded-[8px] bg-[var(--color-bg-inverse)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)]"
+                                onClick={() => setExpandedId("sourcing-need")}
+                              >
+                                {locale === "de" ? "Bedarf bestätigen" : "Validate sourcing need"}
+                              </button>
+                            ) : null}
+                          </div>
+                          {needOpen && (
+                            <div className="mt-4 space-y-3 border-t border-[var(--color-border-default)] pt-4">
+                              <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                                {t("missionCard.decisionBasis")}
+                              </h3>
+                              <dl className="grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Typ" : "Type"}</dt><dd>{locale === "de" ? "Beschaffungsbedarf" : "Sourcing need"}</dd></div>
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verantwortlich" : "Owner"}</dt><dd>{locale === "de" ? "Kategoriemanager, Logistik" : "Category Manager, Logistics"}</dd></div>
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Fällig" : "Due"}</dt><dd>31 December 2026</dd></div>
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Status" : "Status"}</dt><dd>{stateLabel}</dd></div>
+                                <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Verträge" : "Contracts"}</dt><dd>CON-2024-01 RheinRoute · CON-2024-02 NorthBridge</dd></div>
+                                <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Umfang" : "Scope"}</dt><dd>{locale === "de" ? "Europäischer Straßengüterverkehr · 18 Relationen · 2.448 prognostizierte Sendungen" : "European road freight · 18 lanes · 2,448 forecast shipments"}</dd></div>
+                                <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Begründung" : "Rationale"}</dt><dd>{locale === "de" ? "Vertragsablauf und Leistungsstand. Noch kein neues Beschaffungsereignis." : "Contract expiry and performance. No new sourcing event exists yet."}</dd></div>
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachweis" : "Evidence"}</dt><dd>SRC-001 v1.2 · SRC-009 · SRC-010</dd></div>
+                                <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Exposition" : "Exposure"}</dt><dd>{locale === "de" ? "Illustrativ €5,65 Mio. Jahreswert. Formel: Ereigniswert aus SRC-001. Status illustrativ, nicht realisiert." : "Illustrative €5.65m annual value. Formula: event value from SRC-001. Status illustrative, not realised."}</dd></div>
+                              </dl>
+                              {!session.needRejected && (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="rounded-[8px] bg-[var(--color-bg-inverse)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)]"
+                                    onClick={() => {
+                                      patchSession({ needRejected: false, sourcingEventId: "RFP-2026-001" })
+                                      advanceJourney("s1")
+                                    }}
+                                  >
+                                    {locale === "de" ? "Bedarf annehmen" : "Accept sourcing need"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded-[8px] border border-[var(--color-border-default)] px-[13px] py-1.5 text-[12px] font-semibold"
+                                    onClick={() => patchSession({ needRejected: true, sourcingEventId: null, acceptedNeed: false })}
+                                  >
+                                    {locale === "de" ? "Bedarf ablehnen" : "Reject sourcing need"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </article>
                 )}
                 {openMissions.map((mission, i) => renderOpenMission(mission, i))}
               </div>

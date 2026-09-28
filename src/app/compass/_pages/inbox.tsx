@@ -4,9 +4,10 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
 import { useT } from "../_i18n/use-t"
+import type { Locale } from "../_i18n"
 import { formatDateDMY } from "@/lib/compass/locale-display"
 import { enterMotion, pcmCard } from "../_components/motion"
-import { communicationsBlock, invitesSent, SEND_CHECKS, statusForSession } from "@/lib/compass/logistics/session"
+import { communicationsBlock, evaluateOutboundChecks, invitesSent, issuedInvitationAttachments, journeyIndex, rfpLifecycle, SEND_CHECKS, statusForSession } from "@/lib/compass/logistics/session"
 import { ACTIVE_USER } from "../_components/hub/active-user"
 import {
   inboxMessages,
@@ -17,6 +18,18 @@ import {
 } from "@/lib/compass/logistics/inbox-model"
 
 const CLASS_ORDER: InboxClass[] = ["confirmed", "potentially", "not-relevant"]
+
+function formatStamp(iso: string, locale: Locale): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
 
 export function InboxPage() {
   const t = useT()
@@ -37,27 +50,43 @@ export function InboxPage() {
   const classOf = (m: InboxMessage): InboxClass | "unclassified" =>
     session.emailClassifications[m.id] ?? "unclassified"
   const sent = (id: string) => session.sentDraftIds.includes(id)
-  const [checks, setChecks] = React.useState<Record<string, boolean>>({})
+  const evaluatedChecks = active
+    ? evaluateOutboundChecks(session, {
+        id: active.id,
+        from: active.from,
+        to: active.to,
+        language: active.language,
+        bodyEn: active.bodyEn,
+        bodyDe: active.bodyDe,
+      })
+    : []
   const checkKeys = SEND_CHECKS
   const checkLabels: Record<(typeof checkKeys)[number], string> = locale === "de"
     ? {
         recipient: "Empfänger",
-        authority: "Befugnis",
-        facts: "Sachverhalt",
-        dates: "Termine",
+        authority: "Versandbefugnis",
+        factsDates: "Sachverhalt und Termine",
         attachment: "Anhangsversion",
         confidentiality: "Vertraulichkeit",
+        language: "Sprache",
       }
     : {
         recipient: "Recipient",
-        authority: "Authority",
-        facts: "Facts",
-        dates: "Dates",
+        authority: "Sending authority",
+        factsDates: "Facts and dates",
         attachment: "Attachment version",
         confidentiality: "Confidentiality",
+        language: "Language",
       }
-  const checksPass = checkKeys.every((k) => checks[`${active?.id}:${k}`])
-  const awaitingReview = messages.filter((m) => m.affectsBids && isQuarantined(m.id, session.emailClassifications))
+  const checksPass = evaluatedChecks.length > 0 && evaluatedChecks.every((row) => row.pass)
+  const awaitingReview = messages.filter((m) => {
+    if (m.direction === "outbound") return false
+    const cls = session.emailClassifications[m.id]
+    if (cls === "potentially") return true
+    if (cls === "not-relevant" || cls === "confirmed") return false
+    if (m.affectsBids) return true
+    return m.suggestedClass === "potentially"
+  })
   const draftCount = messages.filter((m) => m.direction === "outbound" && !sent(m.id)).length
   const sentCount = messages.filter((m) => sent(m.id)).length
   const sendRecord = active ? session.sendApprovals.find((row) => row.emailId === active.id) : undefined
@@ -78,7 +107,11 @@ export function InboxPage() {
       <div className={hero.className} style={hero.style}>
         <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">{t("inbox.title")}</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-[var(--color-text-secondary)]">{t("inbox.subtitle")}</p>
-        <p className="mt-1 text-[12px] font-medium text-[var(--color-text-primary)]">{t(`flight.${statusForSession(session)}`)}</p>
+        <p className="mt-1 text-[12px] font-medium text-[var(--color-text-primary)]">
+          {journeyIndex(session.journeyStep) <= 5
+            ? (locale === "de" ? rfpLifecycle(session).status.de : rfpLifecycle(session).status.en)
+            : t(`flight.${statusForSession(session)}`)}
+        </p>
       </div>
 
       {held && (
@@ -132,7 +165,7 @@ export function InboxPage() {
                     <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
                       {m.id} · {formatDateDMY(m.date)} · {m.language}
                     </p>
-                    {m.affectsBids && isQuarantined(m.id, session.emailClassifications) && (
+                    {((m.affectsBids && isQuarantined(m.id, session.emailClassifications)) || session.emailClassifications[m.id] === "potentially" || (classOf(m) === "unclassified" && m.suggestedClass === "potentially")) && (
                       <p className="mt-0.5 text-[10px] font-medium text-[var(--color-accent-warning-text)]">{t("inbox.quarantined")}</p>
                     )}
                   </button>
@@ -173,18 +206,15 @@ export function InboxPage() {
               <div>
                 <h3 className="text-[12px] font-semibold text-[var(--color-text-primary)]">{t("inbox.attachments")}</h3>
                 <ul className="mt-1 space-y-1">
-                  {active.attachments.map((a) => {
-                    const isRfp = (active.id === "EML-001" || active.id === "EML-002") && /RFP_/i.test(a.name)
-                    const versioned = isRfp
-                      ? a.name.replace(/\.docx$/i, `_${session.rfpVersion ?? "unapproved"}.docx`)
-                      : a.name
-                    return (
+                  {(active.id === "EML-001" || active.id === "EML-002"
+                    ? issuedInvitationAttachments(session, active.id)
+                    : active.attachments
+                  ).map((a) => (
                     <li key={a.name} className="text-[12px] text-[var(--color-text-secondary)]">
-                      {versioned} · {isRfp ? (session.rfpVersion ?? "unapproved") : a.version}
-                      {a.supersedes ? ` · ${t("inbox.supersedes")} ${a.supersedes}` : ""}
+                      {a.name} · {a.version}
+                      {"supersedes" in a && a.supersedes ? ` · ${t("inbox.supersedes")} ${a.supersedes}` : ""}
                     </li>
-                    )
-                  })}
+                  ))}
                 </ul>
               </div>
             )}
@@ -230,6 +260,13 @@ export function InboxPage() {
                 </div>
                 {active.affectsBids && isQuarantined(active.id, session.emailClassifications) && (
                   <p className="text-[12px] text-[var(--color-accent-warning-text)]">{t("inbox.quarantineBody")}</p>
+                )}
+                {(classOf(active) === "potentially" || (classOf(active) === "unclassified" && active.suggestedClass === "potentially")) && (
+                  <p className="text-[12px] text-[var(--color-accent-warning-text)]">
+                    {locale === "de"
+                      ? "Potenziell relevant bleibt in Quarantäne. Die Nachricht geht erst nach Ihrer Bestätigung in einen Entscheidungsdatensatz ein."
+                      : "Potentially Relevant stays quarantined. It enters a decision record only after you confirm it."}
+                  </p>
                 )}
                 {active.id === "EML-008" && (
                   <div className="space-y-1">
@@ -294,16 +331,12 @@ export function InboxPage() {
               <div className="space-y-2">
                 <p className="text-[12px] text-[var(--color-text-secondary)]">{t("inbox.sendRule")}</p>
                 <ul className="space-y-1">
-                  {checkKeys.map((key) => (
-                    <li key={key}>
-                      <label className="flex items-center gap-2 text-[12px]">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(checks[`${active.id}:${key}`])}
-                          onChange={(e) => setChecks((prev) => ({ ...prev, [`${active.id}:${key}`]: e.target.checked }))}
-                        />
-                        {checkLabels[key]}
-                      </label>
+                  {evaluatedChecks.map((row) => (
+                    <li key={row.key} className="flex items-center gap-2 text-[12px]">
+                      <span className={row.pass ? "font-semibold text-[var(--color-accent-positive-text)]" : "font-semibold text-[var(--color-accent-critical-text)]"}>
+                        {row.pass ? (locale === "de" ? "Bestanden" : "Pass") : (locale === "de" ? "Nicht bestanden" : "Fail")}
+                      </span>
+                      <span>{checkLabels[row.key]}</span>
                     </li>
                   ))}
                 </ul>
@@ -312,16 +345,23 @@ export function InboxPage() {
                   disabled={sent(active.id) || !checksPass}
                   onClick={() => sendOutboundDraft(active.id, {
                     approverName: ACTIVE_USER.name,
-                    checks: checkKeys.filter((key) => checks[`${active.id}:${key}`]),
+                    checks: evaluatedChecks.filter((row) => row.pass).map((row) => row.key),
                   })}
                   className="rounded-[8px] bg-[var(--color-bg-inverse)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-inverse)] disabled:opacity-50"
                 >
                   {sent(active.id) ? t("inbox.sent") : t("inbox.approveSend")}
                 </button>
                 {sent(active.id) && sendRecord && (
-                  <p className="text-[12px] text-[var(--color-text-secondary)]">
-                    {sendRecord.approverName} · {formatDateDMY(sendRecord.approvedAt)} · {sendRecord.rfpVersion} · {t("inbox.delivered")}
-                  </p>
+                  <dl className="grid gap-1 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Absender" : "Sender"}</dt><dd>{sendRecord.sender}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Freigebende Person" : "Approver"}</dt><dd>{sendRecord.approverName}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Empfänger" : "Recipients"}</dt><dd>{sendRecord.recipients.join(", ") || "—"}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Zeitpunkt" : "Timestamp"}</dt><dd>{formatStamp(sendRecord.approvedAt, locale)}</dd></div>
+                    <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Nachricht" : "Message"}</dt><dd>{sendRecord.message}</dd></div>
+                    <div className="sm:col-span-2"><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Anhänge" : "Attachments"}</dt><dd>{sendRecord.attachments.map((file) => `${file.name} · ${file.version}`).join("; ") || "—"}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ausschreibungsversion" : "RFP version"}</dt><dd>{sendRecord.rfpVersion}</dd></div>
+                    <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Zustellung" : "Delivery"}</dt><dd>{t("inbox.delivered")}</dd></div>
+                  </dl>
                 )}
               </div>
             )}

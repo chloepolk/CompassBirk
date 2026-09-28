@@ -2,7 +2,7 @@ import { CONTRACTS } from "./structured/contracts"
 import { SUPPLIERS } from "./structured/suppliers"
 import { BID_RATES } from "./structured/bid-rates"
 import type { SessionContract } from "./session"
-import { scenarioById } from "./award-scenarios"
+import { scenarioById, type AwardScenario } from "./award-scenarios"
 
 const SLA_TEMPLATE = CONTRACTS[0]
 
@@ -17,18 +17,18 @@ function slaFrom(supplierId: string) {
   }
 }
 
-/** Dual-award split from the selected scenario — copied, not re-keyed. */
-export const AWARD_SPLIT = [
-  { supplierId: "SUP-004", share: 0.65, valueEur: 3_672_500 },
-  { supplierId: "SUP-002", share: 0.35, valueEur: 1_977_500 },
-] as const
+/** Dual-award split copied from the confirmed lane rates on AWD-02. */
+export function awardSplit(scenario: AwardScenario = scenarioById("AWD-02")) {
+  return scenario.suppliers.map(({ supplierId, share, valueEur }) => ({ supplierId, share, valueEur }))
+}
 
 export function defaultAwardContracts(sourcePackageId = "PKG-RFP-001", scenarioId = "AWD-02"): SessionContract[] {
   const scenario = scenarioById(scenarioId)
-  return scenario.suppliers.map(({ supplierId, valueEur }) => {
+  return scenario.suppliers.map(({ supplierId, valueEur, laneIds }) => {
     const supplier = SUPPLIERS.find((s) => s.supplierId === supplierId)
     const sla = slaFrom(supplierId)
-    const rates = BID_RATES.filter((row) => row.supplierId === supplierId && row.laneId && row.rateEurPerShipment != null)
+    const awarded = new Set(laneIds)
+    const rates = BID_RATES.filter((row) => row.supplierId === supplierId && row.laneId && awarded.has(row.laneId) && row.rateEurPerShipment != null)
     const rateBasis = rates.length
       ? `${rates.length} winning lane rates copied from ${rates[0]?.bidVersion ?? "the confirmed bid"}: ${rates.slice(0, 4).map((row) => `${row.laneId} EUR ${row.rateEurPerShipment}`).join(", ")}`
       : "No lane rates on the winning bid"

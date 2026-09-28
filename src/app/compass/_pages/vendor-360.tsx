@@ -10,9 +10,12 @@ import { formatDateDMY } from "@/lib/compass/locale-display"
 import { enterMotion, pcmCard } from "../_components/motion"
 import {
   allVendorProfiles,
+  MIN_EVIDENCE_MONTHS,
   SCORE_WEIGHTS,
+  trendLabel,
   type VendorProfile,
 } from "@/lib/compass/logistics/vendor-model"
+import { journeyIndex } from "@/lib/compass/logistics/session"
 
 function ScoreBar({ label, value, weight }: { label: string; value: number; weight: number }) {
   return (
@@ -60,7 +63,7 @@ function VendorCard({
         <div>
           <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">{profile.supplier.supplierName}</p>
           <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-            {profile.supplier.country} · {profile.supplier.status}
+            {profile.supplier.country} · {profile.supplier.approved === "Yes" ? t("vendor.approved") : profile.supplier.status}
           </p>
         </div>
         {profile.historyStatus === "No History" ? (
@@ -158,7 +161,7 @@ export function Vendor360Page() {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{t("vendor.history")}</p>
-                  <p className="mt-0.5 text-[13px] font-medium text-[var(--color-text-primary)]">{profile.historyStatus}</p>
+                  <p className="mt-0.5 text-[13px] font-medium text-[var(--color-text-primary)]">{profile.historyStatus === "No History" ? t("vendor.noHistory") : (locale === "de" ? "Verfügbar" : "Available")}</p>
                 </div>
               </div>
             </section>
@@ -189,8 +192,8 @@ export function Vendor360Page() {
                   <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{profile.score.method}</p>
                   <p className="text-[11px] text-[var(--color-text-secondary)]">
                     {locale === "de"
-                      ? `Formel: 0,40×Betrieb + 0,25×Kommerziell + 0,20×SLA + 0,15×Beziehung = ${formatFixed(profile.score.total, locale)}. Berechnung v1.2 · Monatsauszug ${profile.latest?.month ?? "—"} · ${profile.months.length} Monate im ausgewählten Zeitraum.`
-                      : `Formula: 0.40×operational + 0.25×commercial + 0.20×SLA + 0.15×relationship = ${formatFixed(profile.score.total, locale)}. Calculation v1.2 · monthly extract ${profile.latest?.month ?? "—"} · ${profile.months.length} months in the selected period.`}
+                      ? `Formel: 0,40×Betrieb + 0,25×Kommerziell + 0,20×SLA + 0,15×Beziehung = ${formatFixed(profile.score.total, locale)}. Berechnung v1.2 · Monatsauszug ${profile.latest?.month ?? "—"} · Nachweis ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS}. Ausgewählter Zeitraum: ${profile.months.length} Monate, ${profile.months[0]?.month?.slice(0, 7) ?? "—"} bis ${session.asOfMonth}. Spätere Monate fließen nicht in diesen Score ein.`
+                      : `Formula: 0.40×operational + 0.25×commercial + 0.20×SLA + 0.15×relationship = ${formatFixed(profile.score.total, locale)}. Calculation v1.2 · monthly extract ${profile.latest?.month ?? "—"} · evidence ${profile.evidenceMonths}/${MIN_EVIDENCE_MONTHS}. Selected period: ${profile.months.length} months, ${profile.months[0]?.month?.slice(0, 7) ?? "—"} to ${session.asOfMonth}. Later months do not enter this score.`}
                   </p>
                   <p className="text-[11px] text-[var(--color-text-muted)]">
                     {profile.months.slice(-3).map((row) => `${row.month?.slice(0, 7)} ${formatFixed(row.overallScore ?? 0, locale)}`).join(" → ")}
@@ -232,7 +235,7 @@ export function Vendor360Page() {
               <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
                 <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("vendor.opsKpis")}</h3>
                 <p className="text-[12px] text-[var(--color-text-secondary)]">
-                  {t("vendor.latestMonth")} {formatDateDMY(profile.latest.month)} · {profile.latest.trendFlag}
+                  {t("vendor.latestMonth")} {formatDateDMY(profile.latest.month)} · {trendLabel(profile.latest.trendFlag, locale === "de" ? "de" : "en")}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {([
@@ -261,7 +264,17 @@ export function Vendor360Page() {
             <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
               <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{locale === "de" ? "Beziehungsakte" : "Relationship record"}</h3>
               <ul className="space-y-1 text-[12px] text-[var(--color-text-secondary)]">
-                <li>{locale === "de" ? "Beschaffung" : "Sourcing"}: {session.bidsReleased && profile.bid ? `${profile.bid.eventId} · ${profile.bid.bidStatus ?? "submitted"}` : session.sourcingEventId ? `${session.sourcingEventId} · ${locale === "de" ? "noch nicht bestätigt" : "not yet confirmed"}` : (locale === "de" ? "Kein Angebot in RFP-2026-001" : "No bid on RFP-2026-001")}</li>
+                <li>{locale === "de" ? "Beschaffung" : "Sourcing"}: {(() => {
+                    if (!profile.bid) return locale === "de" ? "Kein Angebot in RFP-2026-001" : "No bid on RFP-2026-001"
+                    if (!session.bidsReleased) return `${profile.bid.eventId} · ${locale === "de" ? "noch nicht bestätigt" : "not yet confirmed"}`
+                    if (journeyIndex(session.journeyStep) < 6) return `${profile.bid.eventId} · ${locale === "de" ? "Antwort bestätigt, noch nicht bewertet" : "Response confirmed, not yet evaluated"}`
+                    const status = profile.bid.bidStatus === "Compliant"
+                      ? (locale === "de" ? "Konform" : "Compliant")
+                      : profile.bid.bidStatus === "Disqualified"
+                        ? (locale === "de" ? "Disqualifiziert" : "Disqualified")
+                        : (profile.bid.bidStatus ?? "")
+                    return `${profile.bid.eventId} · ${status}`
+                  })()}</li>
                 <li>{locale === "de" ? "Vertrag" : "Contract"}: {profile.contracts.map((c) => c.contractId).join(", ") || (locale === "de" ? "Keiner" : "None")}</li>
                 <li>{locale === "de" ? "Ausführung" : "Execution"}: {profile.latest ? `${formatDateDMY(profile.latest.month)} · ${profile.latest.shipments} ${locale === "de" ? "Sendungen" : "shipments"}` : "—"}</li>
                 <li>{locale === "de" ? "Score" : "Score"}: {profile.score ? `${formatFixed(profile.score.total, locale)} · v1.2 · ${profile.latest?.month?.slice(0, 7) ?? session.asOfMonth}` : t("vendor.noHistory")}</li>

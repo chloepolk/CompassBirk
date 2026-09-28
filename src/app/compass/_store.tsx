@@ -31,8 +31,12 @@ import {
   type LogisticsSession,
   type EmailClass,
   type JourneyStep,
+  type LaneRateTemplateRow,
+  BID_EMAIL_IDS,
   SEND_CHECKS,
+  issuedInvitationAttachments,
 } from "@/lib/compass/logistics/session"
+import { inboxMessages } from "@/lib/compass/logistics/inbox-model"
 import { defaultAwardContracts } from "@/lib/compass/logistics/award-contracts"
 import type {
   AgentPhase,
@@ -100,6 +104,9 @@ export interface DraftedTender {
   createdAt: string
   scope: ScopeOutput
   itt: IttDocument
+  /** Saved German translation. Restored as written; not rebuilt on load. */
+  translation?: IttDocument | null
+  laneRateTemplate?: LaneRateTemplateRow[]
   audit: TenderAuditOutput | null
   submitted: boolean
 }
@@ -1252,7 +1259,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       if (!current || current.status !== "approved_for_award") return prev
       return { ...prev, [packageId]: confirmSupplierAward(current, actor) }
     })
-    advanceTenderStage(packageId, "outcome_roi")
+    advanceTenderStage(packageId, "execute")
     setSession(prev => {
       const advanced = advanceTo(prev, "s7")
       if (advanced.journeyStep !== "s7") return prev
@@ -1339,8 +1346,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   }, [])
 
   const releaseEvidence = (session: LogisticsSession): LogisticsSession => {
-    const bidIds = ["EML-007", "EML-008", "EML-009"]
-    const confirmed = bidIds.every((id) => session.emailClassifications[id] === "confirmed")
+    const confirmed = BID_EMAIL_IDS.every((id) => session.emailClassifications[id] === "confirmed")
     if (confirmed && session.attachmentMatches["EML-008"] === "revised") return advanceTo(session, "s5")
     return session
   }
@@ -1348,8 +1354,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const classifyInbox = React.useCallback((emailId: string, classification: EmailClass) => {
     setSession(prev => {
       const emailClassifications = { ...prev.emailClassifications, [emailId]: classification }
-      const bidIds = ["EML-007", "EML-008", "EML-009"]
-      const confirmedBids = bidIds.filter((id) => emailClassifications[id] === "confirmed")
+      const confirmedBids = BID_EMAIL_IDS.filter((id) => emailClassifications[id] === "confirmed")
       let next: LogisticsSession = {
         ...prev,
         classifiedEmailIds: prev.classifiedEmailIds.includes(emailId) ? prev.classifiedEmailIds : [...prev.classifiedEmailIds, emailId],
@@ -1380,15 +1385,24 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       const invitation = emailId === "EML-001" || emailId === "EML-002"
       if (invitation && (!prev.rfpApproved || !prev.rfpGenerated || !prev.packageLocked || !prev.rfpVersion)) return prev
       if (invitation && !SEND_CHECKS.every((check) => meta?.checks.includes(check))) return prev
+      const message = inboxMessages().find((row) => row.id === emailId)
+      const attachments = invitation
+        ? issuedInvitationAttachments(prev, emailId)
+        : (message?.attachments ?? []).map((file) => ({ name: file.name, version: file.version }))
       let next: LogisticsSession = {
         ...prev,
         sentDraftIds: [...prev.sentDraftIds, emailId],
-        sendApprovals: invitation && meta && prev.rfpVersion
+        sendApprovals: meta
           ? [...prev.sendApprovals, {
               emailId,
+              sender: message?.from ?? "sourcing@compass-demo.example",
               approverName: meta.approverName,
+              recipients: message?.to ? [message.to] : [],
               approvedAt: new Date().toISOString(),
-              rfpVersion: prev.rfpVersion,
+              message: message ? (message.language === "DE" ? message.bodyDe : message.bodyEn) : "",
+              attachments,
+              rfpVersion: prev.rfpVersion ?? "",
+              delivery: "delivered",
               checks: meta.checks,
             }]
           : prev.sendApprovals,
@@ -1493,6 +1507,10 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     setFocusTenderId(null)
     setFocusEvalPackageId(null)
     setState(s => ({ ...s, activePage: "operating-loop" }))
+    try {
+      sessionStorage.setItem("clp-reset-complete", "1")
+      window.dispatchEvent(new Event("clp-reset-complete"))
+    } catch { /* ignore */ }
   }, [])
 
   const applyOperatorCheckpoint = React.useCallback((checkpoint: number) => {

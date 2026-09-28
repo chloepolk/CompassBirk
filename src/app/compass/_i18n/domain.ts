@@ -31,7 +31,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
       "Die Rahmenverträge RheinRoute und NorthBridge laufen am 31. Dezember 2026 mit 120-Tage-Kündigungsfrist aus. Ein später Zuschlag verdichtet den Übergang in den Leistungsstart Januar 2027.",
     evidence: [
       "SRC-001: FTL/LTL-Kapazität über 18 europäische Relationen; Sichtbarkeit per API, EDI oder täglicher Datei.",
-      "SRC-002: Pünktlichkeitsziel 98,0 %; Annahmequote 97,0 %; Schadensdeckel 0,5 %.",
+      "SRC-002: Pünktlichkeitsziel 98,0 %; Sendungsannahmerate 97,0 %; Schadensdeckel 0,5 %.",
       "SRC-008: Neue Carrier bleiben No History; Incumbent-Scores sind eine freigegebene Evidenzquelle, keine automatische Präferenz.",
       "Geschätzter Jahreswert 5,65 Mio. €. Leistungsstart 1. Januar 2027.",
     ],
@@ -70,7 +70,7 @@ const PACKAGE_DE: Record<string, Pick<TenderPackage, "title" | "quantity" | "nar
       "Fünf Relationen verursachen die meisten Verspätungen. Ungeklärt wird die Verschlechterung zur Zuschlags- und Erneuerungsevidenz.",
     evidence: [
       "Leistungswarnung ACT-006; Korrekturmaßnahmenentwurf ACT-007.",
-      "Der operative Score nutzt Pünktlichkeit, Annahmequote und Schäden (40 % des Lieferantenscores).",
+      "Der operative Score nutzt Pünktlichkeit, Sendungsannahmerate und Schäden (40 % des Lieferantenscores).",
       "Synthetische Ausführungsdaten sind als synthetisch gekennzeichnet.",
     ],
   },

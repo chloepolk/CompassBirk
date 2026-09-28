@@ -47,7 +47,7 @@ export const TENDER_QUALITY_PROMPT = `You are the Quality & SLA Agent inside Com
 
 Your tasks:
 1. Write a one-sentence introduction mandating compliance with the carrier performance and SLA standard (SRC-002) and the supplier qualification standard (SRC-008).
-2. State the SLA targets: OTD 98.0%, tender acceptance 97.0%, claims ceiling 0.5%, invoice accuracy 99.0%.
+2. State the SLA targets: OTD 98.0%, shipment acceptance rate 97.0%, claims ceiling 0.5%, invoice accuracy 99.0%.
 3. State qualification gates (insurance ≥ EUR 5 million, due diligence, data integration) separately from evaluation weights.
 4. State that challengers remain No History until verified execution exists in the monthly extract (SRC-008).
 5. Cite SRC-002 and SRC-008.

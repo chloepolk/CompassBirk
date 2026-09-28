@@ -7,13 +7,14 @@ import { useT } from "../_i18n/use-t"
 import { formatEurFigure } from "@/lib/compass/locale-display"
 import { pcmCard } from "../_components/motion"
 import { NOTIFY_DELEGATE } from "../_components/hub/active-user"
-import { AWARD_SCENARIOS, scenarioById } from "@/lib/compass/logistics/award-scenarios"
+import { AWARD_SCENARIOS, scenarioById, scenarioText } from "@/lib/compass/logistics/award-scenarios"
 import { awardBlock, journeyIndex } from "@/lib/compass/logistics/session"
 
 export function AwardPage() {
   const t = useT()
   const { locale, session, confirmAward, retreatJourney, openBidEvaluation, patchSession } = useStore()
   const selected = session.selectedScenarioId ? scenarioById(session.selectedScenarioId) : null
+  const selectedCopy = selected ? scenarioText(selected, locale === "de" ? "de" : "en") : null
   const money = (n: number) => formatEurFigure(n, locale === "de" ? "de" : "en")
   const [rationale, setRationale] = React.useState("")
   const [overrideOn, setOverrideOn] = React.useState(false)
@@ -95,16 +96,17 @@ export function AwardPage() {
       {selected && (
       <>
       <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-3")}>
-        <h2 className="text-[16px] font-semibold">{selected.title}</h2>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">{selected.why}</p>
+        <h2 className="text-[16px] font-semibold">{selectedCopy?.title}</h2>
+        <p className="text-[13px] text-[var(--color-text-secondary)]">{selectedCopy?.why}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {[
             [locale === "de" ? "Kosten" : "Cost", money(selected.costEur)],
-            [locale === "de" ? "Service" : "Service", selected.service],
-            [locale === "de" ? "Kapazität" : "Capacity", selected.capacity],
-            [locale === "de" ? "Konzentration" : "Concentration", selected.concentration],
-            [locale === "de" ? "Historie" : "History", selected.history],
-            [locale === "de" ? "Übergangsrisiko" : "Transition risk", selected.transitionRisk],
+            [locale === "de" ? "Service" : "Service", selectedCopy?.service ?? ""],
+            [locale === "de" ? "Kapazität" : "Capacity", selectedCopy?.capacity ?? ""],
+            [locale === "de" ? "Konzentration" : "Concentration", selectedCopy?.concentration ?? ""],
+            [locale === "de" ? "Historie" : "History", selectedCopy?.history ?? ""],
+            [locale === "de" ? "Nachhaltigkeit" : "Sustainability", selectedCopy?.sustainability ?? ""],
+            [locale === "de" ? "Übergangsrisiko" : "Transition risk", selectedCopy?.transitionRisk ?? ""],
           ].map(([label, value]) => (
             <div key={label} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{label}</p>
@@ -113,21 +115,24 @@ export function AwardPage() {
           ))}
         </div>
         <p className="text-[12px] text-[var(--color-text-muted)]">
-          {locale === "de" ? "Annahmen" : "Assumptions"}: {selected.assumptions}
+          {locale === "de" ? "Annahmen" : "Assumptions"}: {selectedCopy?.assumptions}
         </p>
         <p className="text-[12px] text-[var(--color-text-muted)]">
-          {locale === "de" ? "Ausnahmen" : "Exceptions"}: {selected.exceptions}
+          {locale === "de" ? "Ausnahmen" : "Exceptions"}: {selectedCopy?.exceptions}
         </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-[14px] font-semibold">{locale === "de" ? "Alternativen" : "Alternatives"}</h2>
-        {AWARD_SCENARIOS.filter((s) => s.id !== selected.id).map((alt) => (
+        {AWARD_SCENARIOS.filter((s) => s.id !== selected.id).map((alt) => {
+          const copy = scenarioText(alt, locale === "de" ? "de" : "en")
+          return (
           <div key={alt.id} className="rounded-[12px] border border-[var(--color-border-default)] px-4 py-3">
-            <p className="text-[13px] font-medium">{alt.title}</p>
-            <p className="text-[12px] text-[var(--color-text-secondary)]">{alt.whyNot}</p>
+            <p className="text-[13px] font-medium">{copy.title} · {money(alt.costEur)}</p>
+            <p className="text-[12px] text-[var(--color-text-secondary)]">{copy.whyNot}</p>
           </div>
-        ))}
+          )
+        })}
       </section>
       </>
       )}
@@ -158,7 +163,7 @@ export function AwardPage() {
           />
           <div className="flex flex-wrap gap-2">
             <button type="button" disabled={approved} onClick={approve} className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-50">
-              {approved ? (locale === "de" ? "Freigegeben" : "Approved") : (locale === "de" ? "Freigeben" : "Approve")}
+              {approved ? (locale === "de" ? "Zuschlag freigegeben" : "Award approved") : (locale === "de" ? "Zuschlag freigeben" : "Approve award")}
             </button>
             <button type="button" onClick={returnForRevision} className="rounded-[10px] border border-[var(--color-border-default)] px-4 py-2 text-[13px] font-semibold">
               {locale === "de" ? "Zurückgeben" : "Return for revision"}

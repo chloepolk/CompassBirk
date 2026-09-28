@@ -23,6 +23,8 @@ import {
   TECH_MAX,
   QA_MAX,
   LEGAL_MAX,
+  HISTORY_MAX,
+  SUPPLIER_BY_BID,
   gateLabels,
   type BidEvaluationResult,
   type GateId,
@@ -47,7 +49,7 @@ import { AwardGovernanceChip, AwardRecommendPanel, AwardNotificationToast } from
 import { LaneSlaPanel, RateNormalisationPanel } from "../_components/lane-sla-panel"
 import { LogisticsEvaluationPanel } from "./logistics-evaluation"
 import { quarantinedBidEvidence } from "@/lib/compass/logistics/inbox-model"
-import { evaluationBlock, invitesSent } from "@/lib/compass/logistics/session"
+import { invitesSent, rfpLifecycle } from "@/lib/compass/logistics/session"
 
 type EvalStatus = "ready" | "awaiting_returns" | "not_issued" | "awarded"
 
@@ -75,13 +77,6 @@ function formatPriceFull(n: number, locale: Locale): string {
   return formatEurFigure(n, locale === "de" ? "de" : "en")
 }
 
-const SUPPLIER_BY_BID: Record<string, string> = {
-  "bid-rheinroute": "SUP-001",
-  "bid-northbridge": "SUP-002",
-  "bid-alpinelink": "SUP-004",
-  "bid-veloce": "SUP-005",
-}
-
 function historyText(bidId: string, label: "No History" | "Available", locale: Locale, asOf: string): string {
   if (label === "No History") return locale === "de" ? "Keine Historie" : "No History"
   const latest = vendorProfile(SUPPLIER_BY_BID[bidId] ?? "", [], asOf)?.latest
@@ -106,7 +101,7 @@ function ScoreBar({
       <div className="flex items-baseline justify-between gap-2 text-[11px]">
         <span className="text-[var(--color-text-muted)]">{label}</span>
         <span className="tabular-nums font-medium text-[var(--color-text-primary)]">
-          {value == null ? "—" : `${formatFixed(value, locale)} / ${max}`}
+          {value == null ? "—" : `${formatFixed(value, locale)} / ${formatFixed(max, locale)}`}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
@@ -199,6 +194,9 @@ function BidBaseballCard({
                   </span>
                 )}
               </p>
+              {!failed && result.historyLabel === "No History" && (
+                <p className="text-[11px] text-[var(--color-text-muted)]">{t("bidEval.noHistoryScale")}</p>
+              )}
             </div>
             {result.pdfPath && (
               <a
@@ -229,11 +227,14 @@ function BidBaseballCard({
 
           {!failed && (
             <div className="grid gap-2 sm:grid-cols-2">
-              <ScoreBar label={t("bidEval.price")} value={result.priceScore} max={PRICE_MAX} />
-              <ScoreBar label={t("bidEval.technical")} value={result.techScore} max={TECH_MAX} />
-              <ScoreBar label={t("bidEval.qaHseq")} value={result.qaScore} max={QA_MAX} />
-              <ScoreBar label={t("bidEval.legal")} value={result.legalScore} max={LEGAL_MAX} />
-              <ScoreBar label={t("bidEval.sustainability")} value={result.sustainabilityScore} max={SUSTAINABILITY_MAX} />
+              <ScoreBar label={t("bidEval.price")} value={result.priceScore} max={result.applied.cost} />
+              <ScoreBar label={t("bidEval.technical")} value={result.techScore} max={result.applied.service} />
+              <ScoreBar label={t("bidEval.qaHseq")} value={result.qaScore} max={result.applied.capacity} />
+              <ScoreBar label={t("bidEval.legal")} value={result.legalScore} max={result.applied.implementation} />
+              <ScoreBar label={t("bidEval.sustainability")} value={result.sustainabilityScore} max={result.applied.sustainability} />
+              {result.historyScore != null && result.applied.history != null && (
+                <ScoreBar label={t("bidEval.history")} value={result.historyScore} max={result.applied.history} />
+              )}
             </div>
           )}
 
@@ -280,6 +281,7 @@ function buildPackageRows(
   locale: Locale,
   bidsReleased: boolean,
   invitationsSent: boolean,
+  throughMonth: string,
 ): PackageEvalRow[] {
   return localizedTenderPackages(locale)
     .filter((p) => p.id === EVAL_PACKAGE_ID)
@@ -287,7 +289,7 @@ function buildPackageRows(
       const stage = tenderStages[pkg.id] ?? pkg.stage
       const effective = { ...pkg, stage }
       const bids = bidsReleased ? bidsForPackage(pkg.id, locale) : []
-      const results = bids.length > 0 ? evaluateBids(bids, locale) : []
+      const results = bids.length > 0 ? evaluateBids(bids, locale, throughMonth) : []
       const status: EvalStatus = bidsReleased && bids.length > 0
         ? "ready"
         : invitationsSent
@@ -317,15 +319,16 @@ function buildPackageRows(
     })
 }
 
-function EmptyPackageState({ copy, actionLabel, onAction }: { copy: string; actionLabel: string; onAction: () => void }) {
-  const t = useT()
+function EmptyPackageState({ title, copy, actionLabel, onAction }: { title: string; copy: string; actionLabel: string; onAction: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-[16px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-6 py-16 text-center">
       <SafeIcon name="Inbox" className="mb-3 size-8 text-[var(--color-text-muted)]" />
       <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-        {t("bidEval.empty")}
+        {title}
       </p>
-      <p className="mt-1 max-w-md text-[12px] text-[var(--color-text-secondary)]">{copy}</p>
+      {copy && (
+        <p className="mt-1 max-w-md text-[12px] text-[var(--color-text-secondary)]">{copy}</p>
+      )}
       <button
         type="button"
         onClick={onAction}
@@ -340,21 +343,22 @@ function EmptyPackageState({ copy, actionLabel, onAction }: { copy: string; acti
 export function BidEvaluationPage() {
   const t = useT()
   const { focusEvalPackageId, tenderStages, openBidEvaluation, openTenderStudio, openInbox, locale, awardApprovals, submitAwardRecommendation, appliedTenderQtyByPackage, session } = useStore()
-  const held = evaluationBlock(session)
+  const life = rfpLifecycle(session)
+  const held = life.phase === "bids-ready" ? null : life.detail
   const invitationsSent = invitesSent(session)
   const rows = React.useMemo(
-    () => buildPackageRows(tenderStages, locale, session.bidsReleased, invitationsSent),
-    [tenderStages, locale, session.bidsReleased, invitationsSent],
+    () => buildPackageRows(tenderStages, locale, session.bidsReleased, invitationsSent, session.asOfMonth),
+    [tenderStages, locale, session.bidsReleased, invitationsSent, session.asOfMonth],
   )
-  const nextAction = !session.rfpGenerated
-    ? { label: locale === "de" ? "Ausschreibung erzeugen" : "Generate the cited RFP", run: () => openTenderStudio(EVAL_PACKAGE_ID) }
-    : !session.rfpApproved
-      ? { label: locale === "de" ? "Zitierte Ausschreibung prüfen" : "Review and approve the cited RFP", run: () => openTenderStudio(EVAL_PACKAGE_ID) }
-      : !invitationsSent
-        ? { label: locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations", run: () => openInbox() }
-        : !session.bidsReleased
-          ? { label: locale === "de" ? "Lieferantennachweis prüfen" : "Review supplier evidence", run: () => openInbox() }
-          : null
+  const nextAction = life.action && life.phase !== "bids-ready"
+    ? {
+        label: locale === "de" ? life.action.label.de : life.action.label.en,
+        run: () => {
+          if (life.action?.id === "return-workspace") openTenderStudio(EVAL_PACKAGE_ID)
+          else openInbox()
+        },
+      }
+    : null
 
   const defaultId =
     focusEvalPackageId && rows.some((r) => r.pkg.id === focusEvalPackageId)
@@ -379,24 +383,27 @@ export function BidEvaluationPage() {
       "bid-alpinelink": "EML-007",
       "bid-rheinroute": "EML-008",
       "bid-veloce": "EML-009",
+      "bid-northbridge": "EML-013",
     }
     return bidsForPackage(activePackageId, locale).filter((bid) => {
       const emailId = evidence[bid.id]
-      if (!emailId) return true
+      if (!emailId) return false
       return session.emailClassifications[emailId] === "confirmed"
     })
   }, [activePackageId, locale, session.bidsReleased, session.emailClassifications])
   const results = React.useMemo(
-    () => (bids.length > 0 ? sortEvaluationForDisplay(evaluateBids(bids, locale)) : []),
-    [bids, locale],
+    () => (bids.length > 0 ? sortEvaluationForDisplay(evaluateBids(bids, locale, session.asOfMonth)) : []),
+    [bids, locale, session.asOfMonth],
   )
+  const rankedResults = results.filter((row) => row.gatingStatus === "Pass" && row.finalRank != null)
+  const failedResults = results.filter((row) => row.gatingStatus !== "Pass" || row.finalRank == null)
 
   const [notifyOpen, setNotifyOpen] = React.useState(false)
   const [recommendSnapshot, setRecommendSnapshot] = React.useState<AwardApprovalSnapshot | null>(null)
   const [toastName, setToastName] = React.useState<string | null>(null)
   const [selectedBidId, setSelectedBidId] = React.useState<string | null>(null)
   React.useEffect(() => {
-    const top = results.find((r) => r.finalRank === 1) ?? results[0]
+    const top = results.find((r) => r.finalRank === 1) ?? results.find((r) => r.gatingStatus === "Pass")
     setSelectedBidId(top?.bidId ?? null)
   }, [results])
 
@@ -453,6 +460,7 @@ export function BidEvaluationPage() {
     { label: t("bidEval.qaHseq"), max: QA_MAX },
     { label: t("bidEval.legal"), max: LEGAL_MAX },
     { label: t("bidEval.sustainability"), max: SUSTAINABILITY_MAX },
+    { label: t("bidEval.history"), max: HISTORY_MAX },
   ]
 
   const pageMotion = enterMotion(0)
@@ -475,11 +483,11 @@ export function BidEvaluationPage() {
             <p className="mt-1 max-w-2xl text-[12px] text-[var(--color-text-muted)]">
               {t("bidEval.historyMethod")}
             </p>
-            {held && (
-              <p className="mt-2 max-w-2xl rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
-                {locale === "de" ? held.de : held.en}
-              </p>
-            )}
+            <p className="mt-2 text-[12px] font-medium text-[var(--color-text-primary)]">
+              {locale === "de" ? life.identifier.de : life.identifier.en}
+              {" · "}
+              {locale === "de" ? life.status.de : life.status.en}
+            </p>
             {pendingEvidence.length > 0 && (
               <p className="mt-2 text-[12px] text-[var(--color-accent-warning-text)]">
                 {t("inbox.quarantineHint")} {pendingEvidence.join(", ")}
@@ -531,10 +539,7 @@ export function BidEvaluationPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                          {row.pkg.packageRef}
-                        </p>
-                        <p className="mt-0.5 truncate text-[12px] font-medium text-[var(--color-text-primary)]">
+                        <p className="truncate text-[12px] font-medium text-[var(--color-text-primary)]">
                           {row.pkg.title}
                         </p>
                       </div>
@@ -578,10 +583,7 @@ export function BidEvaluationPage() {
           {pkg && (
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                  {pkg.packageRef} · {ittRef}
-                </p>
-                <h2 className="mt-0.5 text-[18px] font-semibold text-[var(--color-text-primary)]">
+                <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
                   {pkg.title}
                 </h2>
                 {govStatus && (
@@ -624,7 +626,8 @@ export function BidEvaluationPage() {
 
           {activeRow && activeRow.status !== "ready" && nextAction ? (
             <EmptyPackageState
-              copy={held ? (locale === "de" ? held.de : held.en) : t("bidEval.empty")}
+              title={locale === "de" ? life.status.de : life.status.en}
+              copy={held ? (locale === "de" ? held.de : held.en) : (locale === "de" ? life.status.de : life.status.en)}
               actionLabel={nextAction.label}
               onAction={nextAction.run}
             />
@@ -683,7 +686,7 @@ export function BidEvaluationPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {results.map((r) => {
+                      {rankedResults.map((r) => {
                         const selected = selectedBidId === r.bidId
                         return (
                           <tr
@@ -704,7 +707,9 @@ export function BidEvaluationPage() {
                             <MatrixCell>{r.legalScore != null ? formatFixed(r.legalScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>{r.sustainabilityScore != null ? formatFixed(r.sustainabilityScore, locale) : "—"}</MatrixCell>
                             <MatrixCell>
-                              {historyText(r.bidId, r.historyLabel, locale, session.asOfMonth)}
+                              {r.historyScore != null
+                                ? `${formatFixed(r.historyScore, locale)} · ${historyText(r.bidId, r.historyLabel, locale, session.asOfMonth)}`
+                                : historyText(r.bidId, r.historyLabel, locale, session.asOfMonth)}
                             </MatrixCell>
                             <MatrixCell>
                               <span
@@ -720,6 +725,11 @@ export function BidEvaluationPage() {
                             </MatrixCell>
                             <MatrixCell className="font-semibold">
                               {r.compositeScore != null ? formatFixed(r.compositeScore, locale) : "—"}
+                              {r.gatingStatus === "Pass" && r.historyLabel === "No History" && (
+                                <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-[var(--color-text-muted)]">
+                                  {t("bidEval.noHistoryScale")}
+                                </span>
+                              )}
                             </MatrixCell>
                             <MatrixCell className="font-semibold">
                               {r.finalRank != null ? `#${r.finalRank}` : r.gatingStatus === "Evidence missing" ? (locale === "de" ? "Offen" : "Open") : "DQ"}
@@ -752,7 +762,7 @@ export function BidEvaluationPage() {
                   </p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">
-                  {results.map((r, i) => (
+                  {rankedResults.map((r, i) => (
                     <BidBaseballCard
                       key={r.bidId}
                       result={r}
@@ -764,6 +774,27 @@ export function BidEvaluationPage() {
                   ))}
                 </div>
               </section>
+
+              {failedResults.length > 0 && (
+                <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4")}>
+                  <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    {locale === "de" ? "Nicht gerankt" : "Not ranked"}
+                  </h3>
+                  <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                    {locale === "de"
+                      ? "Nicht bestandene Angebote bleiben getrennt. Sie erhalten keinen Score und keinen Rang."
+                      : "Failed bids stay apart. They receive no score and no rank."}
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {failedResults.map((row) => (
+                      <li key={row.bidId} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2">
+                        <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{row.supplier}</p>
+                        <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">{row.recommendation}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
             </>
           )}
         </div>

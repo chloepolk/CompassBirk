@@ -26,6 +26,8 @@ import {
   TECH_MAX,
   QA_MAX,
   LEGAL_MAX,
+  SUSTAINABILITY_MAX,
+  HISTORY_MAX,
   GATE_LABELS,
   gateLabels,
   type BidEvaluationResult,
@@ -95,17 +97,17 @@ function ledgerSummary() {
 export function scoringModelSummary() {
   return {
     compositeMax: 100,
-    weights: { cost: PRICE_MAX, service: TECH_MAX, capacity: QA_MAX, visibility: LEGAL_MAX, sustainability: 10 },
+    weights: { cost: PRICE_MAX, service: TECH_MAX, capacity: QA_MAX, implementation: LEGAL_MAX, sustainability: SUSTAINABILITY_MAX, history: HISTORY_MAX },
     hardGates: [
       "Cargo insurance of at least EUR 5 million",
       "Financial due diligence complete",
       "Data integration (API, EDI or agreed daily file)",
     ],
-    priceFormula: `EVAL-LOG-v1 cost ${PRICE_MAX} × (P_min / P_bid) among gate-passing bids only`,
-    techRule: `Service / SLA up to ${TECH_MAX} against SRC-002. Not a parts-conformity score.`,
-    qaRule: `Capacity / coverage up to ${QA_MAX} = lanes offered / 18.`,
-    legalRule: `Implementation / visibility up to ${LEGAL_MAX} (API, EDI or daily file) plus sustainability up to 10. No History is not a score component.`,
-    commercialRiskFlag: "No History is not zero and is not an automatic penalty. Evidence-missing bids are not ranked.",
+    priceFormula: `EVAL-LOG-v1 cost ${PRICE_MAX} × (P_min / P_bid) among gate-passing bids only. A No History bid uses the rescaled cost maximum instead of ${PRICE_MAX}.`,
+    techRule: `Service / SLA up to ${TECH_MAX} from the bid commitment (0–100).`,
+    qaRule: `Capacity / coverage up to ${QA_MAX} from the bid commitment (0–100).`,
+    legalRule: `Implementation / visibility up to ${LEGAL_MAX} and sustainability up to ${SUSTAINABILITY_MAX}, both from the bid commitment. Verified history up to ${HISTORY_MAX} uses the Vendor 360 monthly score through the reporting date. No History is not zero: the other weights, which sum to 85, are rescaled to 100.`,
+    commercialRiskFlag: "No History is not zero. The five non-history weights are rescaled from 85% to 100% and that rescale is disclosed beside the total. Failed gates are unranked.",
     deferred: "Operational deviation penalty P not applied in v1",
   }
 }
@@ -118,12 +120,15 @@ function explainBidCalculation(bid: BidInput, result: BidEvaluationResult, pMin:
       : `Disqualified — failed hard gate(s): ${fails}. No composite score.`
   }
   if (pMin == null || result.priceScore == null) return result.recommendation
-  const priceStep = `Cost ${result.priceScore} = ${PRICE_MAX} × (${eur(pMin).toLocaleString("en-GB")} / ${eur(bid.totalPrice).toLocaleString("en-GB")})`
-  const techStep = `Service ${result.techScore}/${TECH_MAX}`
-  const qaStep = `Capacity ${result.qaScore}/${QA_MAX}`
-  const legalStep = `Visibility ${result.legalScore}/${LEGAL_MAX}; sustainability ${result.sustainabilityScore ?? 0}/10`
+  const priceStep = `Cost ${result.priceScore} = ${result.applied.cost} × (${eur(pMin).toLocaleString("en-GB")} / ${eur(bid.totalPrice).toLocaleString("en-GB")})`
+  const techStep = `Service ${result.techScore}/${result.applied.service}`
+  const qaStep = `Capacity ${result.qaScore}/${result.applied.capacity}`
+  const legalStep = `Implementation ${result.legalScore}/${result.applied.implementation}; sustainability ${result.sustainabilityScore ?? 0}/${result.applied.sustainability}`
+  const historyStep = result.historyScore == null
+    ? "No History: non-history weights rescaled from 85 to 100"
+    : `History ${result.historyScore}/${result.applied.history} from the Vendor 360 monthly score`
   const risk = result.highCommercialRisk ? "; HIGH COMMERCIAL RISK flag on warranty cut" : ""
-  return `${priceStep}; ${techStep}; ${qaStep}; ${legalStep}; Composite ${result.compositeScore}; Rank #${result.finalRank}${risk}. ${result.recommendation}`
+  return `${priceStep}; ${techStep}; ${qaStep}; ${legalStep}; ${historyStep}; Composite ${result.compositeScore}; Rank #${result.finalRank}${risk}. ${result.recommendation}`
 }
 
 /** Full bid-evaluation payload for chat / specialists / orchestrator. */
@@ -224,7 +229,7 @@ function formatBidEvaluationBriefing(): string {
       if (e.gatingStatus !== "Pass") {
         return `  - ${e.supplier}: ${e.gatingStatus} (${e.gateFailures.join("; ")}); bid ${formatEurFigure(e.totalPriceEur)}. ${e.calculation}`
       }
-      return `  - ${e.supplier}: Rank #${e.finalRank}, composite ${e.compositeScore}/100 (Cost ${e.priceScore}/${PRICE_MAX}, Service ${e.techScore}/${TECH_MAX}, Capacity ${e.qaScore}/${QA_MAX}, Visibility ${e.legalScore}/${LEGAL_MAX}); bid ${formatEurFigure(e.totalPriceEur)}. Calculation: ${e.calculation}`
+      return `  - ${e.supplier}: Rank #${e.finalRank}, composite ${e.compositeScore}/100 (Cost ${e.priceScore}, Service ${e.techScore}, Capacity ${e.qaScore}, Implementation ${e.legalScore}); bid ${formatEurFigure(e.totalPriceEur)}. Calculation: ${e.calculation}`
     })
     return `${p.packageId} ${p.title} (${p.ittRef}): P_min eligible ${formatEurFigure(p.lowestEligiblePriceEur ?? 0)}\n${lines.join("\n")}`
   })
@@ -235,11 +240,11 @@ function formatBidEvaluationBriefing(): string {
 
   return `BID EVALUATION SCORING MODEL (0–100):
 - Hard gates before scoring: ${model.hardGates.join("; ")}. Fail any → disqualified, no composite.
-- Weights: cost ${model.weights.cost}, service ${model.weights.service}, capacity ${model.weights.capacity}, visibility ${model.weights.visibility}, sustainability ${model.weights.sustainability}.
+- Weights: cost ${model.weights.cost}, service ${model.weights.service}, capacity ${model.weights.capacity}, implementation ${model.weights.implementation}, sustainability ${model.weights.sustainability}, verified history ${model.weights.history}.
 - Cost: ${model.priceFormula}.
 - Service: ${model.techRule}.
 - Capacity: ${model.qaRule}.
-- Visibility and sustainability: ${model.legalRule}.
+- Implementation, sustainability and history: ${model.legalRule}.
 - Risk flag: ${model.commercialRiskFlag}.
 - ${model.deferred}.
 
@@ -321,7 +326,7 @@ export function buildMarketContext(drill: DrillState): Record<string, unknown> {
     bidEvaluation: buildBidEvaluationContext(),
     supplierConstraints: [
       "RheinRoute is the incumbent with a published August 2026 score of 90.0 for the months through the reporting date (SUP-001).",
-      "NorthBridge and EuroSpan bid as established challengers; AlpineLink and Veloce remain No History (SRC-008).",
+      "NorthBridge is an incumbent. AlpineLink and Veloce remain No History (SRC-008). EuroSpan is not a bidder on this event.",
       "Fuel surcharge is disclosed under SRC-005; lane rates stay in EUR.",
       "Lane capacity and OTD sit on the SLA path for the 2027 award.",
     ],

@@ -132,7 +132,7 @@ export const SOURCING: Sourcing[] = [
     eventId: null,
     eventTitle: "RFP-2026-001",
     eventType: "Performance",
-    category: "Commit to tender acceptance of at least 97.0%.",
+    category: "Commit to a shipment acceptance rate of at least 97.0%.",
     issueDate: "Yes",
     questionDeadline: "Capacity reliability",
     bidDeadline: 10,

@@ -3,7 +3,8 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useStore } from "../_store"
-import { ANALYSIS_STEPS, REQUIREMENTS, SOURCE_CLASSES } from "@/lib/compass/logistics/requirements"
+import { analysisSteps, REQUIREMENTS, SOURCE_CLASSES } from "@/lib/compass/logistics/requirements"
+import { EVAL_LOG_V1 } from "../data/_bid-scoring"
 import { isDismissalRationale, journeyIndex, recordRequirementDecision, type ResolutionChoice } from "@/lib/compass/logistics/session"
 
 type DecisionDraft = { choice: ResolutionChoice | ""; rationale: string }
@@ -29,6 +30,10 @@ export function RequirementGovernance() {
   const material = REQUIREMENTS.filter((r) => r.state !== "clear")
   const resolvedIds = new Set(session.requirementDecisions.map((d) => d.id))
   const unresolved = material.filter((r) => !resolvedIds.has(r.id))
+  const steps = analysisSteps()
+  const proposedCount = REQUIREMENTS.length
+  const citedCount = REQUIREMENTS.filter((row) => row.source.trim().length > 0).length
+  const clearCount = REQUIREMENTS.filter((row) => row.state === "clear").length
   const locked = journeyIndex(session.journeyStep) >= 3
 
   const draftFor = (id: string): DecisionDraft => drafts[id] ?? EMPTY_DRAFT
@@ -100,17 +105,21 @@ export function RequirementGovernance() {
           {de ? "Anforderungssteuerung" : "Requirement governance"}
         </h2>
         <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">
-          {de
-            ? "Die Ausgabe bleibt gesperrt, solange eine wesentliche Ausnahme offen ist."
-            : "Issue stays blocked while a material exception is unresolved."}
+          {unresolved.length > 0
+            ? (de
+              ? "Die Ausgabe bleibt gesperrt, solange eine wesentliche Ausnahme offen ist."
+              : "Issue stays blocked while a material exception is unresolved.")
+            : (de
+              ? `${proposedCount} vorgeschlagene Anforderungen, ${citedCount} quellenbelegt, ${clearCount} klar. ${unresolved.length} offene wesentliche Ausnahmen.`
+              : `${proposedCount} proposed requirements, ${citedCount} source-cited, ${clearCount} clear. ${unresolved.length} unresolved material exceptions.`)}
         </p>
       </div>
 
       <ol className="grid gap-2 sm:grid-cols-2">
-        {ANALYSIS_STEPS.filter((step) => session.rfpGenerated || (step.id !== "draft" && step.id !== "review")).map((step, i) => (
+        {steps.filter((step) => session.rfpGenerated || (step.id !== "draft" && step.id !== "review")).map((step, i) => (
           <li key={step.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2 text-[12px]">
-            <span className="font-medium">{i + 1}. {step.label}</span>
-            <span className="mt-0.5 block text-[var(--color-text-muted)]">{step.count}</span>
+            <span className="font-medium">{i + 1}. {de ? step.labelDe : step.label}</span>
+            <span className="mt-0.5 block text-[var(--color-text-muted)]">{de ? step.countDe : step.count}</span>
           </li>
         ))}
       </ol>
@@ -134,15 +143,16 @@ export function RequirementGovernance() {
                 <tr key={row.id} className="border-t border-[var(--color-border-default)] align-top">
                   <td className="py-2 pr-2">
                     <button type="button" className="text-left font-medium hover:underline" onClick={() => setPassageId(passageId === row.id ? null : row.id)}>
-                      {row.requirement}
+                      <span className="mr-1 text-[var(--color-text-muted)]">{row.id}</span>
+                      {de ? row.requirementDe : row.requirement}
                     </button>
-                    <p className="text-[11px] text-[var(--color-text-muted)]">{row.category} · {row.mandatory ? (de ? "verbindlich" : "mandatory") : (de ? "optional" : "optional")} · {row.confidence}</p>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">{de ? row.categoryDe : row.category} · {row.mandatory ? (de ? "verbindlich" : "mandatory") : (de ? "optional" : "optional")} · {row.confidence}</p>
                     {passageId === row.id && (
-                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{row.source} {row.sourceVersion} §{row.section}: {row.passage}</p>
+                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{row.source} {row.sourceVersion} {row.section}: {row.passage}</p>
                     )}
                   </td>
-                  <td className="py-2 pr-2">{row.source} {row.sourceVersion} §{row.section}</td>
-                  <td className="py-2 pr-2">{row.state}</td>
+                  <td className="py-2 pr-2">{row.source} {row.sourceVersion} {row.section}</td>
+                  <td className="py-2 pr-2">{row.state === "clear" ? (de ? "klar" : "clear") : row.state}</td>
                   <td className="py-2">
                     {row.state === "clear" ? (de ? "Keine Aktion" : "No action") : decision && !editing ? (
                       <div className="space-y-1">
@@ -199,6 +209,18 @@ export function RequirementGovernance() {
         {de ? "Quellenklassen" : "Source classes"}: {SOURCE_CLASSES.join("; ")}
       </p>
 
+      <div>
+        <h3 className="text-[13px] font-semibold">{de ? "Bewertungsmethode EVAL-LOG-v1" : "Evaluation method EVAL-LOG-v1"}</h3>
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+          {EVAL_LOG_V1.map((row) => (
+            <li key={row.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2 text-[12px]">
+              <p className="font-medium">{de ? row.nameDe : row.nameEn} · {row.weight}</p>
+              <p className="text-[var(--color-text-muted)]">{de ? row.noteDe : row.noteEn}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
           <input
@@ -225,7 +247,7 @@ export function RequirementGovernance() {
               ? (session.rfpApproved
                 ? (de ? `${session.rfpVersion} ist freigegeben.` : `${session.rfpVersion} is approved.`)
                 : (de ? `Entwurf ${session.rfpVersion} steht zur Prüfung. Die Freigabe erfolgt am Dokument.` : `Draft ${session.rfpVersion} is ready for review. Approve it on the document.`))
-              : (de ? "Erzeugen Sie die zitierte Ausschreibung aus dieser Baseline." : "Generate the cited RFP from this baseline.")}
+              : (de ? "Erzeugen Sie die Ausschreibung aus dieser Baseline." : "Generate RFP from this baseline.")}
           </p>
         )}
         {unresolved.length > 0 && (

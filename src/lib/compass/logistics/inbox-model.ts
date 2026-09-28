@@ -79,15 +79,15 @@ const BODIES: Record<string, { en: string; de: string; kind: InboxKind; directio
     direction: "outbound",
     kind: "invitation",
     affectsBids: false,
-    en: "You are invited to respond to RFP-2026-001, European Road Freight Services 2027. Eighteen lanes; 2,448 forecast shipments; SLA in SRC-002. Rate card template attached. Responses close 23 October 2026.",
-    de: "Sie sind eingeladen, auf RFP-2026-001, Europäische Straßentransporte 2027, zu antworten. Achtzehn Relationen; 2.448 prognostizierte Sendungen; SLA gemäß SRC-002. Preistabelle im Anhang. Frist 23. Oktober 2026.",
+    en: "You are invited to respond to RFP-2026-001, European Road Freight Services 2027. Eighteen lanes; 2,448 forecast shipments; SLA in SRC-002. Rate card template attached. Responses close 23 October 2026. This invitation is confidential to the named recipient and does not disclose another bidder's rates.",
+    de: "Sie sind eingeladen, auf RFP-2026-001, Europäische Straßentransporte 2027, zu antworten. Achtzehn Relationen; 2.448 prognostizierte Sendungen; SLA gemäß SRC-002. Preistabelle im Anhang. Frist 23. Oktober 2026. Diese Einladung ist für den genannten Empfänger vertraulich und nennt keine Raten eines anderen Bieters.",
   },
   "EML-002": {
     direction: "outbound",
     kind: "invitation",
     affectsBids: false,
-    en: "German-language invitation to RFP-2026-001. Same lanes, volumes and SLA as the English original. This file is a labelled translation of the EN-GB invitation.",
-    de: "Deutschsprachige Einladung zu RFP-2026-001. Dieselben Relationen, Mengen und SLA wie das englische Original. Diese Datei ist eine gekennzeichnete Übersetzung der EN-GB-Einladung.",
+    en: "German-language invitation to RFP-2026-001. Same lanes, volumes and SLA as the English original. Eighteen lanes; 2,448 forecast shipments. Responses close 23 October 2026. This file is a labelled translation of the EN-GB invitation. This invitation is confidential to the named recipient and does not disclose another bidder's rates.",
+    de: "Deutschsprachige Einladung zu RFP-2026-001. Dieselben Relationen, Mengen und SLA wie das englische Original. Achtzehn Relationen; 2.448 prognostizierte Sendungen. Frist 23. Oktober 2026. Diese Datei ist eine gekennzeichnete Übersetzung der EN-GB-Einladung. Diese Einladung ist für den genannten Empfänger vertraulich und nennt keine Raten eines anderen Bieters.",
   },
   "EML-003": {
     direction: "inbound",
@@ -137,6 +137,13 @@ const BODIES: Record<string, { en: string; de: string; kind: InboxKind; directio
     affectsBids: true,
     en: "Veloce attaches an updated cargo-insurance certificate. Qualification still requires cover of at least EUR 5 million. Confirm before the gate is re-run.",
     de: "Veloce legt ein aktualisiertes Frachtversicherungszertifikat bei. Die Qualifikation verlangt weiterhin mindestens 5 Mio. €. Erst bestätigen, dann das Tor erneut prüfen.",
+  },
+  "EML-013": {
+    direction: "inbound",
+    kind: "bid",
+    affectsBids: true,
+    en: "NorthBridge submits its bid for RFP-2026-001: narrative response and a lane rate card covering 15 of 18 lanes. Treat as a supplier return only after this message is confirmed.",
+    de: "NorthBridge reicht das Angebot zu RFP-2026-001 ein: Angebotstext und eine Relationen-Preistabelle für 15 von 18 Relationen. Erst nach Bestätigung dieser Nachricht als Angebot werten.",
   },
   "EML-010": {
     direction: "inbound",

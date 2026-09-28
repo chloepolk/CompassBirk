@@ -52,7 +52,7 @@ export const SCOPE_SCHEMA = {
 
 export interface TechnicalOutput {
   scopeIntro: string
-  parameters: { parameter: string; requirement: string }[]
+  parameters: { parameter: string; requirement: string; citation?: string }[]
   notes: string[]
   citations: string[]
 }
@@ -129,7 +129,7 @@ export const QUALITY_SCHEMA = {
 
 export interface LegalOutput {
   governingTerms: string
-  clauses: { heading: string; text: string; source: string }[]
+  clauses: { heading: string; text: string; source: string; citation?: string }[]
   citations: string[]
 }
 

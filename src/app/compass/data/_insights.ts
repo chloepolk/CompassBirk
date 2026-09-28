@@ -68,7 +68,7 @@ function procurementFindings(): BPFinding[] {
       severity: "medium",
       title: "AlpineLink and Veloce remain No History",
       narrative:
-        "Challengers have no verified internal operating record. AlpineLink is rank 1 on compliant cost. Veloce fails the cargo-insurance gate and is not ranked. Neither receives an invented score.",
+        "Challengers have no verified internal operating record. AlpineLink stays No History and the five non-history weights are rescaled from 85% to 100%. Veloce fails the cargo-insurance gate and is not ranked. Neither receives an invented score.",
       evidence: [
         "SRC-008: No History is a state, not a low score.",
         "Veloce insurance certificate is below the mandatory €5 million threshold.",
@@ -85,7 +85,7 @@ function procurementFindings(): BPFinding[] {
       narrative:
         "AWD-02 (AlpineLink 65% / NorthBridge 35%) balances challenger cost with proven execution. Single-award AlpineLink is cheaper and more concentrated. Incumbent continuity is more expensive and keeps RheinRoute deterioration in the baseline.",
       evidence: [
-        "AWD-02 annual cost €2.015m; AWD-01 €1.920m; AWD-03 €2.116m.",
+        "AWD-02 annual cost €1,995,813 from confirmed lane rates (AlpineLink €1,297,285 / NorthBridge €698,529). AWD-01 €1,920,496. AWD-03 €2,065,914.",
         "All values are synthetic and labelled as such.",
       ],
       recommendation: "Present the three scenarios with cost, concentration and history trade-offs. Award still requires named human approval.",
@@ -120,7 +120,7 @@ const FINDINGS_DE: Record<string, Pick<BPFinding, "title" | "narrative" | "evide
   "clp-no-history": {
     title: "AlpineLink und Veloce bleiben No History",
     narrative:
-      "Challenger haben keinen geprüften internen Betriebsnachweis. AlpineLink liegt auf Rang 1 bei konformen Kosten. Veloce fällt am Frachtversicherungstor durch und wird nicht gerankt. Keiner erhält einen erfundenen Score.",
+      "Challenger haben keinen geprüften internen Betriebsnachweis. AlpineLink bleibt No History; die fünf Gewichte ohne Historie werden von 85 % auf 100 % umbasiert. Veloce fällt am Frachtversicherungstor durch und wird nicht gerankt. Keiner erhält einen erfundenen Score.",
     evidence: [
       "SRC-008: No History ist ein Zustand, kein niedriger Score.",
       "Das Versicherungszertifikat von Veloce liegt unter der Pflichtschwelle von 5 Mio. €.",
@@ -132,7 +132,7 @@ const FINDINGS_DE: Record<string, Pick<BPFinding, "title" | "narrative" | "evide
     narrative:
       "AWD-02 (AlpineLink 65 % / NorthBridge 35 %) gleicht Challenger-Kosten mit nachgewiesener Ausführung aus. Alleinvergabe an AlpineLink ist günstiger und konzentrierter. Incumbent-Kontinuität ist teurer und hält die RheinRoute-Verschlechterung in der Baseline.",
     evidence: [
-      "AWD-02 Jahreskosten 2,015 Mio. €; AWD-01 1,920 Mio. €; AWD-03 2,116 Mio. €.",
+      "AWD-02 Jahreskosten 1.995.813 € aus bestätigten Relationsraten (AlpineLink 1.297.285 € / NorthBridge 698.529 €). AWD-01 1.920.496 €. AWD-03 2.065.914 €.",
       "Alle Werte sind synthetisch und als solche gekennzeichnet.",
     ],
     recommendation: "Die drei Szenarien mit Kosten-, Konzentrations- und Historie-Abwägungen darstellen. Der Zuschlag bleibt an eine namentliche menschliche Freigabe gebunden.",
