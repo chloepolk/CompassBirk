@@ -5,6 +5,7 @@ import { useTheme } from "next-themes"
 import { SafeIcon } from "@/components/prosera-lib/safe-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/prosera/avatar"
 import { Button } from "@/components/ui/prosera/button"
+import { Switch } from "@/components/ui/prosera/switch"
 import { Badge } from "@/components/ui/prosera/badge"
 import { cn } from "@/lib/utils"
 import {
@@ -291,7 +292,7 @@ function DrillBreadcrumbBar() {
 /* ------------------------------------------------------------------ */
 
 function DemoControls() {
-  const { resetSession, locale } = useStore()
+  const { resetSession, locale, guided, setGuided } = useStore()
   const [open, setOpen] = React.useState(false)
   const de = locale === "de"
   return (
@@ -310,6 +311,24 @@ function DemoControls() {
         <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">
           {de ? "Demo-Steuerung" : "Demo controls"}
         </p>
+        <div className="flex items-start justify-between gap-3 rounded-[10px] border border-[var(--color-border-default)] px-3 py-2.5">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+              {de ? "Geführt" : "Guided"}
+            </p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+              {de
+                ? "Hinweise und das Scrollen zur Stelle. Ausgeschaltet bleiben die Hinweise aus. Der Wechsel zur nächsten Seite bleibt."
+                : "Step notes and scrolling to the control. Off hides the notes. Opening the next page stays on."}
+            </p>
+          </div>
+          <Switch
+            checked={guided}
+            onCheckedChange={setGuided}
+            aria-label={de ? "Geführt" : "Guided"}
+            className="mt-0.5"
+          />
+        </div>
         <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
           {de
             ? "Demo zurücksetzen löscht das Beschaffungsereignis, die Freigaben, die Ausschreibung, Nachrichten, freigegebene Antworten, Bewertung, Empfehlung, Zuschlag, Leistungsmaßnahmen und den Prüfpfad. Sprache, Design und Referenzdaten bleiben."
@@ -735,7 +754,7 @@ function ReasoningPanel() {
         "Loaded the tender register and applied session progress for each package",
         "Computed days remaining against each 21-day tender window",
         "Mapped packages to controlled documents, SLA and qualification gates",
-        "Ranked by submission deadline, illustrative exposure and operating path",
+        "Ranked by submission deadline, exposure and operating path",
       ],
       sources: [
         `${TENDER_PACKAGES.length} live packages on the ${PROJECT.shortName} pipeline`,
@@ -947,7 +966,7 @@ function ContextPanel() {
             <span className="font-medium">RFP-2026-001</span>
           </div>
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{locale === "de" ? "Illustrative Exposition" : "Illustrative exposure"}</span>
+            <span className="text-muted-foreground">{locale === "de" ? "Exposition" : "Exposure"}</span>
             <span className="font-mono font-medium">{formatEur(5_650_000, locale)}</span>
           </div>
           <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
@@ -969,8 +988,8 @@ function ContextPanel() {
           </p>
           <p className="text-[11px] text-muted-foreground">
             {locale === "de"
-              ? `${formatCompactEur(realisedTotal, locale)} sind illustrativ und nicht als realisierte Einsparung gebucht.`
-              : `${formatCompactEur(realisedTotal, locale)} is illustrative and is not booked as realised savings.`}
+              ? `${formatCompactEur(realisedTotal, locale)} über die abgeschlossenen Lose.`
+              : `${formatCompactEur(realisedTotal, locale)} across the closed packages.`}
           </p>
           <p className="text-[11px] text-muted-foreground">
             {t("intel.livePackagesLoop", { count: localizedPackages.length })}

@@ -13,6 +13,7 @@ import { vendorProfile } from "@/lib/compass/logistics/vendor-model"
 import { localizedTenderPackages } from "../_i18n/domain"
 import { localizeQuantity } from "../_i18n/tender"
 import { enterMotion, listItemMotion, pcmCard } from "../_components/motion"
+import { WorkflowGuideBar } from "../_components/workflow-guide-bar"
 import { type MissionStage } from "../_diamond/stages"
 import { EVAL_PACKAGE_ID, bidsForPackage } from "../data/_bids"
 import {
@@ -510,6 +511,8 @@ export function BidEvaluationPage() {
           </div>
         </div>
       </header>
+
+      <WorkflowGuideBar page="bid-evaluation" />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(240px,280px)_1fr]">
         {/* ITT portfolio list */}

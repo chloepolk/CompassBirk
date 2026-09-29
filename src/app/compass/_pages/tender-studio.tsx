@@ -25,6 +25,7 @@ import {
 } from "../_i18n/tender"
 import { enterMotion, listItemMotion, pcmButton, pcmCard } from "../_components/motion"
 import { LaneSlaPanel } from "../_components/lane-sla-panel"
+import { WorkflowGuideBar } from "../_components/workflow-guide-bar"
 import { RequirementGovernance } from "./requirement-governance"
 import { REQUIREMENTS } from "@/lib/compass/logistics/requirements"
 import { invitesSent, materialExceptionsResolved, rfpLifecycle, type ApprovedRfp, type LaneRateTemplateRow, type RequirementDecision } from "@/lib/compass/logistics/session"
@@ -85,11 +86,11 @@ function fallbackScope(baseSpec: ComponentSpec, quantity: string, locale: Locale
     projectSummary: locale === "de"
       ? [
           `Compass Logistics Procurement schreibt ${project.name} wettbewerblich aus: ${project.scope}. Diese Ausschreibung umfasst ${quantity} ${spec.name} gemäß SRC-001.`,
-          `${spec.overview} Prognostizierte Sendungen sind eine Entscheidungsgrundlage, keine Abnahmeverpflichtung. Die deutsche Fassung ist eine gekennzeichnete Übersetzung des EN-GB-Originals.`,
+          `${spec.overview} Prognostizierte Sendungen sind eine Entscheidungsgrundlage, keine Abnahmeverpflichtung.`,
         ]
       : [
           `Compass Logistics Procurement is running a competitive sourcing event for ${project.name}: ${project.scope}. This request for proposal covers ${quantity} of ${spec.name} in accordance with SRC-001.`,
-          `${spec.overview} Forecast shipments are a decision input, not a take-or-pay commitment. A German translation is supplied as a labelled companion to this EN-GB original.`,
+          `${spec.overview} Forecast shipments are a decision input, not a take-or-pay commitment.`,
         ],
     retrievalPlan,
     considerations: locale === "de"
@@ -303,8 +304,8 @@ function withCitation(
 ): IttDocument {
   if (!requirementSetVersion || !evaluationMethodVersion) return doc
   const line = locale === "de"
-    ? `Britisches Original, zitiert gegen ${requirementSetVersion} und ${evaluationMethodVersion}. Die deutsche Fassung ist die verknüpfte Übersetzung. Beträge, Relations-IDs, Einheiten, Daten und Zitate bleiben unverändert.`
-    : `British English original. Cited against ${requirementSetVersion} and ${evaluationMethodVersion}. German is the linked translation; amounts, lane IDs, units, dates and citations are unchanged.`
+    ? `Zitiert gegen ${requirementSetVersion} und ${evaluationMethodVersion}.`
+    : `Cited against ${requirementSetVersion} and ${evaluationMethodVersion}.`
   const clauses = REQUIREMENTS.map((row) => {
     const decision = decisions.find((item) => item.id === row.id)
     const text = locale === "de" ? row.requirementDe : row.requirement
@@ -330,7 +331,7 @@ function composeItt(
   const project = localizedProject(locale)
   return {
     ittRef: pkg ? pkg.packageRef : `RFP-2026-001`,
-    title: locale === "de" ? `Ausschreibung — ${spec.name} (gekennzeichnete Übersetzung)` : `Request for proposal — ${spec.name}`,
+    title: locale === "de" ? `Ausschreibung — ${spec.name}` : `Request for proposal — ${spec.name}`,
     issueDate: TODAY,
     submissionDeadline: pkg?.submissionDeadline ?? addDaysIso(TODAY, 21),
     procurementOfficer: `${ACTIVE_USER.name}, ${localizeRole(ACTIVE_USER.role, locale)}`,
@@ -376,11 +377,37 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
+function citationLine(paragraph: string): string {
+  const text = paragraph.trim()
+  const english = text.match(/Cited against (REQ-\S+) and (EVAL-\S+)\./)
+  if (english) return `Cited against ${english[1]} and ${english[2]}.`
+  const german = text.match(/zitiert gegen (REQ-\S+) und (EVAL-\S+)\./i)
+  if (german) return `Zitiert gegen ${german[1]} und ${german[2]}.`
+  return text
+}
+
+function isInternalCitationParagraph(paragraph: string): boolean {
+  const text = citationLine(paragraph)
+  if (/^REQ-\d+\b/.test(text)) return true
+  if (/^Cited against\b/i.test(text)) return true
+  if (/^Zitiert gegen\b/i.test(text)) return true
+  return false
+}
+
+function stripInlineCitations(text: string): string {
+  let next = text
+  for (const row of REQUIREMENTS) {
+    const cite = `${row.source} ${row.sourceVersion} ${row.section}: ${row.passage}`
+    if (cite.trim()) next = next.split(cite).join("")
+  }
+  return next.replace(/[ \t]{2,}/g, " ").trim()
+}
+
 function printableIttHtml(itt: IttDocument, locale: Locale): string {
   const t = createT(locale)
   const project = localizedProject(locale)
   const paramRows = itt.technical.parameters
-    .map(p => `<tr><td class="param">${esc(p.parameter)}</td><td>${esc(p.requirement)}${p.citation ? `<p class="source">${esc(p.citation)}</p>` : ""}</td></tr>`)
+    .map(p => `<tr><td class="param">${esc(p.parameter)}</td><td>${esc(p.requirement)}</td></tr>`)
     .join("")
   const standardRows = itt.quality.standards
     .map(s => `<tr><td class="param">${esc(s.authority)} ${esc(s.ref)}</td><td>${esc(s.application)}</td></tr>`)
@@ -388,13 +415,16 @@ function printableIttHtml(itt: IttDocument, locale: Locale): string {
   const pricingRows = itt.pricing.items
     .map(i => `<tr><td class="num">${i.item}</td><td>${esc(i.description)}</td><td class="nowrap">${esc(i.qty)}</td><td class="muted nowrap">${esc(t("tenderStudio.toBeQuoted"))}</td></tr>`)
     .join("")
-  const techNotes = itt.technical.notes.map((n, i) => `<p class="note">${esc(t("tenderStudio.note"))} ${i + 1}: ${esc(n)}</p>`).join("")
-  const guidelines = itt.submissionGuidelines.map(g => `<li>${esc(g)}</li>`).join("")
-  const fatItems = itt.quality.fatRequirements.map(f => `<li>${esc(f)}</li>`).join("")
+  const techNotes = itt.technical.notes.map((n, i) => `<p class="note">${esc(t("tenderStudio.note"))} ${i + 1}: ${esc(stripInlineCitations(n))}</p>`).join("")
+  const guidelines = itt.submissionGuidelines.map(g => `<li>${esc(stripInlineCitations(g))}</li>`).join("")
+  const fatItems = itt.quality.fatRequirements.map(f => `<li>${esc(stripInlineCitations(f))}</li>`).join("")
   const clauses = itt.legal.clauses
-    .map(c => `<div class="clause"><div class="clause-head"><span class="clause-title">${esc(c.heading)}</span><span class="clause-src">${esc(c.source)}</span></div><p>${esc(c.text)}</p>${c.citation ? `<p class="source">${esc(c.citation)}</p>` : ""}</div>`)
+    .map(c => `<div class="clause"><p class="clause-title">${esc(c.heading)}</p><p>${esc(c.text)}</p></div>`)
     .join("")
-  const summary = itt.projectSummary.map(p => `<p>${esc(p)}</p>`).join("")
+  const summary = itt.projectSummary
+    .filter((paragraph) => !isInternalCitationParagraph(paragraph))
+    .map(p => `<p>${esc(stripInlineCitations(p))}</p>`)
+    .join("")
 
   return `<!DOCTYPE html>
 <html lang="${localeTag(locale)}">
@@ -453,31 +483,28 @@ function printableIttHtml(itt: IttDocument, locale: Locale): string {
   <ul>${guidelines}</ul>
 
   <h2>2.0 ${esc(t("tenderStudio.section2"))}</h2>
-  <p>${esc(itt.technical.scopeIntro)}</p>
+  <p>${esc(stripInlineCitations(itt.technical.scopeIntro))}</p>
   <table>
     <thead><tr><th>${esc(t("tenderStudio.parameter"))}</th><th>${esc(t("tenderStudio.requirement"))}</th></tr></thead>
     <tbody>${paramRows}</tbody>
   </table>
   ${techNotes}
-  <p class="source">${esc(t("tenderStudio.source"))}: ${esc(itt.technical.citations.join(" · "))}</p>
 
   <h2>3.0 ${esc(t("tenderStudio.section3"))}</h2>
-  <p>${esc(itt.quality.intro)}</p>
+  <p>${esc(stripInlineCitations(itt.quality.intro))}</p>
   <table>
     <thead><tr><th>${esc(t("tenderStudio.standard"))}</th><th>${esc(t("tenderStudio.application"))}</th></tr></thead>
     <tbody>${standardRows}</tbody>
   </table>
   <h3>${esc(t("tenderStudio.fatTraceability"))}</h3>
   <ul>${fatItems}</ul>
-  <p class="source">${esc(t("tenderStudio.source"))}: ${esc(itt.quality.citations.join(" · "))}</p>
 
   <h2>4.0 ${esc(t("tenderStudio.section4"))}</h2>
-  <p>${esc(itt.legal.governingTerms)}</p>
+  <p>${esc(stripInlineCitations(itt.legal.governingTerms))}</p>
   ${clauses}
-  <p class="source">${esc(t("tenderStudio.source"))}: ${esc(itt.legal.citations.join(" · "))}</p>
 
   <h2>5.0 ${esc(t("tenderStudio.section5"))}</h2>
-  <p>${esc(itt.pricing.intro)}</p>
+  <p>${esc(stripInlineCitations(itt.pricing.intro))}</p>
   <table>
     <thead><tr><th>${esc(t("tenderStudio.item"))}</th><th>${esc(t("tenderStudio.description"))}</th><th>${esc(t("tenderStudio.quantity"))}</th><th>${esc(t("tenderStudio.unitPrice"))}</th></tr></thead>
     <tbody>${pricingRows}</tbody>
@@ -549,7 +576,7 @@ function RfpSections({ doc, locale }: { doc: IttDocument; locale: Locale }) {
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{t("tenderStudio.section11")}</p>
           {doc.projectSummary.map((paragraph, i) => (
-            <p key={i} className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{paragraph}</p>
+            <p key={i} className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{citationLine(paragraph)}</p>
           ))}
         </div>
         <div className="space-y-1.5">
@@ -756,12 +783,12 @@ function DocumentRepository({ activeDocRefs, locale }: { activeDocRefs: Set<stri
 
 export function TenderStudioPage() {
   const t = useT()
-  const { locale, focusTenderId, openTenderStudio, openInbox, draftedTenders, saveDraftedTender, deleteDraftedTender, appliedTenderQtyByPackage, advanceJourney, patchSession, session } = useStore()
+  const { locale, focusTenderId, openTenderStudio, draftedTenders, saveDraftedTender, deleteDraftedTender, appliedTenderQtyByPackage, advanceJourney, patchSession, session } = useStore()
 
   const [prompt, setPrompt] = React.useState("")
   const [phase, setPhase] = React.useState<Phase>("idle")
   const [generationBlocked, setGenerationBlocked] = React.useState<"exceptions" | "lock" | null>(null)
-  const [showTranslation, setShowTranslation] = React.useState(true)
+  const [rfpLanguage, setRfpLanguage] = React.useState<Locale>("en")
   const [translation, setTranslation] = React.useState<IttDocument | null>(null)
   const [laneRows, setLaneRows] = React.useState<LaneRateTemplateRow[]>([])
   const [lanesExpanded, setLanesExpanded] = React.useState(false)
@@ -796,7 +823,7 @@ export function TenderStudioPage() {
     setItt(d.itt)
     setTranslation(d.translation ?? null)
     setLaneRows(d.laneRateTemplate ?? [])
-    setShowTranslation(true)
+    setRfpLanguage(locale)
     setLanesExpanded(false)
     setAudit(d.audit)
     setSubmitted(d.submitted)
@@ -804,7 +831,7 @@ export function TenderStudioPage() {
     setAuditOpen(false)
     setPipelineOpen(false)
     setPhase("complete")
-  }, [])
+  }, [locale])
 
   // Preload the composer when the board's Draft ITT action opened this page.
   // If that package already has a catalogued draft, restore it instead of regenerating.
@@ -917,7 +944,7 @@ export function TenderStudioPage() {
     setItt(english.itt)
     setTranslation(german.itt)
     setLaneRows(rows)
-    setShowTranslation(true)
+    setRfpLanguage(locale)
     setPhase("auditing")
     await new Promise((resolve) => setTimeout(resolve, 250))
     setAudit(english.audit)
@@ -939,7 +966,7 @@ export function TenderStudioPage() {
     })
     const rfpVersion = (session.requirementSetVersion ?? "REQ-2026-001-v1").replace(/^REQ-/, "RFP-")
     patchSession({ rfpGenerated: true, rfpVersion, rfpApproved: false, approvedRfp: null })
-  }, [saveDraftedTender, patchSession, session.acceptedNeed, session.requirementDecisions, session.packageLocked, session.evaluationMethodApproved, session.rfpGenerated, session.requirementSetVersion, session.evaluationMethodVersion])
+  }, [locale, saveDraftedTender, patchSession, session.acceptedNeed, session.requirementDecisions, session.packageLocked, session.evaluationMethodApproved, session.rfpGenerated, session.requirementSetVersion, session.evaluationMethodVersion])
 
   const wasGenerated = React.useRef(session.rfpGenerated)
   React.useEffect(() => {
@@ -954,6 +981,11 @@ export function TenderStudioPage() {
     }
   }, [session.rfpGenerated])
 
+  const viewingGerman = rfpLanguage === "de" && translation != null
+  const docLocale: Locale = viewingGerman ? "de" : "en"
+  const docT = createT(docLocale)
+  const docProject = localizedProject(docLocale)
+  const activeRfp = viewingGerman ? translation : itt
   const isRunning = phase === "scoping" || phase === "specialists" || phase === "composing" || phase === "auditing"
   const outstanding = [
     !session.acceptedNeed ? (locale === "de" ? "Beschaffungsbedarf bestätigen" : "Validate the sourcing need") : null,
@@ -972,8 +1004,10 @@ export function TenderStudioPage() {
         </p>
       </div>
 
+      <WorkflowGuideBar page="tender-studio" />
+
       {focusTenderId === "PKG-REN-001" && session.renewalEventId && (
-        <section className="rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 text-[12px] text-[var(--color-text-secondary)]">
+        <section data-guide-anchor="renewal-prefill" className="scroll-mt-28 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 text-[12px] text-[var(--color-text-secondary)]">
           <h2 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
             {locale === "de" ? `Vorbefüllt ${session.renewalEventId}` : `Prepopulated ${session.renewalEventId}`}
           </h2>
@@ -1039,7 +1073,7 @@ export function TenderStudioPage() {
               <h2 className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t("tenderStudio.draftTender")}</h2>
             </div>
             {session.packageLocked ? (
-              <div className="space-y-2">
+              <div data-guide-anchor="generate-rfp" className="scroll-mt-28 space-y-2">
                 <p className="text-[12px] font-medium text-[var(--color-text-primary)]">
                   {locale === "de" ? rfpLifecycle(session).identifier.de : rfpLifecycle(session).identifier.en}
                 </p>
@@ -1072,7 +1106,7 @@ export function TenderStudioPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div data-guide-anchor="generate-rfp" className="scroll-mt-28 space-y-1">
                 <p className="text-[12px] font-medium text-[var(--color-text-primary)]">
                   {locale === "de" ? "Reservierte Ausschreibungs-ID: RFP-2026-001" : "Reserved RFP ID: RFP-2026-001"}
                 </p>
@@ -1362,43 +1396,54 @@ export function TenderStudioPage() {
               )}
 
               {/* Rendered ITT */}
-              {itt && session.rfpGenerated && (
+              {activeRfp && session.rfpGenerated && (
                 <section className={cn(pcmCard, "overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]")}>
                   {/* Document header */}
                   <div className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-inverse)] px-6 py-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
                         <p className="text-[10px] font-semibold uppercase tracking-[2px] text-[var(--color-text-inverse)]/60">
-                          {t("tenderStudio.scmLabel")}
+                          {docT("tenderStudio.scmLabel")}
                         </p>
-                        <h2 className="text-[18px] font-bold text-[var(--color-text-inverse)]">{itt.title}</h2>
-                        <p className="text-[12px] text-[var(--color-text-inverse)]/70">{PROJECT.name} — {PROJECT.client}</p>
-                        <button type="button" className="text-[12px] font-semibold text-[var(--color-text-inverse)] underline" onClick={() => setShowTranslation((open) => !open)}>
-                          {showTranslation
-                            ? (locale === "de" ? "Übersetzung ausblenden" : "Hide German translation")
-                            : (locale === "de" ? "Deutsche Übersetzung anzeigen" : "Open German translation")}
-                        </button>
+                        <h2 className="text-[18px] font-bold text-[var(--color-text-inverse)]">{activeRfp.title}</h2>
+                        <p className="text-[12px] text-[var(--color-text-inverse)]/70">{docProject.name} — {docProject.client}</p>
                       </div>
                       {phase === "complete" && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div
+                            role="group"
+                            aria-label={t("common.language")}
+                            className="inline-flex items-center rounded-[9px] border border-white/25 p-0.5 text-[11px] font-semibold"
+                          >
+                            {([
+                              { id: "en" as const, label: "EN" },
+                              { id: "de" as const, label: "DE" },
+                            ]).map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                disabled={opt.id === "de" && !translation}
+                                aria-pressed={docLocale === opt.id}
+                                onClick={() => setRfpLanguage(opt.id)}
+                                className={cn(
+                                  "rounded-[7px] px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                  docLocale === opt.id
+                                    ? "bg-white text-[var(--color-text-primary)]"
+                                    : "text-white/70 hover:text-white",
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
                           <Button
                             type="button"
-                            onClick={() => openPrintView(itt, locale)}
+                            onClick={() => openPrintView(activeRfp, docLocale)}
                             className={cn(pcmButton, "gap-1.5 rounded-[10px] border border-[var(--color-text-inverse)]/25 bg-transparent text-[12px] font-semibold text-[var(--color-text-inverse)] hover:bg-[var(--color-text-inverse)]/10")}
                           >
                             <SafeIcon name="Printer" className="h-3.5 w-3.5" />
                             {t("tenderStudio.printPdf")}
                           </Button>
-                          {session.rfpApproved && (
-                            <Button
-                              type="button"
-                              onClick={() => openInbox()}
-                              className={cn(pcmButton, "gap-1.5 rounded-[10px] bg-[var(--color-brand-primary)] text-[12px] font-semibold text-[var(--color-brand-onPrimary)] hover:opacity-90")}
-                            >
-                              <SafeIcon name="SendHorizontal" className="h-3.5 w-3.5" />
-                              {locale === "de" ? "Lieferanteneinladungen prüfen" : "Review supplier invitations"}
-                            </Button>
-                          )}
                           {submitted && (
                             <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-emerald-500/15 px-3 py-2 text-[12px] font-semibold text-emerald-400">
                               <SafeIcon name="CheckCircle2" className="h-3.5 w-3.5" />
@@ -1409,59 +1454,43 @@ export function TenderStudioPage() {
                       )}
                     </div>
                     <div className="mt-4 grid gap-x-8 gap-y-1 text-[11px] sm:grid-cols-2 lg:grid-cols-4">
-                      <p className="text-[var(--color-text-inverse)]/60">{t("tenderStudio.reference")} <span className="block font-mono font-medium text-[var(--color-text-inverse)]">{itt.ittRef}</span></p>
-                      <p className="text-[var(--color-text-inverse)]/60">{t("tenderStudio.issueDate")} <span className="block font-medium text-[var(--color-text-inverse)]">{formatDate(itt.issueDate, locale)}</span></p>
-                      <p className="text-[var(--color-text-inverse)]/60">{t("tenderStudio.submissionDeadline")} <span className="block font-medium text-[var(--color-text-inverse)]">{formatDate(itt.submissionDeadline, locale)}</span></p>
-                      <p className="text-[var(--color-text-inverse)]/60">{t("tenderStudio.procurementOfficer")} <span className="block font-medium text-[var(--color-text-inverse)]">{itt.procurementOfficer}</span></p>
+                      <p className="text-[var(--color-text-inverse)]/60">{docT("tenderStudio.reference")} <span className="block font-mono font-medium text-[var(--color-text-inverse)]">{activeRfp.ittRef}</span></p>
+                      <p className="text-[var(--color-text-inverse)]/60">{docT("tenderStudio.issueDate")} <span className="block font-medium text-[var(--color-text-inverse)]">{formatDate(activeRfp.issueDate, docLocale)}</span></p>
+                      <p className="text-[var(--color-text-inverse)]/60">{docT("tenderStudio.submissionDeadline")} <span className="block font-medium text-[var(--color-text-inverse)]">{formatDate(activeRfp.submissionDeadline, docLocale)}</span></p>
+                      <p className="text-[var(--color-text-inverse)]/60">{docT("tenderStudio.procurementOfficer")} <span className="block font-medium text-[var(--color-text-inverse)]">{activeRfp.procurementOfficer}</span></p>
                     </div>
                   </div>
 
-                  <div className="border-b border-[var(--color-border-default)] px-6 py-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                      {locale === "de" ? "Britisches Original" : "British English original"}
-                    </p>
-                  </div>
-                  <RfpSections doc={itt} locale="en" />
-                  {showTranslation && translation && (
-                    <div className="border-t border-[var(--color-border-default)]">
-                      <div className="bg-[var(--color-bg-subtle)] px-6 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                          {locale === "de" ? "Verknüpfte Übersetzung des britischen Originals" : "Linked translation of the British English original"}
-                        </p>
-                        <p className="mt-1 text-[14px] font-semibold text-[var(--color-text-primary)]">{translation.title}</p>
-                      </div>
-                      <RfpSections doc={translation} locale="de" />
-                    </div>
-                  )}
+                  <RfpSections doc={activeRfp} locale={docLocale} />
                   {laneRows.length > 0 && (
                     <div className="border-t border-[var(--color-border-default)] px-6 py-4 space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-[12px] font-semibold text-[var(--color-text-primary)]">
-                          {locale === "de" ? "Relationen-Ratenvorlage" : "Lane-rate template"} · Lane_Rate_Template.csv · {session.rfpVersion}
+                          {docLocale === "de" ? "Relationen-Ratenvorlage" : "Lane-rate template"} · Lane_Rate_Template.csv · {session.rfpVersion}
                         </p>
                         {laneRows.length > 8 && (
                           <button type="button" className="text-[12px] font-semibold text-[var(--color-brand-primary)]" onClick={() => setLanesExpanded((open) => !open)}>
                             {lanesExpanded
-                              ? (locale === "de" ? "Weniger anzeigen" : "Show fewer")
-                              : (locale === "de" ? `Alle ${laneRows.length} anzeigen` : `View all ${laneRows.length}`)}
+                              ? (docLocale === "de" ? "Weniger anzeigen" : "Show fewer")
+                              : (docLocale === "de" ? `Alle ${laneRows.length} anzeigen` : `View all ${laneRows.length}`)}
                           </button>
                         )}
                       </div>
                       <p className="text-[11px] text-[var(--color-text-muted)]">
                         {lanesExpanded
-                          ? (locale === "de" ? `${laneRows.length} Relationen. Feste EUR-Raten, Kraftstoffzuschlag nach SRC-005, Nebenkostenverzeichnis vom Bieter.` : `${laneRows.length} lanes. Fixed EUR rates, SRC-005 fuel surcharge, bidder accessorial schedule.`)
-                          : (locale === "de" ? `8 von ${laneRows.length} angezeigt. Die gespeicherte Vorlage enthält alle ${laneRows.length} Relationen.` : `Showing 8 of ${laneRows.length}. The saved template contains all ${laneRows.length} lanes.`)}
+                          ? (docLocale === "de" ? `${laneRows.length} Relationen. Feste EUR-Raten, Kraftstoffzuschlag nach SRC-005, Nebenkostenverzeichnis vom Bieter.` : `${laneRows.length} lanes. Fixed EUR rates, SRC-005 fuel surcharge, bidder accessorial schedule.`)
+                          : (docLocale === "de" ? `8 von ${laneRows.length} angezeigt. Die gespeicherte Vorlage enthält alle ${laneRows.length} Relationen.` : `Showing 8 of ${laneRows.length}. The saved template contains all ${laneRows.length} lanes.`)}
                       </p>
                       <div className="overflow-x-auto rounded-[10px] border border-[var(--color-border-default)]">
                         <table className="w-full min-w-[720px] text-[12px]">
                           <thead>
                             <tr className="bg-[var(--color-bg-subtle)] text-left">
                               <th className="px-3 py-2">Lane</th>
-                              <th className="px-3 py-2">{locale === "de" ? "Relation" : "Route"}</th>
-                              <th className="px-3 py-2">{locale === "de" ? "Prognose" : "Forecast"}</th>
+                              <th className="px-3 py-2">{docLocale === "de" ? "Relation" : "Route"}</th>
+                              <th className="px-3 py-2">{docLocale === "de" ? "Prognose" : "Forecast"}</th>
                               <th className="px-3 py-2">EUR</th>
-                              <th className="px-3 py-2">{locale === "de" ? "Zuschlag" : "Surcharge"}</th>
-                              <th className="px-3 py-2">{locale === "de" ? "Nebenkosten" : "Accessorials"}</th>
+                              <th className="px-3 py-2">{docLocale === "de" ? "Zuschlag" : "Surcharge"}</th>
+                              <th className="px-3 py-2">{docLocale === "de" ? "Nebenkosten" : "Accessorials"}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1480,7 +1509,7 @@ export function TenderStudioPage() {
                       </div>
                     </div>
                   )}
-                  <div className="border-t border-[var(--color-border-default)] px-6 py-4 space-y-2">
+                  <div data-guide-anchor="approve-rfp" className="scroll-mt-28 space-y-2 border-t border-[var(--color-border-default)] px-6 py-4">
                     <label className="block text-[12px] font-medium text-[var(--color-text-primary)]">
                       {locale === "de" ? "Prüfungskommentar" : "Review note"}
                       <textarea

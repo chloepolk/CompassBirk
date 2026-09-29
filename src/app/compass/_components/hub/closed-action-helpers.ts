@@ -82,7 +82,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
     },
     {
       id: `${record.id}-verify`,
-      label: de ? "Illustrativen Betrag gegen die Budgetbasis gekennzeichnet" : "Labelled the illustrative amount against the budget baseline",
+      label: de ? "Betrag gegen die Budgetbasis gekennzeichnet" : "Labelled the amount against the budget baseline",
       assignee: analyst.name,
       assigneeRole: analyst.role,
       status: "done",
@@ -91,7 +91,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
       agentSteps: [
         doneAgent(
           `${record.id}-agent-award`,
-          de ? `${formatCurrency(record.realizedValue, locale)} Einsparungen gegenüber der Budgetbasis geprüft` : `Verified ${formatCurrency(record.realizedValue, locale)} savings vs. budget baseline`,
+          de ? `${formatCurrency(record.realizedValue, locale)} gegenüber der Budgetbasis geprüft` : `Checked ${formatCurrency(record.realizedValue, locale)} against the budget baseline`,
           awardAgent,
           addDays(closed, -3),
         ),
@@ -99,7 +99,7 @@ function buildClosedTimeline(record: ClosedRecord, locale: Locale): ActionTimeli
     },
     {
       id: `${record.id}-book`,
-      label: de ? "Zuschlag erfasst. Angezeigte Beträge bleiben illustrativ." : "Award recorded. Displayed amounts stay illustrative.",
+      label: de ? "Zuschlag erfasst." : "Award recorded.",
       assignee: decisionMaker.name,
       assigneeRole: decisionMaker.role,
       status: "done",
@@ -134,9 +134,9 @@ export function closedRecordToCardData(record: ClosedRecord, locale: Locale = "e
     id: record.id,
     title: record.name,
     narrative: de
-      ? `Historisches Los. Illustrativer Betrag ${formatCurrency(record.realizedValue, locale)} gegenüber der Budgetbasis, nicht als realisierte Einsparung ausgewiesen.`
-      : `Historical package. Illustrative amount ${formatCurrency(record.realizedValue, locale)} against the budget baseline. Not labelled as realised savings.`,
-    valueChip: `${de ? "Illustrativ " : "Illustrative "}${formatCurrency(record.realizedValue, locale)}`,
+      ? `Historisches Los. ${formatCurrency(record.realizedValue, locale)} gegenüber der Budgetbasis.`
+      : `Historical package. ${formatCurrency(record.realizedValue, locale)} against the budget baseline.`,
+    valueChip: formatCurrency(record.realizedValue, locale),
     valueType,
     owner: decisionMaker.name,
     ownerRole: decisionMaker.role,

@@ -215,7 +215,7 @@ function agentInstructions(stage: MissionStage, theme: MissionTheme, subject: st
   // outcome_roi
   return [
     `Reconcile awarded value against the ${subject} budget baseline.`,
-    "Keep the awarded amount labelled as illustrative.",
+    "Record the awarded amount against the budget baseline.",
     "Record the contract baseline for this package.",
   ]
 }
@@ -400,14 +400,14 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
           `Retrieved the controlled specification ${spec?.docRef ?? "SRC-001"} and locked the parameter baseline`,
           "Mapped applicable standards from SRC-002 and SRC-008",
           "Attached governing procurement terms (SRC-004) and qualification gates",
-          "Sized the illustrative amount from the budget baseline and bidder competition",
+          "Sized the amount from the budget baseline and bidder competition",
         ],
     equations: [
       de ? `Budgetbasis = ${money(pkg.budget)} (${pkg.quantity})` : `Budget baseline = ${money(pkg.budget)} (${pkg.quantity})`,
       realizedValue
-        ? (de ? `Illustrativer Abschluss = ${money(realizedValue)} gegenüber angezeigtem Betrag ${money(pkg.targetSavings)}. Nicht realisiert.` : `Illustrative closed amount = ${money(realizedValue)} against displayed ${money(pkg.targetSavings)}. Not realised.`)
-        : (de ? `Illustrativer Betrag = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"} % des Budgets, ${pkg.bidders} Bieter). Nicht realisiert.` : `Illustrative amount = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"}% of budget across ${pkg.bidders} bidders). Not realised.`),
-      de ? `Ausschreibungskosten = ${money(pkg.tenderCost)} — illustratives Verhältnis ${pct(projectedValue / pkg.tenderCost)}×, falls der Betrag hält. Nicht realisiert.` : `Tender cost = ${money(pkg.tenderCost)} — illustrative ratio ${pct(projectedValue / pkg.tenderCost)}× if the amount holds. Not realised.`,
+        ? (de ? `Abschluss = ${money(realizedValue)} gegenüber angezeigtem Betrag ${money(pkg.targetSavings)}.` : `Closed amount = ${money(realizedValue)} against displayed ${money(pkg.targetSavings)}.`)
+        : (de ? `Betrag = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"} % des Budgets, ${pkg.bidders} Bieter).` : `Amount = ${money(pkg.targetSavings)} (${pkg.budget ? pct((pkg.targetSavings / pkg.budget) * 100) : "0"}% of budget across ${pkg.bidders} bidders).`),
+      de ? `Ausschreibungskosten = ${money(pkg.tenderCost)} — Verhältnis ${pct(projectedValue / pkg.tenderCost)}×, falls der Betrag hält.` : `Tender cost = ${money(pkg.tenderCost)} — ratio ${pct(projectedValue / pkg.tenderCost)}× if the amount holds.`,
       de ? `Fenster: Eröffnung ${date(pkg.openedAt)}, Angebotsende ${date(pkg.submissionDeadline)} (${remaining > 0 ? `${remaining} Tage verbleibend` : "geschlossen"})` : `Window: opened ${date(pkg.openedAt)}, submissions close ${date(pkg.submissionDeadline)} (${remaining > 0 ? `${remaining} days remaining` : "closed"})`,
     ],
     sources: [
@@ -431,8 +431,8 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
     id: pkg.id,
     name: `${pkg.title} · ${pkg.quantity}`,
     objective: de
-      ? `${pkg.packageRef} vom Umfang bis zum Zuschlag für ${PROJECT.shortName} führen — ${pkg.quantity}, Budget ${money(pkg.budget)}. Angezeigter Betrag ${money(pkg.targetSavings)} ist illustrativ.`
-      : `Take ${pkg.packageRef} from scope to award for ${PROJECT.shortName} — ${pkg.quantity} against a ${formatCompactEur(pkg.budget, locale)} budget. The displayed ${formatCompactEur(pkg.targetSavings, locale)} is illustrative.`,
+      ? `${pkg.packageRef} vom Umfang bis zum Zuschlag für ${PROJECT.shortName} führen — ${pkg.quantity}, Budget ${money(pkg.budget)}. Angezeigter Betrag ${money(pkg.targetSavings)}.`
+      : `Take ${pkg.packageRef} from scope to award for ${PROJECT.shortName} — ${pkg.quantity} against a ${formatCompactEur(pkg.budget, locale)} budget. Displayed amount ${formatCompactEur(pkg.targetSavings, locale)}.`,
     source: { page: "tender-studio", label: de ? "Im Beschaffungsarbeitsbereich öffnen" : "Open in Sourcing Workspace" },
     stage,
     status: statusForStage[stage],
@@ -448,7 +448,7 @@ function missionFromPackage(pkg: TenderPackage, locale: Locale, stageOverride?: 
     risk: pkg.risk,
     evidence: pkg.evidence,
     successMetric: {
-      label: theme === "charter" ? (de ? "Vertragsrisiko vermieden" : "Charter exposure avoided") : (de ? "Illustrativer Betrag" : "Illustrative amount"),
+      label: theme === "charter" ? (de ? "Vertragsrisiko vermieden" : "Charter exposure avoided") : (de ? "Betrag" : "Amount"),
       baseline: 0,
       target: projectedValue,
       current: currentMetric,

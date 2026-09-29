@@ -34,6 +34,7 @@ import {
   type LaneRateTemplateRow,
   BID_EMAIL_IDS,
   SEND_CHECKS,
+  evaluateOutboundChecks,
   issuedInvitationAttachments,
 } from "@/lib/compass/logistics/session"
 import { inboxMessages } from "@/lib/compass/logistics/inbox-model"
@@ -170,6 +171,10 @@ export interface AcmeDemoStore {
   locale: Locale
   setLocale: (locale: Locale) => void
 
+  /** Step notes and scroll-to-control. Page navigation stays on when this is off. */
+  guided: boolean
+  setGuided: (guided: boolean) => void
+
   agentPhase: AgentPhase
   orchestratorResult: OrchestratorOutput | null
   verifierResult: VerifierOutput | null
@@ -259,6 +264,8 @@ export interface AcmeDemoStore {
   openVendor360: (supplierId?: string | null) => void
   openPerformance: (supplierId?: string | null) => void
   openInbox: (emailId?: string | null) => void
+  /** Set when a guide or another page opens Communications on a specific message. */
+  inboxFocus: { id: string; tick: number } | null
   classifyEmail: (emailId: string) => void
   classifyInbox: (emailId: string, classification: EmailClass) => void
   recordAttachmentMatch: (emailId: string, match: "original" | "revised" | "rejected") => void
@@ -710,10 +717,28 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
   const { locale: appLocale, setLocale: setAppLocale } = useAppLocale()
   const locale = asFeLocale(appLocale)
 
+  const [guided, setGuidedState] = React.useState(true)
+  React.useEffect(() => {
+    try {
+      if (localStorage.getItem("clp-guided") === "0") setGuidedState(false)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  const setGuided = React.useCallback((next: boolean) => {
+    setGuidedState(next)
+    try {
+      localStorage.setItem("clp-guided", next ? "1" : "0")
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const [authenticated, setAuthenticated] = React.useState(false)
   const [session, setSession] = React.useState<LogisticsSession>(DEFAULT_SESSION)
   const [sessionReady, setSessionReady] = React.useState(false)
   const [focusSupplierId, setFocusSupplierId] = React.useState<string | null>(null)
+  const [inboxFocus, setInboxFocus] = React.useState<{ id: string; tick: number } | null>(null)
 
   React.useEffect(() => {
     setSession(loadSession())
@@ -1386,6 +1411,19 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       if (invitation && (!prev.rfpApproved || !prev.rfpGenerated || !prev.packageLocked || !prev.rfpVersion)) return prev
       if (invitation && !SEND_CHECKS.every((check) => meta?.checks.includes(check))) return prev
       const message = inboxMessages().find((row) => row.id === emailId)
+      if (emailId === "EML-011") {
+        if (!message) return prev
+        const ready = evaluateOutboundChecks(prev, {
+          id: message.id,
+          from: message.from,
+          to: message.to,
+          language: message.language,
+          bodyEn: message.bodyEn,
+          bodyDe: message.bodyDe,
+          attachments: message.attachments,
+        }).every((row) => row.pass)
+        if (!ready) return prev
+      }
       const attachments = invitation
         ? issuedInvitationAttachments(prev, emailId)
         : (message?.attachments ?? []).map((file) => ({ name: file.name, version: file.version }))
@@ -1417,7 +1455,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
     })
   }, [])
 
-  const openInbox = React.useCallback((_emailId?: string | null) => {
+  const openInbox = React.useCallback((emailId?: string | null) => {
+    if (emailId) setInboxFocus({ id: emailId, tick: Date.now() })
     setState(s => ({
       ...s,
       activePage: "inbox" as Page,
@@ -1681,6 +1720,8 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       login,
       locale,
       setLocale,
+      guided,
+      setGuided,
       agentPhase: agentState.agentPhase,
       orchestratorResult: agentState.orchestratorResult
         ? sanitizeOrchestratorOutput(agentState.orchestratorResult)
@@ -1727,6 +1768,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       openVendor360,
       openPerformance,
       openInbox,
+      inboxFocus,
       classifyEmail,
       classifyInbox,
       recordAttachmentMatch,
@@ -1745,7 +1787,7 @@ export function AcmeDemoStoreProvider({ children }: { children: React.ReactNode 
       appliedTenderQtyByPackage,
       applyResidualToTender,
     }),
-    [state, actions, derived, authenticated, login, locale, setLocale, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, advanceJourney, retreatJourney, openAward, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, classifyEmail, classifyInbox, recordAttachmentMatch, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
+    [state, actions, derived, authenticated, login, locale, setLocale, guided, setGuided, agentState, chatMessages, chatLoading, sendChatMessage, clearChat, intelPanelOpen, missionPriority, setMissionPriority, focusMissionId, setFocusMission, tenderStages, advanceTenderStage, focusTenderId, openTenderStudio, focusEvalPackageId, openBidEvaluation, focusDemandActionId, openDispositionOnFocus, consumeDispositionFocus, openActionCentre, awardApprovals, submitAwardRecommendation, approveAward, requestAwardClarificationFn, respondToAwardClarification, returnAwardForRevisionFn, resubmitAwardApprovalFn, confirmAward, confirmAwardNotesFn, session, patchSession, advanceJourney, retreatJourney, openAward, resetSession, applyOperatorCheckpoint, focusSupplierId, openVendor360, openPerformance, openInbox, inboxFocus, classifyEmail, classifyInbox, recordAttachmentMatch, sendOutboundDraft, draftedTenders, saveDraftedTender, deleteDraftedTender, taskActions, markTaskComplete, overrideTask, postponeTask, sendTaskAlert, inventoryOverlays, inventoryAudit, recordInventoryDisposition, appliedTenderQtyByPackage, applyResidualToTender]
   )
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

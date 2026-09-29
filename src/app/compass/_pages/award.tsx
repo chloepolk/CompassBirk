@@ -9,6 +9,7 @@ import { pcmCard } from "../_components/motion"
 import { NOTIFY_DELEGATE } from "../_components/hub/active-user"
 import { AWARD_SCENARIOS, scenarioById, scenarioText } from "@/lib/compass/logistics/award-scenarios"
 import { awardBlock, journeyIndex } from "@/lib/compass/logistics/session"
+import { WorkflowGuideBar } from "../_components/workflow-guide-bar"
 
 export function AwardPage() {
   const t = useT()
@@ -76,6 +77,8 @@ export function AwardPage() {
           </p>
         )}
       </div>
+
+      <WorkflowGuideBar page="award" />
 
       {held && (
         <p className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[13px] text-[var(--color-text-secondary)]">
@@ -149,7 +152,7 @@ export function AwardPage() {
       )}
 
       {(pending || approved) && (
-        <section className="space-y-3">
+        <section data-guide-anchor="award-decision" className="scroll-mt-28 space-y-3">
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={overrideOn} onChange={(e) => setOverrideOn(e.target.checked)} />
             {locale === "de" ? "Autorisierte Abweichung" : "Authorised override"}

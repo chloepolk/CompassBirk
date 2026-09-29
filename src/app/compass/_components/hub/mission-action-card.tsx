@@ -13,7 +13,7 @@ import { employeeById, employeeByRole, EMPLOYEES, type Employee } from "@/app/co
 import { AssigneePicker } from "./assignee-picker"
 import { ActionCompletionTimeline } from "./action-completion-timeline"
 import { BluePilotMark } from "../bluepilot-mark"
-import { ReasoningExpand, type ReasoningContent } from "../reasoning-disclosure"
+import { ReasoningBody, type ReasoningContent } from "../reasoning-disclosure"
 import { isReasoningEmpty } from "../reasoning-helpers"
 import type { MissionObjective } from "@/app/compass/_diamond/types"
 import { useT } from "../../_i18n/use-t"
@@ -73,6 +73,8 @@ export interface MissionActionCardProps extends React.HTMLAttributes<HTMLElement
   decisionBasis?: React.ReactNode
   evaluateBidsLabel?: string
   onEvaluateBids?: () => void
+  /** Example cards expand for context and do not offer workflow actions. */
+  hideWorkflowActions?: boolean
 }
 
 // White fill with a semantic-coloured outline + text (renders white on light,
@@ -142,6 +144,43 @@ function useExceedsLineCount(
   return exceeds
 }
 
+export function DetailDisclosure({
+  title,
+  open: controlledOpen,
+  onOpenChange,
+  children,
+}: {
+  title: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children: React.ReactNode
+}) {
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
+  return (
+    <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-canvas)]">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+      >
+        <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{title}</span>
+        <SafeIcon name={open ? "ChevronUp" : "ChevronDown"} className="size-4 shrink-0 text-[var(--color-text-muted)]" />
+      </button>
+      {open && (
+        <div className="border-t border-[var(--color-border-default)] px-3 py-3">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function MissionActionCard({
   rank,
   title,
@@ -178,6 +217,7 @@ export function MissionActionCard({
   decisionBasis,
   evaluateBidsLabel,
   onEvaluateBids,
+  hideWorkflowActions = false,
   className,
   ...props
 }: MissionActionCardProps) {
@@ -190,8 +230,12 @@ export function MissionActionCard({
   const [closing, setClosing] = React.useState(false)
   const [assignDrawerOpen, setAssignDrawerOpen] = React.useState(false)
   const [reasoningOpen, setReasoningOpen] = React.useState(false)
+  const [decisionOpen, setDecisionOpen] = React.useState(false)
   React.useEffect(() => {
-    setReasoningOpen(expanded)
+    if (!expanded) {
+      setReasoningOpen(false)
+      setDecisionOpen(false)
+    }
   }, [expanded])
   const [narrativeOpen, setNarrativeOpen] = React.useState(false)
   const hasReasoning = !isReasoningEmpty(reasoning)
@@ -364,7 +408,7 @@ export function MissionActionCard({
           />
         </div>
         <div className="flex items-center gap-1.5">
-          {!isCompleted && !isReconciling && primaryActionLabel && onPrimaryAction && (
+          {!hideWorkflowActions && !isCompleted && !isReconciling && primaryActionLabel && onPrimaryAction && (
             <Button
               type="button"
               variant="ghost"
@@ -376,7 +420,7 @@ export function MissionActionCard({
               {primaryActionLabel}
             </Button>
           )}
-          {expanded && !isCompleted && !isReconciling && (
+          {!hideWorkflowActions && expanded && !isCompleted && !isReconciling && (
             <>
               <Button
                 type="button"
@@ -457,18 +501,24 @@ export function MissionActionCard({
               style={panelMotion.style}
             >
               {(decisionBasis || hasReasoning) && (
-                <div className="space-y-3">
-                  <h3 className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                    {t("missionCard.decisionBasis")}
-                  </h3>
-                  {decisionBasis}
-                  {hasReasoning && (
-                    <ReasoningExpand
-                      reasoning={reasoning}
-                      trigger="none"
+                <div className="space-y-2">
+                  {decisionBasis && (
+                    <DetailDisclosure
+                      title={t("missionCard.decisionBasis")}
+                      open={decisionOpen}
+                      onOpenChange={setDecisionOpen}
+                    >
+                      {decisionBasis}
+                    </DetailDisclosure>
+                  )}
+                  {hasReasoning && reasoning && (
+                    <DetailDisclosure
+                      title={t("missionCard.processDetail")}
                       open={reasoningOpen}
                       onOpenChange={setReasoningOpen}
-                    />
+                    >
+                      <ReasoningBody reasoning={reasoning} sourcesInline />
+                    </DetailDisclosure>
                   )}
                 </div>
               )}

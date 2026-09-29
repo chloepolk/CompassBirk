@@ -139,18 +139,50 @@ function WorksCited({
   )
 }
 
-function ReasoningBody({
+function InlineSources({
+  reasoning,
+  variant = "default",
+  labelClassName = "text-[var(--color-text-muted)]",
+}: {
+  reasoning: ReasoningContent
+  variant?: "default" | "dark"
+  labelClassName?: string
+}) {
+  const t = useT()
+  const citations = resolveCitations(reasoning)
+  if (citations.length === 0) return null
+  const isDark = variant === "dark"
+  return (
+    <div className="space-y-1">
+      <p className={cn("text-[10px] font-semibold uppercase tracking-wider", isDark ? "text-[#5BD2F2]" : labelClassName)}>
+        {t("reasoning.sources")}
+      </p>
+      <ol className="space-y-1.5">
+        {citations.map((c) => (
+          <li key={c.key} className="text-[11px] leading-relaxed">
+            <CitationLink citation={c} variant={variant} />
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+export function ReasoningBody({
   reasoning,
   className,
   textClassName = "text-[var(--color-text-secondary)]",
   labelClassName = "text-[var(--color-text-muted)]",
   variant = "default",
+  /** List sources with the rest of the detail instead of a nested disclosure. */
+  sourcesInline = false,
 }: {
   reasoning: ReasoningContent
   className?: string
   textClassName?: string
   labelClassName?: string
   variant?: "default" | "dark"
+  sourcesInline?: boolean
 }) {
   const isDark = variant === "dark"
   const t = useT()
@@ -226,7 +258,11 @@ function ReasoningBody({
         </div>
       )}
       {(reasoning.citations?.length || reasoning.sources?.length) ? (
-        <WorksCited reasoning={reasoning} variant={variant} />
+        sourcesInline ? (
+          <InlineSources reasoning={reasoning} variant={variant} labelClassName={labelClassName} />
+        ) : (
+          <WorksCited reasoning={reasoning} variant={variant} />
+        )
       ) : null}
     </div>
   )

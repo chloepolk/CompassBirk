@@ -16,6 +16,7 @@ import {
   type InboxClass,
   type InboxMessage,
 } from "@/lib/compass/logistics/inbox-model"
+import { WorkflowGuideBar } from "../_components/workflow-guide-bar"
 
 const CLASS_ORDER: InboxClass[] = ["confirmed", "potentially", "not-relevant"]
 
@@ -33,7 +34,7 @@ function formatStamp(iso: string, locale: Locale): string {
 
 export function InboxPage() {
   const t = useT()
-  const { locale, session, classifyInbox, recordAttachmentMatch, sendOutboundDraft, openTenderStudio, patchSession } = useStore()
+  const { locale, session, classifyInbox, recordAttachmentMatch, sendOutboundDraft, openTenderStudio, patchSession, inboxFocus } = useStore()
   const messages = React.useMemo(() => {
     const responsesStaged = invitesSent(session)
     return inboxMessages().filter((m) => {
@@ -42,7 +43,10 @@ export function InboxPage() {
       return responsesStaged
     })
   }, [session])
-  const [activeId, setActiveId] = React.useState(messages[0]?.id ?? "EML-001")
+  const [activeId, setActiveId] = React.useState(inboxFocus?.id ?? messages[0]?.id ?? "EML-001")
+  React.useEffect(() => {
+    if (inboxFocus) setActiveId(inboxFocus.id)
+  }, [inboxFocus])
   const active = messages.find((m) => m.id === activeId) ?? messages[0]
   const hero = enterMotion(0)
   const held = communicationsBlock(session)
@@ -58,6 +62,7 @@ export function InboxPage() {
         language: active.language,
         bodyEn: active.bodyEn,
         bodyDe: active.bodyDe,
+        attachments: active.attachments,
       })
     : []
   const checkKeys = SEND_CHECKS
@@ -113,6 +118,8 @@ export function InboxPage() {
             : t(`flight.${statusForSession(session)}`)}
         </p>
       </div>
+
+      <WorkflowGuideBar page="inbox" />
 
       {held && (
         <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
@@ -220,7 +227,7 @@ export function InboxPage() {
             )}
 
             {active.direction === "inbound" && (
-              <div className="space-y-2">
+              <div data-guide-anchor="inbox-action" className="scroll-mt-28 space-y-2">
                 {(() => {
                   const ev = evidence(active)
                   return (
@@ -328,15 +335,22 @@ export function InboxPage() {
             )}
 
             {active.direction === "outbound" && (
-              <div className="space-y-2">
+              <div data-guide-anchor="inbox-action" className="scroll-mt-28 space-y-2">
                 <p className="text-[12px] text-[var(--color-text-secondary)]">{t("inbox.sendRule")}</p>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {evaluatedChecks.map((row) => (
-                    <li key={row.key} className="flex items-center gap-2 text-[12px]">
-                      <span className={row.pass ? "font-semibold text-[var(--color-accent-positive-text)]" : "font-semibold text-[var(--color-accent-critical-text)]"}>
-                        {row.pass ? (locale === "de" ? "Bestanden" : "Pass") : (locale === "de" ? "Nicht bestanden" : "Fail")}
-                      </span>
-                      <span>{checkLabels[row.key]}</span>
+                    <li key={row.key} className="text-[12px]">
+                      <div className="flex items-center gap-2">
+                        <span className={row.pass ? "font-semibold text-[var(--color-accent-positive-text)]" : "font-semibold text-[var(--color-accent-critical-text)]"}>
+                          {row.pass ? (locale === "de" ? "Bestanden" : "Pass") : (locale === "de" ? "Nicht bestanden" : "Fail")}
+                        </span>
+                        <span>{checkLabels[row.key]}</span>
+                      </div>
+                      {!row.pass && (
+                        <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-secondary)]">
+                          {locale === "de" ? row.reason.de : row.reason.en}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

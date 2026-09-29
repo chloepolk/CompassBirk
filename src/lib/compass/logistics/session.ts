@@ -213,9 +213,18 @@ export type OutboundDraftFacts = {
   language: "EN" | "DE"
   bodyEn: string
   bodyDe: string
+  attachments?: { name: string; version: string }[]
+}
+
+export type OutboundCheck = {
+  key: OutboundCheckKey
+  pass: boolean
+  /** Why this check fails, in plain language. */
+  reason: { en: string; de: string }
 }
 
 const SOURCING_MAILBOX = "sourcing@compass-demo.example"
+const SUPPLIER_MANAGEMENT_MAILBOX = "supplier.management@compass-demo.example"
 
 function draftText(draft: OutboundDraftFacts): string {
   return `${draft.bodyEn}\n${draft.bodyDe}`
@@ -237,15 +246,69 @@ function mentionsDeadline(text: string): boolean {
   return /23 October 2026|23\. Oktober 2026/i.test(text)
 }
 
+function supplierContacts(): Set<string> {
+  return new Set(
+    SUPPLIERS.map((row) => row.contactEmail?.toLowerCase()).filter((email): email is string => Boolean(email)),
+  )
+}
+
+function check(key: OutboundCheckKey, pass: boolean, en: string, de: string): OutboundCheck {
+  return { key, pass, reason: { en, de } }
+}
+
+/** Corrective requests are not invitations. They send from supplier management, in German, to the carrier on the action. */
+function correctiveChecks(draft: OutboundDraftFacts): OutboundCheck[] {
+  const text = draftText(draft)
+  const files = draft.attachments ?? []
+  const germanFile = files.some((file) => /corrective_action_request_de\.docx/i.test(file.name))
+  const namesAnotherCarrier = /\b(northbridge|alpinelink|veloce|eurospan)\b/i.test(text)
+  return [
+    check(
+      "recipient",
+      supplierContacts().has(draft.to.toLowerCase()),
+      "The recipient is not a known supplier contact.",
+      "Der Empfänger ist kein bekannter Lieferantenkontakt.",
+    ),
+    check(
+      "authority",
+      draft.from.toLowerCase() === SUPPLIER_MANAGEMENT_MAILBOX,
+      "A corrective request sends from supplier.management@compass-demo.example, not the sourcing mailbox.",
+      "Eine Korrekturaufforderung geht von supplier.management@compass-demo.example, nicht vom Beschaffungs-Postfach.",
+    ),
+    check(
+      "factsDates",
+      /seven days|sieben Tagen/i.test(text) && (/\bfive\b|fünf/i.test(text)),
+      "The request must name the seven-day deadline and the five late lanes.",
+      "Die Aufforderung muss die Frist von sieben Tagen und die fünf verspäteten Relationen nennen.",
+    ),
+    check(
+      "attachment",
+      germanFile,
+      "The German file Corrective_Action_Request_DE.docx is not attached.",
+      "Die deutsche Datei Corrective_Action_Request_DE.docx fehlt im Anhang.",
+    ),
+    check(
+      "confidentiality",
+      !namesAnotherCarrier,
+      "The note names another carrier. A corrective request goes only to the supplier on the action.",
+      "Die Notiz nennt einen anderen Träger. Eine Korrekturaufforderung geht nur an den Lieferanten der Maßnahme.",
+    ),
+    check(
+      "language",
+      draft.language === "DE" && draft.bodyDe.trim().length > 0 && germanFile,
+      "This request has to go out in German, with the German file attached.",
+      "Diese Aufforderung muss auf Deutsch hinausgehen, mit der deutschen Datei im Anhang.",
+    ),
+  ]
+}
+
 /** Six outbound checks. Approve and send stays disabled until every one passes. */
 export function evaluateOutboundChecks(
   session: Pick<LogisticsSession, "approvedRfp" | "rfpVersion">,
   draft: OutboundDraftFacts,
-): { key: OutboundCheckKey; pass: boolean }[] {
+): OutboundCheck[] {
+  if (draft.id === "EML-011") return correctiveChecks(draft)
   const text = draftText(draft)
-  const contacts = new Set(
-    SUPPLIERS.map((row) => row.contactEmail?.toLowerCase()).filter((email): email is string => Boolean(email)),
-  )
   const files = issuedInvitationAttachments(session, draft.id)
   const version = session.rfpVersion
   const names = new Set(files.map((file) => file.name))
@@ -261,18 +324,42 @@ export function evaluateOutboundChecks(
       : false
 
   return [
-    { key: "recipient", pass: contacts.has(draft.to.toLowerCase()) },
-    { key: "authority", pass: draft.from.toLowerCase() === SOURCING_MAILBOX },
-    {
-      key: "factsDates",
-      pass: text.includes("RFP-2026-001") && mentionsLanes(text) && mentionsForecast(text) && mentionsDeadline(text),
-    },
-    {
-      key: "attachment",
-      pass: Boolean(session.approvedRfp) && versionsMatch && (draft.id === "EML-001" ? englishPack : germanPack),
-    },
-    { key: "confidentiality", pass: confidential && !namesAnotherBidder },
-    { key: "language", pass: languagePass },
+    check(
+      "recipient",
+      supplierContacts().has(draft.to.toLowerCase()),
+      "The recipient is not a known supplier contact.",
+      "Der Empfänger ist kein bekannter Lieferantenkontakt.",
+    ),
+    check(
+      "authority",
+      draft.from.toLowerCase() === SOURCING_MAILBOX,
+      "Invitations send from sourcing@compass-demo.example.",
+      "Einladungen gehen von sourcing@compass-demo.example.",
+    ),
+    check(
+      "factsDates",
+      text.includes("RFP-2026-001") && mentionsLanes(text) && mentionsForecast(text) && mentionsDeadline(text),
+      "The draft must name RFP-2026-001, the lane count, the forecast, and the 23 October 2026 deadline.",
+      "Der Entwurf muss RFP-2026-001, die Zahl der Relationen, die Prognose und die Frist 23. Oktober 2026 nennen.",
+    ),
+    check(
+      "attachment",
+      Boolean(session.approvedRfp) && versionsMatch && (draft.id === "EML-001" ? englishPack : germanPack),
+      "The attachment pack must be the approved RFP version for this language.",
+      "Das Anhangspaket muss die freigegebene Ausschreibungsversion für diese Sprache sein.",
+    ),
+    check(
+      "confidentiality",
+      confidential && !namesAnotherBidder,
+      "The invitation must stay confidential to the named recipient and must not name another bidder.",
+      "Die Einladung muss für den genannten Empfänger vertraulich bleiben und darf keinen anderen Bieter nennen.",
+    ),
+    check(
+      "language",
+      languagePass,
+      "The English invitation carries the English pack. The German invitation carries the German pack.",
+      "Die englische Einladung trägt das englische Paket. Die deutsche Einladung trägt das deutsche Paket.",
+    ),
   ]
 }
 
@@ -393,7 +480,7 @@ export function isDismissalRationale(text: string): boolean {
   return /^(ignore this|ignore|dismiss|skip|n\/a|na)\b/i.test(text.trim())
 }
 
-export function materialExceptionsResolved(decisions: RequirementDecision[]): boolean {
+export function materialExceptionProgress(decisions: RequirementDecision[]): { done: number; total: number } {
   const ids = new Set(
     decisions
       .filter((d) =>
@@ -403,7 +490,12 @@ export function materialExceptionsResolved(decisions: RequirementDecision[]): bo
       )
       .map((d) => d.id),
   )
-  return MATERIAL_IDS.every((id) => ids.has(id))
+  return { done: MATERIAL_IDS.filter((id) => ids.has(id)).length, total: MATERIAL_IDS.length }
+}
+
+export function materialExceptionsResolved(decisions: RequirementDecision[]): boolean {
+  const progress = materialExceptionProgress(decisions)
+  return progress.done === progress.total
 }
 
 export function nextVersion(current: string | null, stem: string): string {

@@ -241,7 +241,7 @@ export function buildActionBoardHeroReasoning(
           "Loaded the logistics tender register and applied session progress per package",
           "Computed days remaining against each 21-day tender window and clarification cutoff",
           "Mapped each package to its controlled documents, SLA and qualification gates",
-          "Ranked by submission deadline, illustrative exposure and operating path",
+          "Ranked by submission deadline, exposure and operating path",
         ]
 
   const evidence = active.slice(0, 5).map(
@@ -259,7 +259,7 @@ export function buildActionBoardHeroReasoning(
   return {
     summary: options.useAgentSteps
       ? (fr ? "Compass hat die Pipeline aus Einkaufs-, Konditionen- und Lieferantenmarktanalysen priorisiert." : "Compass prioritised the tender pipeline from procurement portfolio, commercial and supply market specialist outputs.")
-      : (fr ? "Compass hat die Lose nach Frist, illustrativer Exposition und Betriebspfad geordnet." : "Compass ranked packages by submission deadline, illustrative exposure and operating path."),
+      : (fr ? "Compass hat die Lose nach Frist, Exposition und Betriebspfad geordnet." : "Compass ranked packages by submission deadline, exposure and operating path."),
     steps,
     evidence,
     conclusion: fr

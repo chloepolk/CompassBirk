@@ -142,7 +142,7 @@ function TimelineRow({ entry }: { entry: ActionTimelineEntry }) {
   }
 
   return (
-    <Collapsible defaultOpen={entry.status === "current"} className={rowClass}>
+    <Collapsible defaultOpen={false} className={rowClass}>
       <CollapsibleTrigger className="group w-full">{header}</CollapsibleTrigger>
       <CollapsibleContent>
         {/* Shaded layer differentiates automated BluePilot work from human actions. */}

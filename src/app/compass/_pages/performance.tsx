@@ -20,10 +20,11 @@ import {
   trendLabel,
 } from "@/lib/compass/logistics/vendor-model"
 import { performanceBlock } from "@/lib/compass/logistics/session"
+import { WorkflowGuideBar } from "../_components/workflow-guide-bar"
 
 export function PerformancePage() {
   const t = useT()
-  const { locale, focusSupplierId, openVendor360, openInbox, openTenderStudio, session, patchSession, advanceJourney } = useStore()
+  const { locale, focusSupplierId, openVendor360, openInbox, session, patchSession, advanceJourney } = useStore()
   const incumbents = React.useMemo(
     () => allVendorProfiles(session.createdContracts, session.asOfMonth).filter((p) => p.historyStatus === "Available"),
     [session.createdContracts, session.asOfMonth],
@@ -66,6 +67,8 @@ export function PerformancePage() {
           {!session.performanceReleased ? ` · ${t("performance.postAward")}` : ""}
         </p>
       </div>
+
+      <WorkflowGuideBar page="performance" />
 
       <div className="flex flex-wrap gap-2">
         {incumbents.map((p) => (
@@ -307,7 +310,7 @@ export function PerformancePage() {
                       </div>
                     )}
                     {a.actionId === "ACT-007" && session.performanceReleased && reviewStarted && status !== "closed" && (
-                      <div className="mt-2 space-y-2">
+                      <div data-guide-anchor="performance-draft" className="mt-2 scroll-mt-28 space-y-2">
                         <button type="button" className="rounded-[8px] border border-[var(--color-border-default)] px-3 py-1.5 text-[12px] font-semibold" onClick={() => openInbox("EML-011")}>
                           {locale === "de" ? "Deutschen Entwurf prüfen" : "Review German draft"}
                         </button>
@@ -375,7 +378,7 @@ export function PerformancePage() {
           </div>
 
           {session.awardApproved && (
-            <section className={cn(pcmCard, "rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 space-y-2")}>
+            <section data-guide-anchor="performance-renewal" className={cn(pcmCard, "scroll-mt-28 space-y-2 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5")}>
               <h3 className="text-[15px] font-semibold">{locale === "de" ? "Verlängerung" : "Renewal"}</h3>
               <dl className="grid gap-2 text-[12px] text-[var(--color-text-secondary)] sm:grid-cols-2">
                 <div><dt className="text-[10px] uppercase text-[var(--color-text-muted)]">{locale === "de" ? "Ablauf" : "Expiry"}</dt><dd>{awardedBaseline?.endDate ?? contract?.endDate ?? "31 December 2026"} · {awardedBaseline?.renewalTerms ?? "120-day notice"}</dd></div>
@@ -394,7 +397,6 @@ export function PerformancePage() {
                   if (session.journeyStep !== "s9" && session.journeyStep !== "s10") return
                   patchSession({ renewalEventId: "RFP-2027-001" })
                   advanceJourney("s10")
-                  openTenderStudio("PKG-REN-001")
                 }}
               >
                 {session.renewalEventId

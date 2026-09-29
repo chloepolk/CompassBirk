@@ -99,7 +99,7 @@ export function RequirementGovernance() {
   }
 
   return (
-    <section className="space-y-4 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
+    <section data-guide-anchor="requirements" className="scroll-mt-28 space-y-4 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
       <div>
         <h2 className="text-[16px] font-semibold text-[var(--color-text-primary)]">
           {de ? "Anforderungssteuerung" : "Requirement governance"}

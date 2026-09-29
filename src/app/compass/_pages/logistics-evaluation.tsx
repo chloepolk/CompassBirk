@@ -7,7 +7,7 @@ import { formatEurFigure } from "@/lib/compass/locale-display"
 import { EVAL_LOG_V1 } from "../data/_bid-scoring"
 
 export function LogisticsEvaluationPanel() {
-  const { locale, session, patchSession, advanceJourney, openAward } = useStore()
+  const { locale, session, patchSession, advanceJourney } = useStore()
   const de = locale === "de"
   const [scenarioId, setScenarioId] = React.useState(session.selectedScenarioId ?? "AWD-02")
   const [override, setOverride] = React.useState("")
@@ -42,7 +42,6 @@ export function LogisticsEvaluationPanel() {
     })
     advanceJourney("s6")
     setAudit((prev) => [...prev, `${entry.at} recommendation ${scenarioId}${rationale ? ` override: ${rationale}` : ""}`])
-    openAward()
   }
 
   return (
@@ -98,9 +97,11 @@ export function LogisticsEvaluationPanel() {
           ? `Herkunft: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"}. Incumbent-Score aus Vendor 360, Berechnung v1.2. Eine Empfehlung ist kein Zuschlag.`
           : `Lineage: ${session.requirementSetVersion ?? "—"} · ${session.evaluationMethodVersion ?? "—"} · ${session.rfpVersion ?? "—"}. Incumbent history is the Vendor 360 score, calculation v1.2. A recommendation is not an award.`}
       </p>
+      <div data-guide-anchor="bid-scenario" className="scroll-mt-28">
       <button type="button" onClick={recommend} className="rounded-[10px] bg-[var(--color-brand-primary)] px-4 py-2 text-[13px] font-semibold text-white">
         {de ? "Empfehlung zur Freigabe einreichen" : "Submit recommendation for approval"}
       </button>
+      </div>
       {notice && <p className="text-[12px] text-[var(--color-accent-warning-text)]">{notice}</p>}
       {audit.length > 0 && (
         <ul className="text-[11px] text-[var(--color-text-muted)]">
